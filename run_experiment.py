@@ -61,16 +61,16 @@ flags.DEFINE_boolean(
     ("Whether or not the test file was prepared separately.")
 )
 flags.DEFINE_string(
-    "test_prefix", "Ga", # # Ga, M3_Mo
+    "test_prefix", "Fe10-Fe22", # # Ga, M3_Mo, Fe10-Fe22
     ("The prefix of train, test separating files")
 )
 flags.DEFINE_float(
-    "warmstart_size", 0.1,
+    "warmstart_size", 0.2,
     ("Can be float or integer.  Float indicates percentage of training data "
      "to use in the initial warmstart model")
 )
 flags.DEFINE_float(
-    "batch_size", 0.1,
+    "batch_size", 0.05,
     ("Can be float or integer.  Float indicates batch size as a percentage "
      "of training data size.") # # number of updated data points to the model
 )
@@ -83,7 +83,7 @@ flags.DEFINE_string("confusions", "0.1 0.3 0.5",
 flags.DEFINE_string("active_sampling_percentage", "0.1 0.3 0.5 0.7 0.9",
                     "Mixture weights on active sampling.")
 flags.DEFINE_string(
-    "score_method", "kernel_svm", # # logistic, kernel_svm, krr,
+    "score_method", "u_gp", # # logistic, kernel_svm, krr, gp
     "Method to use to calculate accuracy.")  
 flags.DEFINE_string(
     "select_method", "None",
@@ -412,5 +412,6 @@ def run():
     sys.stdout.flush_file()
 
 if __name__ == "__main__":
-  app.run(run)
-  # main()
+  # app.run(run)
+  main()
+

@@ -58,10 +58,11 @@ FLAGS = flags.FLAGS
 
 class Dataset(object):
 
-  def __init__(self, X, y):
+  def __init__(self, X, y, index=None):
     self.data = X
     self.target = y
-
+    if index is not None:
+      self.index=index
 
 def get_csv_data(filename):
   """Parse csv and return Dataset object with data and targets.
@@ -96,6 +97,7 @@ def get_pv_tv(df, pv, tv, rmvs):
       if rmv in pv:
         pv.remove(rmv)
   return pv, tv
+
 def get_ofm_data(filename, pv, tv, rmvs):
   df = pd.read_csv(filename, index_col=0)
   df = df.dropna()
@@ -118,16 +120,17 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   df = df.dropna()
   pv, tv = get_pv_tv(df, pv, tv, rmvs)
 
-  idx = [k for k in df.index if test_cond in k]
+  # idx = [k for k in df.index if test_cond in k]
+  idx = [k for k in df.index if "Fe10" in k or "Fe22" in k]
+  print(idx)
   test_idx = df.index.isin(idx)
-  fe = df[tv].values
-  stb_thres = 0.0603 # # found in 200318_note1
-  y_cat = np.array(['stable' if i < stb_thres else 'unstable' for i in fe])
-  df[tv] = y_cat
+  # fe = df[tv].values
+  # stb_thres = 0.0603 # # found in 200318_note1
+  # y_cat = np.array(['stable' if i < stb_thres else 'unstable' for i in fe])
+  # df[tv] = fe
 
-  print(test_idx)
-  X_train = df.loc[~test_idx, pv].values
-  y_train = df.loc[~test_idx, tv].values
+  X_train = df.loc[~test_idx, pv]
+  y_train = df.loc[~test_idx, tv]
 
   X_test = df.loc[test_idx, pv].values
   y_test = df.loc[test_idx, tv].values
@@ -136,10 +139,12 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   print ("N unstable train", len(np.where(y_train =="unstable")[0]))
   print ("N stable test", len(np.where(y_test =="stable")[0]))
   print ("N unstable test", len(np.where(y_test =="unstable")[0]))
+  print("5 train idx", y_train.index[:5])
+  print("5 test idx", idx[:5])
 
 
-  data_train = Dataset(X_train, y_train)
-  data_test = Dataset(X_test, y_test)
+  data_train = Dataset(X_train.values, y_train.values, y_train.index)
+  data_test = Dataset(X_test, y_test, idx)
 
   return data_train, data_test
 
@@ -409,7 +414,7 @@ def main(argv):
     # get_mldata(d)
 
     # # separate test set
-    get_mldata(d, is_test_separate=True, prefix="M2_wyckoff") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
+    get_mldata(d, is_test_separate=True, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
 
 
 if __name__ == '__main__':

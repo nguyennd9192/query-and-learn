@@ -222,6 +222,9 @@ def get_model(method, seed=13):
   #   a decision function.
   # TODO(lishal): for kernel methods, currently using default value for gamma
   # but should probably tune.
+  if method=="u_gp":
+    model = UncertainGaussianProcess(random_state=1, cv=3, n_times=3,
+              search_param=True, verbose=False)
 
   if method == "logistic":
     model = LogisticRegression(random_state=seed, multi_class="multinomial",
@@ -252,7 +255,6 @@ def get_model(method, seed=13):
     # Model does not work with weighted_expert or simulate_batch
     model = AllConv(random_state=seed)
     return model
-
   else:
     raise NotImplementedError("ERROR: " + method + " not implemented")
 
