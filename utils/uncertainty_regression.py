@@ -96,7 +96,7 @@ class UncertainEnsembleRegression(object):
     if get_pred_vals:
       return y_val_preds
     else:
-      return np.mean(y_val_preds, axis=1)
+      return np.mean(y_val_preds, axis=0)
 
   def score(self, X_val, y_val):
     y_pred = self.predict(X_val, get_variance=False)

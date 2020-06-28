@@ -37,7 +37,7 @@ from tensorflow.io import gfile
 from utils.kernel_block_solver import BlockKernelSolver
 from utils.small_cnn import SmallCNN
 from utils.allconv import AllConv
-
+from utils.uncertainty_regression import UncertainGaussianProcess
 
 class Logger(object):
   """Logging object to write to file and stdout."""
@@ -225,7 +225,7 @@ def get_model(method, seed=13):
   if method=="u_gp":
     model = UncertainGaussianProcess(random_state=1, cv=3, n_times=3,
               search_param=True, verbose=False)
-
+    return model
   if method == "logistic":
     model = LogisticRegression(random_state=seed, multi_class="multinomial",
                                solver="lbfgs", max_iter=200)
