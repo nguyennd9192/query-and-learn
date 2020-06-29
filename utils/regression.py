@@ -1,14 +1,16 @@
 import pandas as pd
 import numpy as np
 import warnings
+from sklearn.metrics import r2_score, mean_absolute_error, accuracy_score, precision_recall_fscore_support
 
-from sklearn.metrics import r2_score
 from sklearn.model_selection import KFold
 from sklearn.linear_model import LinearRegression
 from sklearn.kernel_ridge import KernelRidge
 # from least_square_fit import LeastSquareFit
 from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler, StandardScaler, scale
 from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 
 class RegressionFactory(object):
     
@@ -20,16 +22,18 @@ class RegressionFactory(object):
         if search_param:
             alpha, gamma, scores_mean, scores_std = RegressionFactory.kernel_ridge_parameter_search(
                 X=X, y_obs=y, kernel=kernel, n_folds=cv, n_times=n_times)
-        return KernelRidge(
-            kernel = kernel,
-            alpha = alpha, 
-            gamma = gamma
-        )
+        return KernelRidge(kernel=kernel, alpha=alpha, gamma=gamma)
     elif method == "gp":
         if search_param:
-            best_gpr = RegressionFactory.gaussian_process_cv_with_noise(
-                X=X, y_obs=y, cv=cv, n_random=n_times)
-        return best_gpr
+          best_gpr, GridSearchCV = RegressionFactory.gaussian_process_cv_with_noise(
+              X=X, y_obs=y, cv=cv, n_random=n_times)
+        else:
+          default_kernel = RegressionFactory.gp_kernel(c=10, l=10, n=10)
+          best_gpr = GaussianProcessRegressor(alpha=1e-3, kernel=default_kernel)
+          GridSearchCV = None
+          best_gpr.fit(X, y)
+        print("best_gpr params:", best_gpr.get_params())
+        return best_gpr, GridSearchCV
     elif method == "lr":
         return LinearRegression()
 
@@ -136,24 +140,26 @@ class RegressionFactory(object):
 
     return alpha, gamma, scores_mean[best_index], scores_std[best_index]
 
+  def gp_kernel(c, l, n):
+    tmp = ConstantKernel(constant_value=c)*RBF(length_scale=l) + WhiteKernel(noise_level=n)
+    return tmp
+
   @staticmethod
   def gaussian_process_cv_with_noise(X, y_obs, cv=10, n_random=10):
-    from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
-    from sklearn.model_selection import GridSearchCV
     n_steps = 5
-    rbf_length_lb = -2
+    rbf_length_lb = -1
     rbf_length_ub = 1
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
 
     const_lb = -1
-    const_ub = 2
+    const_ub = 1
     consts = np.logspace(const_lb, const_ub, n_steps)
 
-    noise_lb = -2
+    noise_lb = -1
     noise_ub = 1
     noises = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
 
-    alpha_lb = -2
+    alpha_lb = -10
     alpha_ub = 1
     alphas = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
     # param_grid = {'alpha':  
@@ -164,16 +170,61 @@ class RegressionFactory(object):
 
     # best_gpr = GridSearchCV(gp,cv=3,param_grid=param_grid,n_jobs=2)
     param_grid = {"alpha": alphas,
-          "kernel": [ConstantKernel(constant_value=c)*RBF(length_scale=l) + WhiteKernel(noise_level=n)  # noise terms
+          "kernel": [RegressionFactory.gp_kernel(c, l, n)  # noise terms
                 for c in consts for l in rbf_lengths for n in noises]}
+    # if cv == -1:
+    #   cv = 20 # # len(y_obs) - 5
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
                 cv=cv,n_jobs=4)
     GridSearch.fit(X, y_obs)
     best_gpr = GridSearch.best_estimator_
     best_gpr.fit(X, y_obs)
     print("best_gpr params:", best_gpr.get_params())
-    return best_gpr
+    return best_gpr, GridSearch
 
+
+def CV_predict_score(model, X, y, n_folds=3, n_times=3, score_type='r2'):
+
+    if (n_folds <= 0) or (n_folds > len(y)):
+        n_folds = len(y)
+        n_times = 1
+
+    y_predicts = []
+    scores = []
+    errors = []
+    for i in range(n_times):
+        y_predict = CV_predict(model=model, X=X, y=y, n_folds=n_folds, n_times=1)
+        # n_times = 1 then the result has only 1 y_pred array
+        y_predict = y_predict[0]
+
+        if score_type == "r2":
+            this_score = r2_score(y_true=y, y_pred=y_predict)
+            this_err = mean_absolute_error(y_true=y, y_pred=y_predict)
+            errors.append(this_err)
+            scores.append(this_score)
+
+        if score_type == "clf-score":
+            this_score = precision_recall_fscore_support(y_true=y, y_pred=y_predict, 
+                average='macro')
+            scores.append(this_score)
+
+
+    if score_type == "r2":
+        return np.mean(scores), np.std(scores), np.mean(errors), np.std(errors)
+    
+    if score_type == "clf-score":
+        scores = np.array(scores)
+        
+        precisions = scores[:, 0]
+        recalls = scores[:, 1]
+        f1_scores = scores[:, 2]
+        support = scores[0, 3]
+
+        return_result = [np.mean(precisions), np.std(precisions), 
+                        np.mean(recalls), np.std(recalls), 
+                        np.mean(f1_scores), np.std(f1_scores), support]
+
+        return  return_result
 
 # class Regression(object):
 #     def __init__(self):

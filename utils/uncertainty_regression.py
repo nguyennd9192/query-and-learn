@@ -24,7 +24,7 @@ import numpy as np
 import scipy.linalg as linalg
 from scipy.sparse.linalg import spsolve
 from sklearn import metrics
-from utils.regression import RegressionFactory
+from utils.regression import RegressionFactory, CV_predict_score
 from sklearn.preprocessing import MinMaxScaler
 from utils.combination_generator import CombinationGeneratorFactory
 
@@ -62,6 +62,8 @@ class UncertainEnsembleRegression(object):
     self.X_train = X_train
     self.y_train = y_train
 
+    # # currently, anytime we fit the estimator with X_train, y_train
+    # # we researching for parameter
     estimator = RegressionFactory.get_regression(method=self.score_method, 
         kernel='rbf', alpha=self.alpha, gamma=self.gamma, 
         search_param=self.search_param, X=X_train, y=y_train,  
@@ -142,11 +144,12 @@ class UncertainGaussianProcess(object):
     self.y_train = y_train
 
     if self.estimator is None:
-      estimator = RegressionFactory.get_regression(method="gp", 
+      estimator, GridSearchCV = RegressionFactory.get_regression(method="gp", 
           kernel='rbf', alpha=None, gamma=None, 
           search_param=self.search_param, X=X_train, y=y_train,  
           cv=self.cv, n_times=self.n_times)
       self.estimator = estimator
+      self.GridSearchCV = GridSearchCV
     self.estimator.fit(X_train, y_train)
 
     return self.estimator
@@ -159,8 +162,8 @@ class UncertainGaussianProcess(object):
       return y_val_pred
 
   def score(self, X_val, y_val):
-    y_pred, y_val_pred_std = self.predict(X_val, get_variance=False)
-    val_acc = metrics.accuracy_score(y_val, y_pred)
+    y_pred = self.predict(X_val, get_variance=False)    
+    val_acc = metrics.r2_score(y_val, y_pred)
     return val_acc
 
   def predict_proba(self, X):
@@ -171,11 +174,17 @@ class UncertainGaussianProcess(object):
     # # normalize variance to 0-1
     var_norm = MinMaxScaler().fit_transform(X=y_val_pred_std.reshape(-1, 1))
     prob = 1 / var_norm
-    return prob
+    return prob.ravel()
 
-
-
-
-
-
+  def best_score_(self):
+    # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
+    # # GridSearchCV.best_score_ returns cv score of best parameter
+    # # this UncertainGaussianProcess.best_score_returns cv score of given params
+    if self.GridSearchCV is None:
+      r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, self.X_train, self.y_train, 
+                n_folds=3, n_times=3, score_type='r2')
+      result = r2
+    else:
+      result = self.GridSearchCV.best_score_
+    return result
 

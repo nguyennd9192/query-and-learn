@@ -60,12 +60,20 @@ flags.DEFINE_boolean(
     "is_test_separate", True,
     ("Whether or not the test file was prepared separately.")
 )
+flags.DEFINE_boolean(
+    "is_clf", False,
+    ("Performing classification or regression model")
+)
+flags.DEFINE_boolean(
+    "is_search_params", True,
+    ("search estimator or not")
+)
 flags.DEFINE_string(
     "test_prefix", "Fe10-Fe22", # # Ga, M3_Mo, Fe10-Fe22
     ("The prefix of train, test separating files")
 )
 flags.DEFINE_float(
-    "warmstart_size", 0.2,
+    "warmstart_size", 0.1,
     ("Can be float or integer.  Float indicates percentage of training data "
      "to use in the initial warmstart model")
 )
@@ -78,7 +86,7 @@ flags.DEFINE_integer("trials", 3,
                      "Number of curves to create using different seeds")
 flags.DEFINE_integer("seed", 1, "Seed to use for rng and random state")
 # TODO(lisha): add feature noise to simulate data outliers
-flags.DEFINE_string("confusions", "0.1 0.3 0.5", 
+flags.DEFINE_string("confusions", "0.1", 
   "Percentage of labels to randomize") 
 flags.DEFINE_string("active_sampling_percentage", "0.1 0.3 0.5 0.7 0.9",
                     "Mixture weights on active sampling.")
@@ -114,11 +122,13 @@ def get_savefile():
     s_at =str( "results_score_" + FLAGS.score_method + 
                 "_select_" + FLAGS.select_method +
                 "_norm_" + (FLAGS.normalize_data) +
+                "_is_search_params_" + str(FLAGS.is_search_params) +
                 "_stand_" + FLAGS.standardize_data)
   else:
     s_at =str( "results_score_" + FLAGS.score_method + 
                 "_select_" + FLAGS.select_method +
                 "_norm_" + (FLAGS.normalize_data) +
+                "_is_search_params_" + str(FLAGS.is_search_params) +
                 "_stand_" + FLAGS.standardize_data +
                 "_test_" + FLAGS.test_prefix)
   return s_at
@@ -140,7 +150,7 @@ def generate_one_curve(X, y,
                        warmstart_size,
                        batch_size,
                        select_model=None,
-                       confusion=0.,
+                       confusion=0.1,
                        active_p=1.0,
                        max_points=None,
                        standardize_data=False,
@@ -224,23 +234,30 @@ def generate_one_curve(X, y,
     seed_batch = int(warmstart_size * train_size)
   else:
     seed_batch = int(warmstart_size)
-  seed_batch = max(seed_batch, 6 * len(np.unique(y)))
+
+  if len(np.unique(y)) > 10:
+    print("Warning!!! Reconsidering is_clf tag. The number of classes is larger than 10.")
+
+  if FLAGS.is_clf:
+    # # check classification or not
+    seed_batch = max(seed_batch, 6 * len(np.unique(y)))
+  
 
   # # Nguyen, for regression
   if FLAGS.score_method == "krr":
     seed_batch = 5000
   # print ("score_model", score_model)
-
   if not FLAGS.is_test_separate:
     indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
         utils.get_train_val_test_splits(X,y,max_points,seed,confusion,
-                                        seed_batch, split=data_splits))
+                                        seed_batch, split=data_splits, is_clf=FLAGS.is_clf))
   else:
       indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
         utils.get_sept_train_val_test(X, y, X_sept_test, y_sept_test, 
-          max_points, seed, confusion, seed_batch, split=[2./3, 1./3]) 
+          max_points, seed, confusion, seed_batch, split=[2./3, 1./3], is_clf=FLAGS.is_clf) 
       )
-      
+  print("Done splitting train, val, test")
+  
   # Preprocess data
   if norm_data:
     print("Normalizing data")
@@ -253,9 +270,9 @@ def generate_one_curve(X, y,
     X_train = scaler.transform(X_train)
     X_val = scaler.transform(X_val)
     X_test = scaler.transform(X_test)
-  print("X shape: " + str(X.shape) + "y shape: " + str(y.shape) +
-    "train_size: " + str(train_size) + "active percentage: " + str(active_p) + 
-    "warmstart batch: " + str(seed_batch) + "batch size: " + str(batch_size) + 
+  print("X shape: " + str(X.shape) + "y shape: " + str(y.shape) + " " +
+    "train_size: " + str(train_size) + "active percentage: " + str(active_p) + " " +
+    "warmstart batch: " + str(seed_batch) + "batch size: " + str(batch_size) + " " +
     "confusion: " + str(confusion) + "seed: " + str(seed))
 
   # Initialize samplers
@@ -269,7 +286,6 @@ def generate_one_curve(X, y,
   cv_train_model = []
   save_model = []
 
-
   # If select model is None, use score_model
   same_score_select = False
   if select_model is None:
@@ -277,6 +293,9 @@ def generate_one_curve(X, y,
     same_score_select = True
   n_batches = int(np.ceil((train_horizon * train_size - seed_batch) *
                           1.0 / batch_size)) + 1
+  print("n_batches: ", n_batches)
+  print("seed_batch: ", seed_batch)
+
   for b in range(n_batches):
     n_train = seed_batch + min(train_size - seed_batch, b * batch_size)
     print("Training model on " + str(n_train) + " datapoints")
@@ -287,7 +306,10 @@ def generate_one_curve(X, y,
     # Sort active_ind so that the end results matches that of uniform sampling
     partial_X = X_train[sorted(selected_inds)]
     partial_y = y_train[sorted(selected_inds)]
+    print("prepare to fit")
     score_model.fit(partial_X, partial_y)
+    print("done fitting")
+
     if not same_score_select:
       select_model.fit(partial_X, partial_y)
     acc = score_model.score(X_test, y_test)
@@ -380,12 +402,13 @@ def run():
     for m in mixtures:
       for seed in range(starting_seed, starting_seed + FLAGS.trials):
         sampler = get_AL_sampler(FLAGS.sampling_method)
-        score_model = utils.get_model(FLAGS.score_method, seed)
+        score_model = utils.get_model(FLAGS.score_method, seed, FLAGS.is_search_params)
         if (FLAGS.select_method == "None" or
             FLAGS.select_method == FLAGS.score_method):
           select_model = None
         else:
           select_model = utils.get_model(FLAGS.select_method, seed)
+        print("Done preparing select_model..")
         results, sampler_state = generate_one_curve(
             X, y, X_sept_test, y_sept_test, sampler, score_model, seed, FLAGS.warmstart_size,
             FLAGS.batch_size, select_model, c, m, max_dataset_size,
@@ -406,10 +429,14 @@ def run():
   if do_save:
     filename = get_savefile()
     existing_files = gfile.glob(os.path.join(save_dir, filename + "*.pkl"))
+    extend_save_idx = str(1000+len(existing_files))[1:]
     filename = os.path.join(save_dir,
-                            filename + "_" + str(1000+len(existing_files))[1:] + ".pkl")
+                            filename + "_" + extend_save_idx + ".pkl")    
+    # filename = os.path.join(save_dir,
+    #                         filename + "_" + "000" + ".pkl")
     pickle.dump(all_results, gfile.GFile(filename, "w"))
     sys.stdout.flush_file()
+    return extend_save_idx
 
 if __name__ == "__main__":
   # app.run(run)

@@ -39,12 +39,12 @@ markers = dict({0.1:"o", 0.3:"p", 0.5:"v", 0.7:"^", 0.9:"s"})
 # markers = ["o", "p", "v", "^", "s"]
 
 
-def main_proc():
+def main_proc(ith_trial="000"):
 
 	result_dir = get_savedir()
 	filename = get_savefile()
 
-	ith_trial = "000"
+	# ith_trial = "000"
 	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
 	print(result_file)
 
@@ -75,6 +75,7 @@ def main_proc():
 
 			x = np.arange(len(accuracies))
 			plot_idx = [k for k in x]
+			print("Here", acc_cv_train)
 
 			scatter_plot(x=x[plot_idx] + 1, y=accuracies[plot_idx], xvline=None, yhline=None, 
 					sigma=None, mode='line', lbl="m:{0}__c{1}".format(m, c), name=None, 
@@ -82,12 +83,12 @@ def main_proc():
 					preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
 					 color=colors[m], marker=markers[c]
 					)
-			scatter_plot(x=x[plot_idx] + 1, y=acc_cv_train[plot_idx], xvline=None, yhline=None, 
-					sigma=None, mode='scatter', lbl="m:{0}__c{1}".format(m, c), name=None, 
-					x_label='n update', y_label='accuracy', 
-					preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
-					 color=colors[m], marker=markers[c]
-					)
+			# scatter_plot(x=x[plot_idx] + 1, y=acc_cv_train[plot_idx], xvline=None, yhline=None, 
+			# 		sigma=None, mode='scatter', lbl="m:{0}__c{1}".format(m, c), name=None, 
+			# 		x_label='n update', y_label='accuracy', 
+			# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
+			# 		 color=colors[m], marker=markers[c]
+			# 		)
 			print("data_sizes:", result_dict["data_sizes"])
 			print("cv", result_dict["cv_train_model"])
 
@@ -111,8 +112,8 @@ def main_proc():
 	# text += "\n".join(["{0}: {1}".format(k, v) for k, v in result_key_to_text.items() if k != "data_sizes"])
 
 	text += "batch data size: " + str(batch_data_size) + "\n"
-	text += "init train size: "  + str(init_data_size)  + " cv: " + str(round(result_key_to_text["cv_train_model"][0], 2)) + "\n"
-	text += "final train size: " + str(final_data_size) + " cv: " + str(round(result_key_to_text["cv_train_model"][-1], 2)) +  "\n"
+	# text += "init train size: "  + str(init_data_size)  + " cv: " + str(round(result_key_to_text["cv_train_model"][0], 2)) + "\n"
+	# text += "final train size: " + str(final_data_size) + " cv: " + str(round(result_key_to_text["cv_train_model"][-1], 2)) +  "\n"
 	text += "test data size: " + str(result_key_to_text["n_test"]) + "\n"
 	text += "is test separate: " + str(result_key_to_text["is_test_separate"]) + "\n"
 	text += "test_prefix: " + str(result_key_to_text["test_prefix"]) + "\n"

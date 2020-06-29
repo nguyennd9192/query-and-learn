@@ -52,6 +52,8 @@ class MarginAL(SamplingMethod):
       distances = model.decision_function(self.X)
     except:
       distances = model.predict_proba(self.X)
+
+    # print("distances", distances)
     if len(distances.shape) < 2:
       min_margin = abs(distances)
     else:

@@ -7,7 +7,7 @@ from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnse
 from sklearn.metrics import r2_score
 
 def get_train_test(X, y):
-	n_train = int(len(y) * 0.9)
+	n_train = int(len(y) * 0.5)
 	X_train = X[:n_train, :]
 	X_test = X[n_train:, :]
 	y_train = y[:n_train]
@@ -39,8 +39,8 @@ def test_ensemble(X, y):
 	y_pred = ens_reg.predict(X_test, get_pred_vals=False)
 	r2 = r2_score(y_pred, y_test)
 
-	print("gp best params: ", gp.estimator.get_params())
-	print("y_prob: ", y_prob)
+	print("ens_reg best params: ", ens_reg.estimator.get_params())
+	print("y_prob: ", y_pred)
 	print("r2 ensemble krr: ", r2)
 
 if __name__ == "__main__":
