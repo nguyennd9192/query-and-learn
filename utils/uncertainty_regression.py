@@ -76,7 +76,7 @@ class UncertainEnsembleRegression(object):
     indices = list(range(len(self.y_train)))
     multiple_sub_indices = CombinationGeneratorFactory.get_generator(
         method="bagging", items=indices, 
-        sample_size=0.6, n_shuffle=self.n_shuffle
+        sample_size=0.4, n_shuffle=self.n_shuffle
     )
 
     X_train_copy = copy.copy(self.X_train)
@@ -112,13 +112,10 @@ class UncertainEnsembleRegression(object):
     y_val_preds = self.predict(X, get_pred_vals=True)
 
     # # normalize variance to 0-1
-    var = np.var(y_val_preds)
-    print("HERE", y_val_preds)
-    
-    # print("HERE", len(var))
-
+    var = np.var(y_val_preds, axis=1)
+    print(var)
     var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
-    prob = 1 / var_norm
+    prob = 1 / (var_norm+1e-5)
     return prob.ravel()
   def best_score_(self):
     # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:

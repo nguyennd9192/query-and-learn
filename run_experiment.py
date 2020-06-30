@@ -169,7 +169,8 @@ def generate_one_curve(X, y,
   else:
     seed_batch = int(warmstart_size)
 
-  if len(np.unique(y)) > 10:
+  if len(np.unique(y)) > 10 and FLAGS.is_clf:
+    # # if performing classification but y is continuous variable
     print("Warning!!! Reconsidering is_clf tag. Number of classes is larger than 10.")
 
   if FLAGS.is_clf:

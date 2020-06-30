@@ -204,7 +204,7 @@ def flip_label(y, percent_random):
   return y
 
 
-def get_model(method, seed=13, is_search_params=True, n_shuffle=1000):
+def get_model(method, seed=13, is_search_params=True, n_shuffle=10000):
   """Construct sklearn model using either logistic regression or linear svm.
 
   Wraps grid search on regularization parameter over either logistic regression
