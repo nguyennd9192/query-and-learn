@@ -64,10 +64,11 @@ class UncertainEnsembleRegression(object):
 
     # # currently, anytime we fit the estimator with X_train, y_train
     # # we researching for parameter
-    estimator = RegressionFactory.get_regression(method=self.score_method, 
+    estimator, GridSearchCV = RegressionFactory.get_regression(method=self.score_method, 
         kernel='rbf', alpha=self.alpha, gamma=self.gamma, 
         search_param=self.search_param, X=X_train, y=y_train,  
         cv=self.cv, n_times=self.n_times)
+    self.GridSearchCV = GridSearchCV
     self.estimator = estimator
     return estimator
 
@@ -101,21 +102,35 @@ class UncertainEnsembleRegression(object):
       return np.mean(y_val_preds, axis=0)
 
   def score(self, X_val, y_val):
-    y_pred = self.predict(X_val, get_variance=False)
-    val_acc = metrics.accuracy_score(y_val, y_pred)
+    y_pred = self.predict(X_val, get_pred_vals=False)
+    val_acc = metrics.r2_score(y_val, y_pred)
     return val_acc
 
   def predict_proba(self, X):
     # # large variance -> probability to be observed small
     # # small variance -> probability to be observed large 
-    y_val_preds = self.predict(X, get_variance=True)
+    y_val_preds = self.predict(X, get_pred_vals=True)
 
     # # normalize variance to 0-1
-    var = np.var(y_val_preds, axis=1)
-    var_norm = MinMaxScaler.fit_transform(var)
-    prob = 1 / var_norm
-    return prob
+    var = np.var(y_val_preds)
+    print("HERE", y_val_preds)
+    
+    # print("HERE", len(var))
 
+    var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
+    prob = 1 / var_norm
+    return prob.ravel()
+  def best_score_(self):
+    # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
+    # # GridSearchCV.best_score_ returns cv score of best parameter
+    # # this UncertainGaussianProcess.best_score_returns cv score of given params
+    if self.GridSearchCV is None:
+      r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, self.X_train, self.y_train, 
+                n_folds=3, n_times=3, score_type='r2')
+      result = r2
+    else:
+      result = self.GridSearchCV.best_score_
+    return result
 
 class UncertainGaussianProcess(object):
   def __init__(self,

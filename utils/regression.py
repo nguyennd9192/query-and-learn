@@ -20,20 +20,42 @@ class RegressionFactory(object):
     method = method.strip().lower()
     if method == "kr":
         if search_param:
-            alpha, gamma, scores_mean, scores_std = RegressionFactory.kernel_ridge_parameter_search(
-                X=X, y_obs=y, kernel=kernel, n_folds=cv, n_times=n_times)
-        return KernelRidge(kernel=kernel, alpha=alpha, gamma=gamma)
+          # alpha, gamma, scores_mean, scores_std = RegressionFactory.kernel_ridge_parameter_search(
+          #       X=X, y_obs=y, kernel=kernel, n_folds=cv, n_times=n_times)
+          n_steps = 10
+
+          alpha_lb = -2
+          alpha_ub = 2
+          alphas = np.logspace(alpha_lb, alpha_ub, n_steps)
+
+          gamma_lb = -2
+          gamma_ub = 2
+          gammas = np.logspace(gamma_lb, gamma_ub, n_steps)
+          param_grid = {"alpha": alphas, "gamma": gammas}
+
+          md_selection = GridSearchCV(KernelRidge(kernel=kernel), param_grid=param_grid,
+                cv=cv,n_jobs=4) # # scoring
+          md_selection.fit(X,y)
+          model=md_selection.best_estimator_
+        else:
+          model=KernelRidge(kernel=kernel, alpha=alpha, gamma=gamma)
+        return model, md_selection
     elif method == "gp":
         if search_param:
-          best_gpr, GridSearchCV = RegressionFactory.gaussian_process_cv_with_noise(
+          best_gpr, md_selection = RegressionFactory.gaussian_process_cv_with_noise(
               X=X, y_obs=y, cv=cv, n_random=n_times)
         else:
-          default_kernel = RegressionFactory.gp_kernel(c=10, l=10, n=10)
-          best_gpr = GaussianProcessRegressor(alpha=1e-3, kernel=default_kernel)
-          GridSearchCV = None
-          best_gpr.fit(X, y)
+          # default_kernel = RegressionFactory.gp_kernel(c=10, l=10, n=10)
+          # best_gpr = GaussianProcessRegressor(alpha=1e-3, kernel=default_kernel)
+          
+          default_kernel = RegressionFactory.gp_kernel(c=1.0, l=100, n=100)
+          best_gpr = GaussianProcessRegressor(alpha=0.01, kernel=default_kernel)
+          
+          md_selection = None
+        best_gpr.fit(X, y)
         print("best_gpr params:", best_gpr.get_params())
-        return best_gpr, GridSearchCV
+
+        return best_gpr, md_selection
     elif method == "lr":
         return LinearRegression()
 
@@ -147,21 +169,21 @@ class RegressionFactory(object):
   @staticmethod
   def gaussian_process_cv_with_noise(X, y_obs, cv=10, n_random=10):
     n_steps = 5
-    rbf_length_lb = -1
-    rbf_length_ub = 1
+    rbf_length_lb = -2
+    rbf_length_ub = 2
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
 
-    const_lb = -1
-    const_ub = 1
+    const_lb = -2
+    const_ub = 2
     consts = np.logspace(const_lb, const_ub, n_steps)
 
-    noise_lb = -1
-    noise_ub = 1
-    noises = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
+    noise_lb = -2
+    noise_ub = 2
+    noises = np.logspace(noise_lb, noise_ub, n_steps)
 
-    alpha_lb = -10
+    alpha_lb = -5
     alpha_ub = 1
-    alphas = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
+    alphas = np.logspace(alpha_lb, alpha_ub, n_steps)
     # param_grid = {'alpha':  
     # 'kernel__k1__k1__constant_value': np.logspace(-2, 2, 3), 
     # 'kernel__k1__k2__length_scale': np.logspace(-2, 2, 3), 
@@ -175,11 +197,12 @@ class RegressionFactory(object):
     # if cv == -1:
     #   cv = 20 # # len(y_obs) - 5
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
-                cv=cv,n_jobs=4)
+                cv=cv,n_jobs=4) # # scoring
     GridSearch.fit(X, y_obs)
     best_gpr = GridSearch.best_estimator_
-    best_gpr.fit(X, y_obs)
     print("best_gpr params:", best_gpr.get_params())
+    print("cv_results_:", GridSearch.cv_results_)
+
     return best_gpr, GridSearch
 
 

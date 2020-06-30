@@ -1,11 +1,12 @@
-
-# from absl import app
-# from absl import flags 
-
-from run_experiment import *
-from utils.utils import *
-from utils.plot import *
+import sys
+from absl import app
+import numpy as np
 import matplotlib.pylab as plt
+
+from params import *
+from run_experiment import get_savedir, get_savefile
+from utils.utils import load_pickle
+from utils.plot import scatter_plot, makedirs
 
 result_dir = "Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/ofm_subs_Ga123_margin/"
 
@@ -65,7 +66,7 @@ def main_proc(ith_trial="000"):
 		# #'noisy_targets', 'sampler_output']
 		# print(result_dict.keys())
 
-		if exp_params["seed"] == 1:
+		if exp_params["seed"] == 3:
 			print("m:", exp_params["m"])
 			print("c:", exp_params["c"])
 
@@ -75,7 +76,7 @@ def main_proc(ith_trial="000"):
 
 			x = np.arange(len(accuracies))
 			plot_idx = [k for k in x]
-			print("Here", acc_cv_train)
+			# print("Here", acc_cv_train)
 
 			scatter_plot(x=x[plot_idx] + 1, y=accuracies[plot_idx], xvline=None, yhline=None, 
 					sigma=None, mode='line', lbl="m:{0}__c{1}".format(m, c), name=None, 
@@ -89,8 +90,20 @@ def main_proc(ith_trial="000"):
 			# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
 			# 		 color=colors[m], marker=markers[c]
 			# 		)
+			# print(result_dict.items())
+
+			models = [k.estimator.get_params() for k in result_dict["save_model"]]
+			GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
+
+
+			for model, gscv in zip(models, GSCVs):
+				print(model)
+				print(gscv)
+
+				print("===================")
+
 			print("data_sizes:", result_dict["data_sizes"])
-			print("cv", result_dict["cv_train_model"])
+			# print("cv", result_dict["cv_train_model"])
 
 	plt.xticks(x[plot_idx] + 1)
 	plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc='lower left', 
@@ -108,9 +121,7 @@ def main_proc(ith_trial="000"):
 	text = "\n".join(["{0}: {1}".format(k, v) for k, v in exp_params.items() if k != "m" and k != "c"])
 	text += "\nm: Mix weights on ActSamp\n"
 	text += "c: percent of rand labels\n"
-
 	# text += "\n".join(["{0}: {1}".format(k, v) for k, v in result_key_to_text.items() if k != "data_sizes"])
-
 	text += "batch data size: " + str(batch_data_size) + "\n"
 	# text += "init train size: "  + str(init_data_size)  + " cv: " + str(round(result_key_to_text["cv_train_model"][0], 2)) + "\n"
 	# text += "final train size: " + str(final_data_size) + " cv: " + str(round(result_key_to_text["cv_train_model"][-1], 2)) +  "\n"
@@ -123,7 +134,6 @@ def main_proc(ith_trial="000"):
 	text += "y_test_info: " + str(result_key_to_text["y_test_info"]) + "\n"
 
 	# org_data_size
-
 	print(result_key_to_text["y_train_info"])
 	print(str(result_key_to_text["data_sizes"]))
 	# plt.text(35.5, 0.5, text, fontsize=14)
@@ -140,6 +150,7 @@ def main_proc(ith_trial="000"):
 
 
 if __name__ == "__main__":
-	# app.run(main_proc)
-	main_proc()
+	# app.run(main_proc(ith_trial="000"))
+	FLAGS(sys.argv)
+	main_proc(ith_trial="000")
  

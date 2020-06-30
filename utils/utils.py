@@ -37,7 +37,7 @@ from tensorflow.io import gfile
 from utils.kernel_block_solver import BlockKernelSolver
 from utils.small_cnn import SmallCNN
 from utils.allconv import AllConv
-from utils.uncertainty_regression import UncertainGaussianProcess
+from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression
 class Logger(object):
   """Logging object to write to file and stdout."""
 
@@ -204,7 +204,7 @@ def flip_label(y, percent_random):
   return y
 
 
-def get_model(method, seed=13, is_search_params=True):
+def get_model(method, seed=13, is_search_params=True, n_shuffle=1000):
   """Construct sklearn model using either logistic regression or linear svm.
 
   Wraps grid search on regularization parameter over either logistic regression
@@ -222,10 +222,18 @@ def get_model(method, seed=13, is_search_params=True):
   #   a decision function.
   # TODO(lishal): for kernel methods, currently using default value for gamma
   # but should probably tune.
+  # # for my building u_gp vs e_krr
   if method=="u_gp":
     model = UncertainGaussianProcess(random_state=1, cv=10, n_times=3,
               search_param=is_search_params, verbose=False)
     return model
+  if method=="e_krr":
+    model = UncertainEnsembleRegression(random_state=1, 
+        n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
+        cv=10, n_times=3, score_method="kr", search_param=is_search_params, # # GaussianProcess
+        verbose=False)
+    return model
+    
 
   if method == "logistic":
     model = LogisticRegression(random_state=seed, multi_class="multinomial",

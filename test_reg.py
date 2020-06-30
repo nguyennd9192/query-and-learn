@@ -17,7 +17,7 @@ def get_train_test(X, y):
 
 def test_gaussian_process(X, y):
 	X_train, y_train, X_test, y_test = get_train_test(X, y)
-	gp = UncertainGaussianProcess(random_state=1, cv=3, n_times=3,
+	gp = UncertainGaussianProcess(random_state=1, cv=10, n_times=3,
 				search_param=True, verbose=False)
 	gp.fit(X_train, y_train)
 	
@@ -27,7 +27,8 @@ def test_gaussian_process(X, y):
 	r2 = r2_score(y_pred, y_test)
 	print("gp best params: ", gp.estimator.get_params())
 	print("y_prob: ", y_prob)
-	print("r2 gaussian: ", r2)
+	print("score on train: ", gp.score(X, y))
+	print("score on test: ", r2)
 
 def test_ensemble(X, y):
 	X_train, y_train, X_test, y_test = get_train_test(X, y)
@@ -40,12 +41,13 @@ def test_ensemble(X, y):
 	r2 = r2_score(y_pred, y_test)
 
 	print("ens_reg best params: ", ens_reg.estimator.get_params())
-	print("y_prob: ", y_pred)
-	print("r2 ensemble krr: ", r2)
+	print("score on train: ", ens_reg.estimator.score(X, y))
+	print("score on test: ", r2)
 
 if __name__ == "__main__":
 	data_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data"
-	dataset = "latbx_ofm1_fe"
+	test_prefix = "Fe10-Fe22"
+	dataset = "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d"+"/train_"+test_prefix
 	X, y = utils.get_mldata(data_dir, dataset)
 	test_ensemble(X, y)
 	# test_gaussian_process(X, y)
