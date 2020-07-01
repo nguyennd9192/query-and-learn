@@ -170,7 +170,7 @@ def selection_path(ith_trial="000"):
 
 	csv_file = os.path.join(FLAGS.data_dir, FLAGS.dataset + ".csv")
 	df = pd.read_csv(csv_file, index_col=0)
-	x_lbl = "d6-ofcenter"
+	x_lbl = "magmom_pa"
 	y_lbl = "energy_substance_pa"
 
 	for result_key, result_dict in all_results.items():
