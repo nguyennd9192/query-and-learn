@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
-size_text = 10
+size_text = 3
 alpha_point = 0.8
 size_point = 100
 
@@ -14,13 +14,10 @@ def release_mem(fig):
 	plt.close()
 	gc.collect()
 
-
-
 def ax_setting():
 	plt.style.use('default')
 	plt.tick_params(axis='x', which='major', labelsize=13)
 	plt.tick_params(axis='y', which='major', labelsize=13)
-
 
 def makedirs(file):
 	if not os.path.isdir(os.path.dirname(file)):
@@ -59,7 +56,6 @@ def joint_plot(x, y, xlabel, ylabel, save_at, is_show=False):
 	print ("Save file at:", "{0}".format(save_at))
 	release_mem(fig)
 
-
 def scatter_plot(x, y, xvline=None, yhline=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	x_label='x', y_label='y', 
@@ -69,8 +65,14 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 		fig = plt.figure(figsize=(8, 8))
 
 	if 'scatter' in mode:
-		plt.scatter(x, y, s=80, alpha=0.8, 
-		marker=marker, c=color, edgecolor="white") # brown
+		n_points = len(x)
+		for i in range(n_points):
+			plt.scatter(x[i], y[i], s=80, alpha=0.8, 
+				marker=marker[i], 
+				c=color[i], edgecolor="white") # brown
+			# plt.scatter(x[i], y[i], s=80, alpha=0.8, 
+			# 	marker=marker[i], 
+			# 	c=color[i], edgecolor="white") # brown
 
 	if 'line' in mode:
 		plt.plot(x, y,  marker=marker, linestyle=linestyle, color=color,
@@ -108,9 +110,6 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 		makedirs(save_file)
 		plt.savefig(save_file)
 		release_mem(fig=fig)
-
-
-
 
 def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
@@ -199,4 +198,78 @@ def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None,
 	plt.savefig(save_file, transparent=False, bbox_inches="tight")
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)
+
+def get_color_112(index):
+	
+	c = "yellow"
+	if "Mo" in index:
+		c = "red"
+	if "Zn" in index:
+		c = "orange"
+	if "Co" in index:
+		c = "brown"
+	if "Cu" in index:
+		c = "blue"
+	if "Ti" in index:
+		c = "cyan"
+	if "Al" in index:
+		c = "green"
+	if "Ga" in index:
+		c = "purple"
+
+	return c
+
+def get_marker_112(index):
+	
+	m = "|"
+	if "1-11-1" in index:
+		m = "s"
+	if "1-10-2" in index:
+		m = "o"
+	if "2-23-1" in index:
+		m = "X"
+	if "2-22-2" in index:
+		m = "p"
+	if "2-21-3" in index:
+		m = "^"
+	
+
+	return m
+
+
+def process_name(input_name, main_dir):
+	name = [k.replace(main_dir, "")	for k in input_name]
+	# name = [k.replace("_cnvg", "").replace("{}_".format(current_job), "")
+	# 				for k in name]
+	
+
+	name = [k.replace("Sm-Fe11-M", "1-11-1") for k in name]
+
+	name = [k.replace("Sm-Fe10-M2", "1-10-2") for k in name]
+	name = [k.replace("Sm-Fe10-Ga2", "1-10-2") for k in name]
+
+	name = [k.replace("Sm2-Fe23-M", "2-23-1") for k in name]
+	name = [k.replace("Sm2-Fe23-Ga", "2-23-1") for k in name]
+
+	name = [k.replace("Sm2-Fe22-M2", "2-22-2") for k in name]
+	name = [k.replace("Sm2-Fe22-Ga2", "2-22-2") for k in name]
+
+	name = [k.replace("Sm2-Fe21-M3", "2-21-3") for k in name]
+	name = [k.replace("Sm2-Fe21-Ga3_std6000", "2-21-3") for k in name]
+
+	name = [k.replace("_wyckoff_2", "") for k in name]
+
+	name = [k.replace("_wyckoff", "").replace("*", "").replace("_", "") for k in name]
+
+	wck_idx = [k[k.find("/"):] for k in name]
+	system_name = [k[:k.find("/")] for k in name]
+	wck_idx = [''.join(i for i in k if not i.isdigit()) for k in wck_idx]
+	name = [i + j for i, j in zip(system_name, wck_idx)]
+	
+	name = [k.replace("CuAlZnTi", "") for k in name]
+
+	# name = [k.replace("Mo", "").replace("Ti", "").replace("Al", "") for k in name]
+	# name = [k.replace("Cu", "").replace("Ga", "").replace("Zn", "") for k in name]
+	return name
+
 

@@ -92,6 +92,7 @@ class UncertainEnsembleRegression(object):
       # Fit the context model
       estimator_copy.fit(X_context, y_context)
       y_val_pred = estimator_copy.predict(X_val)
+      # print("len_test_set:", len(y_val_pred))
       y_val_preds.append(y_val_pred)
       # r2 = r2_score(y_context, y_context_pred)
       # mae = mean_absolute_error(y_context, y_context_pred)
@@ -110,12 +111,13 @@ class UncertainEnsembleRegression(object):
     # # large variance -> probability to be observed small
     # # small variance -> probability to be observed large 
     y_val_preds = self.predict(X, get_pred_vals=True)
-
+    # print("y_val_preds.shape", np.array(y_val_preds).shape)
     # # normalize variance to 0-1
-    var = np.var(y_val_preds, axis=1)
-    print(var)
+    var = np.var(np.array(y_val_preds), axis=0)
     var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
-    prob = 1 / (var_norm+1e-5)
+    prob = 1 / (var_norm)
+    # print(var_norm)
+    # print(len(var_norm))
     return prob.ravel()
   def best_score_(self):
     # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:

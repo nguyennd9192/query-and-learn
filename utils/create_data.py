@@ -61,8 +61,8 @@ class Dataset(object):
   def __init__(self, X, y, index=None):
     self.data = X
     self.target = y
-    if index is not None:
-      self.index=index
+    # if index is not None:
+    self.index=index
 
 def get_csv_data(filename):
   """Parse csv and return Dataset object with data and targets.
@@ -145,6 +145,7 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
 
   data_train = Dataset(X_train.values, y_train.values, y_train.index)
   data_test = Dataset(X_test, y_test, idx)
+  print(data_test.index)
 
   return data_train, data_test
 
@@ -271,11 +272,12 @@ def get_cifar10():
 def dump_data(data, filename):
   X = data.data
   y = data.target
+  index = data.index
   if X.shape[0] != y.shape[0]:
     X = np.transpose(X)
   assert X.shape[0] == y.shape[0]
 
-  data = {'data': X, 'target': y}
+  data = {'data': X, 'target': y, "index":index}
   # print (data)
   print (len(np.where(y == 'stable')))
   makedirs(filename)
