@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
-size_text = 3
+size_text = 10
 alpha_point = 0.8
 size_point = 100
 
@@ -60,7 +60,7 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	x_label='x', y_label='y', 
 	save_file=None, interpolate=False, color='blue', 
-	preset_ax=None, linestyle='-.', marker='o'):
+	preset_ax=None, linestyle='-.', marker='o', title=None):
 	if preset_ax is not None:
 		fig = plt.figure(figsize=(8, 8))
 
@@ -69,7 +69,7 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 		for i in range(n_points):
 			plt.scatter(x[i], y[i], s=80, alpha=0.8, 
 				marker=marker[i], 
-				c=color[i], edgecolor="white") # brown
+				c=color[i], edgecolor="black") # brown
 			# plt.scatter(x[i], y[i], s=80, alpha=0.8, 
 			# 	marker=marker[i], 
 			# 	c=color[i], edgecolor="white") # brown
@@ -89,9 +89,9 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 			# if tmp_check_name(name=name[i]):
 			   # reduce_name = str(name[i]).split('_')[1]
 			   # plt.annotate(reduce_name, xy=(x[i], y[i]), size=5)
-			plt.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+			plt.annotate(name[i], xy=(x[i], y[i]), size=size_text, c="yellow")
 		
-
+	plt.title(title)
 	plt.ylabel(y_label, **axis_font)
 	plt.xlabel(x_label, **axis_font)
 	ax_setting()
