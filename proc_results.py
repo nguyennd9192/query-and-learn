@@ -9,8 +9,9 @@ import cv2 as cv
 from params import *
 from run_experiment import get_savedir, get_savefile
 from utils.utils import load_pickle
-from utils.plot import scatter_plot, makedirs, get_color_112, get_marker_112, process_name
+from utils.plot import scatter_plot, makedirs, get_color_112, get_marker_112, process_name, ax_scatter
 from matplotlib.backends.backend_agg import FigureCanvas
+from sklearn.preprocessing import normalize
 
 result_dir = "Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/ofm_subs_Ga123_margin/"
 
@@ -172,6 +173,11 @@ def video_for_tunning(ith_trial="000"):
 	X_test, y_test = data["data"], data["target"]
 	test_idx = data["index"]
 
+	X_train = normalize(X_train)
+	X_test = normalize(X_test)
+
+	max_y = max(np.abs(np.concatenate((y_test, y_train))))*1.1
+	# print()
 
 	all_results = load_pickle(result_file)
 	# print(all_results.keys())
@@ -183,12 +189,12 @@ def video_for_tunning(ith_trial="000"):
 	y_lbl = "energy_substance_pa"
 
 	# # for video
-	width = 800
+	width = 800*2
 	height = 800
 	saveat = result_dir + "/" + filename + "_" + ith_trial +  "/" + "selection_path.mp4"
 	out = cv.VideoWriter(saveat, cv.VideoWriter_fourcc(*'MP4V'),30.0,(width,height))
 
-
+	# if False:
 	for result_key, result_dict in all_results.items():
 		# # "k" of all_results store all setting params 
 		if result_key == "tuple_keys":
@@ -222,60 +228,125 @@ def video_for_tunning(ith_trial="000"):
 			 # = [  if (i % 10) == 0 else ""]
 			totalFrames = len(y)
 			
+			batch_size = result_dict["data_sizes"][1] - result_dict["data_sizes"][0]
+			# batch_size = int(all_results["batch_size"]*len(y_train))
 
-
-			for frameNo in range(totalFrames):				
+			for frameNo in range(1, totalFrames):				
 				fig = plt.figure(figsize=(8, 8),constrained_layout=True,dpi=100)
+				# fig, (picture, intensity) = plt.subplots(nrows=2,figsize=(8, 8),dpi=100)
+
 				canvas = FigureCanvas(fig)
-				color = get_color_112(index_train[selected_inds[frameNo]])
-				name = process_name(input_name=index_train[selected_inds[frameNo]], main_dir=struct_dir)
-				marker = get_marker_112(name)
+				this_selected_inds = selected_inds[:frameNo]
 
-				this_selected = selected_inds[:frameNo]
-				x_frame = x[:frameNo]
-				y_frame = y[:frameNo]
-				
-				colors = [get_color_112(k) for k in index_train[this_selected]]
-				name = process_name(input_name=index_train[this_selected], main_dir=struct_dir)
-				markers = [get_marker_112(k) for k in name]
+				if True:
+					ax1 = fig.add_subplot()
+					# ax.set_figheight(8)
+					# ax.set_figwidth(8)
+					# color = get_color_112(index_train[selected_inds[frameNo]])
+					# name = process_name(input_name=index_train[selected_inds[frameNo]], main_dir=struct_dir)
+					# marker = get_marker_112(name)
 
-				scatter_plot(x=x_frame, y=y_frame, xvline=None, yhline=None, 
-						sigma=None, name=None, # name
-						mode='scatter', lbl="m:{0}__c{1}".format(m, c),
-						x_label=x_lbl, y_label=y_lbl, 
-						preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
-						color=colors, marker=markers
-						)
+					"""
+					Begin plot map properties
+					"""
+					x_frame = x[:frameNo]
+					y_frame = y[:frameNo]
+					
+					train_colors = [get_color_112(k) for k in index_train[this_selected_inds]]
+					train_name = process_name(input_name=index_train[this_selected_inds], main_dir=struct_dir)
+					train_markers = [get_marker_112(k) for k in train_name]
 
-				# test_idx = list(set(df.index) - set(index_train[selected_inds]))
-				print(frameNo)
-				x_test = df.loc[test_idx, x_lbl]
-				y_test = df.loc[test_idx, y_lbl]
-				colors = ["k" for k in test_idx]
-				# name = test_idx
-				name = process_name(input_name=test_idx, main_dir=struct_dir)
-				markers = ["*" for k in name]
+					# scatter_plot(x=x_frame, y=y_frame, xvline=None, yhline=None, 
+					# 		sigma=None, name=None, # name
+					# 		mode='scatter', lbl="m:{0}__c{1}".format(m, c),
+					# 		x_label=x_lbl, y_label=y_lbl, 
+					# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
+					# 		color=train_colors, marker=train_markers
+					# 		)
+					ax_scatter(ax=ax1,x=x_frame,y=y_frame,
+						marker=train_markers,color=train_colors)
+					# test_idx = list(set(df.index) - set(index_train[selected_inds]))
+					print(frameNo)
+					x_test = df.loc[test_idx, x_lbl]
+					y_test = df.loc[test_idx, y_lbl]
+					colors = ["k" for k in test_idx]
+					# name = test_idx
+					name = process_name(input_name=test_idx, main_dir=struct_dir)
+					markers = ["*" for k in name]
 
-				title = result_dir.replace("/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/", "") + \
-																	 "/\n" + filename + "_" + ith_trial 
-				scatter_plot(x=x_test, y=y_test, xvline=None, yhline=None, 
-						sigma=None, name=None, title=title,
-						mode='scatter', lbl="m:{0}__c{1}".format(m, c),
-						x_label=x_lbl, y_label=y_lbl, 
-						preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
-						color=colors, marker=markers
-						)
-				canvas.draw()
-				plt.close()
+					title = result_dir.replace("/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/", "") + \
+																		 "/\n" + filename + "_" + ith_trial 
+					# scatter_plot(x=x_test, y=y_test, xvline=None, yhline=None, 
+					# 		sigma=None, name=None, title=None,
+					# 		mode='scatter', lbl="m:{0}__c{1}".format(m, c),
+					# 		x_label=x_lbl, y_label=y_lbl, 
+					# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
+					# 		color=colors, marker=markers
+					# 		)
+					ax_scatter(ax=ax1,x=x_test,y=y_test,
+						marker=markers,color=colors)
+					fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+					canvas.draw()
+					# plt.close()
 
-				X = np.array(canvas.renderer.buffer_rgba())
-				new_X = np.delete(X.reshape(-1,4),3,1)
-				new_X = new_X.reshape(X.shape[0],X.shape[1],-1)
+					X1 = np.array(canvas.renderer.buffer_rgba())
+					new_X1 = np.delete(X1.reshape(-1,4),3,1)
+					new_X1 = new_X1.reshape(X1.shape[0],X1.shape[1],-1)
+					"""
+					End plot map properties
+					"""
+				if True:
+					ax2 = fig.add_subplot()
+					# ax2.set_figheight(8)
+					# ax2.set_figwidth(8)
+					print(len(result_dict["save_model"]))
 
-				# print(new_X)
-				out.write(new_X)
+					estimator_index = int(frameNo / batch_size)
+					try:
+						estimator = result_dict["save_model"][estimator_index].estimator
+					except:
+						pass
+					partial_X = X_train[this_selected_inds]
+					partial_y = y_train[this_selected_inds]
+					estimator.fit(partial_X, partial_y)
 
-				plt.close()
+					y_test_pred = estimator.predict(X_test)
+					acc = estimator.score(X_test, y_test)
+					ax2.scatter(y_test, y_test_pred, c="black", marker="*")
+					ax_scatter(ax=ax2,x=partial_y,y=estimator.predict(partial_X),
+						marker=train_markers,color=train_colors)
+					# scatter_plot(x=partial_y, y=estimator.predict(partial_X), xvline=None, yhline=None, 
+					# 		sigma=None, name=None, # name
+					# 		mode='scatter', lbl="m:{0}__c{1}".format(m, c),
+					# 		x_label="observed", y_label="predicted", 
+					# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
+					# 		color=train_colors, marker=train_markers
+					# 		)
+					# ax2.scatter(partial_y, estimator.predict(partial_X), train_colors, train_markers)
+					lb, ub = -max_y, 0.3
+					ax2.set_xlim(lb, ub) # max_y
+					ax2.set_ylim(lb, ub)
+
+					ref = np.arange(lb, ub, (ub - lb)/100.0)
+					# print(ref)
+					ax2.plot(ref, ref, linestyle="-.", c="r")
+
+					fig.suptitle(title,  y=0.98)
+
+					fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+					canvas.draw()
+					X2 = np.array(canvas.renderer.buffer_rgba())
+					new_X2 = np.delete(X2.reshape(-1,4),3,1)
+					new_X2 = new_X2.reshape(X2.shape[0],X2.shape[1],-1)
+
+					# print(new_X)
+					final_frame = np.concatenate((new_X1,new_X2),axis=1)
+					print(final_frame.shape)
+					out.write(final_frame)
+					plt.close()
+					# if frameNo == 10:
+					# 	break
 				# break
 
 			out.release()
@@ -387,8 +458,6 @@ def selection_path(ith_trial="000"):
 	# # plt.xticks(x[plot_idx] + 1)
 	# # plt.legend(bbox_to_anchor=(0, 1.02, 1, 0.2), loc='lower left', 
 	# # 	mode="expand", borderaxespad=0, ncol=3, fontsize=12)
-
-
 	side_text = plt.figtext(0.91, 0.12, text, bbox=dict(facecolor='white'))
 	fig.subplots_adjust(top=0.8)
 	plt.title(text, fontsize=14)

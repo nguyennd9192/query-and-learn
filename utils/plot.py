@@ -56,6 +56,14 @@ def joint_plot(x, y, xlabel, ylabel, save_at, is_show=False):
 	print ("Save file at:", "{0}".format(save_at))
 	release_mem(fig)
 
+def ax_scatter(ax,x,y,marker,color):
+	n_points = len(x)
+	for i in range(n_points):
+		ax.scatter(x[i], y[i], s=80, alpha=0.8, 
+		marker=marker[i], 
+ 		c=color[i], edgecolor="black") # brown
+
+
 def scatter_plot(x, y, xvline=None, yhline=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	x_label='x', y_label='y', 
@@ -91,7 +99,7 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 			   # plt.annotate(reduce_name, xy=(x[i], y[i]), size=5)
 			plt.annotate(name[i], xy=(x[i], y[i]), size=size_text, c="yellow")
 		
-	plt.title(title)
+	plt.title(title, **title_font)
 	plt.ylabel(y_label, **axis_font)
 	plt.xlabel(x_label, **axis_font)
 	ax_setting()
