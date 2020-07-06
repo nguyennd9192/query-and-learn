@@ -49,4 +49,8 @@ class UniformSampling(SamplingMethod):
 
     # This is uniform given the remaining pool but biased wrt the entire pool.
     sample = [i for i in range(self.X.shape[0]) if i not in already_selected]
-    return sample[0:N]
+    n_sample = len(sample)
+    p = [1/n_sample for i in range(n_sample)]
+
+    return sample[0:N], p
+

@@ -9,11 +9,12 @@ import cv2 as cv
 from params import *
 from run_experiment import get_savedir, get_savefile
 from utils.utils import load_pickle
-from utils.plot import scatter_plot, makedirs, get_color_112, get_marker_112, process_name, ax_scatter
+# from utils.plot import scatter_plot, makedirs, get_color_112, get_marker_112, process_name, ax_scatter
+from utils.plot import *
 from matplotlib.backends.backend_agg import FigureCanvas
 from sklearn.preprocessing import normalize
 
-result_dir = "Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/ofm_subs_Ga123_margin/"
+# result_dir = "Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/ofm_subs_Ga123_margin/"
 
 
 def read_exp_params(k):
@@ -152,7 +153,7 @@ def main_proc(ith_trial="000"):
 		# print("accuracy:", result_dict["accuracy"])
 		# break
 
-def video_for_tunning(ith_trial="000"): 
+def video_for_tunning(ith_trial): 
 	result_dir = get_savedir()
 	filename = get_savefile()
 	# ith_trial = "000"
@@ -189,9 +190,10 @@ def video_for_tunning(ith_trial="000"):
 	y_lbl = "energy_substance_pa"
 
 	# # for video
-	width = 800*2
+	width = 800*3
 	height = 800
 	saveat = result_dir + "/" + filename + "_" + ith_trial +  "/" + "selection_path.mp4"
+	makedirs(saveat)
 	out = cv.VideoWriter(saveat, cv.VideoWriter_fourcc(*'MP4V'),30.0,(width,height))
 
 	# if False:
@@ -229,6 +231,9 @@ def video_for_tunning(ith_trial="000"):
 			totalFrames = len(y)
 			
 			batch_size = result_dict["data_sizes"][1] - result_dict["data_sizes"][0]
+			print("min_margin", result_dict["min_margin"])
+			print("this_batch", result_dict["this_batch"])
+
 			# batch_size = int(all_results["batch_size"]*len(y_train))
 
 			for frameNo in range(1, totalFrames):				
@@ -240,12 +245,6 @@ def video_for_tunning(ith_trial="000"):
 
 				if True:
 					ax1 = fig.add_subplot()
-					# ax.set_figheight(8)
-					# ax.set_figwidth(8)
-					# color = get_color_112(index_train[selected_inds[frameNo]])
-					# name = process_name(input_name=index_train[selected_inds[frameNo]], main_dir=struct_dir)
-					# marker = get_marker_112(name)
-
 					"""
 					Begin plot map properties
 					"""
@@ -255,39 +254,23 @@ def video_for_tunning(ith_trial="000"):
 					train_colors = [get_color_112(k) for k in index_train[this_selected_inds]]
 					train_name = process_name(input_name=index_train[this_selected_inds], main_dir=struct_dir)
 					train_markers = [get_marker_112(k) for k in train_name]
-
-					# scatter_plot(x=x_frame, y=y_frame, xvline=None, yhline=None, 
-					# 		sigma=None, name=None, # name
-					# 		mode='scatter', lbl="m:{0}__c{1}".format(m, c),
-					# 		x_label=x_lbl, y_label=y_lbl, 
-					# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
-					# 		color=train_colors, marker=train_markers
-					# 		)
 					ax_scatter(ax=ax1,x=x_frame,y=y_frame,
 						marker=train_markers,color=train_colors)
 					# test_idx = list(set(df.index) - set(index_train[selected_inds]))
 					print(frameNo)
+
 					x_test = df.loc[test_idx, x_lbl]
 					y_test = df.loc[test_idx, y_lbl]
 					colors = ["k" for k in test_idx]
 					# name = test_idx
 					name = process_name(input_name=test_idx, main_dir=struct_dir)
 					markers = ["*" for k in name]
-
-					title = result_dir.replace("/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/", "") + \
-																		 "/\n" + filename + "_" + ith_trial 
-					# scatter_plot(x=x_test, y=y_test, xvline=None, yhline=None, 
-					# 		sigma=None, name=None, title=None,
-					# 		mode='scatter', lbl="m:{0}__c{1}".format(m, c),
-					# 		x_label=x_lbl, y_label=y_lbl, 
-					# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
-					# 		color=colors, marker=markers
-					# 		)
+					
 					ax_scatter(ax=ax1,x=x_test,y=y_test,
 						marker=markers,color=colors)
 					fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 					canvas.draw()
-					# plt.close()
+					plt.close()
 
 					X1 = np.array(canvas.renderer.buffer_rgba())
 					new_X1 = np.delete(X1.reshape(-1,4),3,1)
@@ -296,11 +279,10 @@ def video_for_tunning(ith_trial="000"):
 					End plot map properties
 					"""
 				if True:
+					"""
+					prediction plot
+					"""
 					ax2 = fig.add_subplot()
-					# ax2.set_figheight(8)
-					# ax2.set_figwidth(8)
-					print(len(result_dict["save_model"]))
-
 					estimator_index = int(frameNo / batch_size)
 					try:
 						estimator = result_dict["save_model"][estimator_index].estimator
@@ -308,45 +290,66 @@ def video_for_tunning(ith_trial="000"):
 						pass
 					partial_X = X_train[this_selected_inds]
 					partial_y = y_train[this_selected_inds]
+					# # estimator saved here has already fit with the last selected inds
 					estimator.fit(partial_X, partial_y)
 
 					y_test_pred = estimator.predict(X_test)
 					acc = estimator.score(X_test, y_test)
-					ax2.scatter(y_test, y_test_pred, c="black", marker="*")
+					
+					# # train test prediction
+					ax2.scatter(y_test, y_test_pred, c="black", marker="*", label="acc: {0}".format(round(acc, 3)))
 					ax_scatter(ax=ax2,x=partial_y,y=estimator.predict(partial_X),
 						marker=train_markers,color=train_colors)
-					# scatter_plot(x=partial_y, y=estimator.predict(partial_X), xvline=None, yhline=None, 
-					# 		sigma=None, name=None, # name
-					# 		mode='scatter', lbl="m:{0}__c{1}".format(m, c),
-					# 		x_label="observed", y_label="predicted", 
-					# 		preset_ax=None, save_file=None, interpolate=False, linestyle='-.',
-					# 		color=train_colors, marker=train_markers
-					# 		)
-					# ax2.scatter(partial_y, estimator.predict(partial_X), train_colors, train_markers)
 					lb, ub = -max_y, 0.3
-					ax2.set_xlim(lb, ub) # max_y
-					ax2.set_ylim(lb, ub)
-
 					ref = np.arange(lb, ub, (ub - lb)/100.0)
-					# print(ref)
 					ax2.plot(ref, ref, linestyle="-.", c="r")
 
+					# # xlbl, ylbl, title setting
+					ax2.set_xlim(lb, ub) # max_y 
+					ax2.set_ylim(lb, ub)
+					ax2.set_xlabel("Observed value", **axis_font)
+					ax2.set_ylabel("Predicted value", **axis_font)
+					title = result_dir.replace(FLAGS.save_dir, "") + "/\n" + filename + "_" + ith_trial
 					fig.suptitle(title,  y=0.98)
-
 					fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+					plt.close()
 
+
+					# # to canvas
 					canvas.draw()
 					X2 = np.array(canvas.renderer.buffer_rgba())
 					new_X2 = np.delete(X2.reshape(-1,4),3,1)
 					new_X2 = new_X2.reshape(X2.shape[0],X2.shape[1],-1)
+					"""
+					End prediction plot
+					"""
+				if True:
+					"""
+					min_margin plot
+					"""
+					ax3 = fig.add_subplot()
+					min_margin = result_dict["min_margin"]
+					selected_inds_margin = min_margin[selected_inds]
+					pos = np.arange(len(selected_inds_margin))
+					print("selected_inds_margin", selected_inds_margin)
 
-					# print(new_X)
-					final_frame = np.concatenate((new_X1,new_X2),axis=1)
-					print(final_frame.shape)
-					out.write(final_frame)
-					plt.close()
-					# if frameNo == 10:
-					# 	break
+					ax3.scatter(pos, selected_inds_margin, #align='center',
+            # height=0.5, tick_label=selected_inds
+            )
+					# # to canvas
+					canvas.draw()
+					X3 = np.array(canvas.renderer.buffer_rgba())
+					new_X3 = np.delete(X3.reshape(-1,4),3,1)
+					new_X3 = new_X3.reshape(X3.shape[0],X3.shape[1],-1)
+					"""
+					End min_margin plot
+					"""
+				final_frame = np.concatenate((new_X1,new_X2,new_X3),axis=1)
+				print(final_frame.shape)
+				out.write(final_frame)
+				plt.close()
+				if frameNo == 15:
+					break
 				# break
 
 			out.release()
@@ -445,8 +448,7 @@ def selection_path(ith_trial="000"):
 			name = process_name(input_name=test_idx, main_dir=struct_dir)
 			markers = ["*" for k in name]
 
-			title = result_dir.replace("/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/", "") + \
-																 "/\n" + filename + "_" + ith_trial 
+			title = result_dir.replace(FLAGS.save_dir, "") + "/\n" + filename + "_" + ith_trial 
 			scatter_plot(x=x_test, y=y_test, xvline=None, yhline=None, 
 					sigma=None, name=None, title=title,
 					mode='scatter', lbl="m:{0}__c{1}".format(m, c),
@@ -474,7 +476,7 @@ if __name__ == "__main__":
 	FLAGS(sys.argv)
 	# main_proc(ith_trial="000") # # to plot learning curver
 	# selection_path(ith_trial="000") # # to plot selection figure 
-	video_for_tunning(ith_trial="000") # # to prepare selection video
+	video_for_tunning(ith_trial="003") # # to prepare selection video
 
 
 

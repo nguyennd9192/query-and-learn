@@ -23,6 +23,7 @@ from __future__ import print_function
 
 import numpy as np
 from sampling_methods.sampling_def import SamplingMethod
+from sklearn.preprocessing import normalize
 
 
 class MarginAL(SamplingMethod):
@@ -62,5 +63,7 @@ class MarginAL(SamplingMethod):
     rank_ind = np.argsort(min_margin) # # sorting in ascending order
     rank_ind = [i for i in rank_ind if i not in already_selected]
     active_samples = rank_ind[0:N] # # get instances with smallest distances
-    return active_samples
+    
+    return active_samples, min_margin
+    
 
