@@ -360,13 +360,17 @@ def get_train_val_test_splits(X, y, max_points, seed, confusion, seed_batch,
     while (n_shuffle < min_shuffle):
       np.random.shuffle(indices)
       n_shuffle += 1
+  idx_train = indices[0:train_split]
+  idx_val = indices[train_split:val_split]
+  idx_test = indices[val_split:max_points]
 
-  X_train = X_copy[indices[0:train_split]]
-  X_val = X_copy[indices[train_split:val_split]]
-  X_test = X_copy[indices[val_split:max_points]]
-  y_train = y_noise[indices[0:train_split]]
-  y_val = y_noise[indices[train_split:val_split]]
-  y_test = y_noise[indices[val_split:max_points]]
+  X_train = X_copy[idx_train]
+  X_val = X_copy[idx_val]
+  X_test = X_copy[idx_test]
+
+  y_train = y_noise[idx_train]
+  y_val = y_noise[idx_val]
+  y_test = y_noise[idx_test]
   if is_clf:
     # Make sure that we have enough observations of each class for 2-fold cv
     assert all(get_class_counts(y_noise, y_train[0:seed_batch]) >= 4)
@@ -374,7 +378,7 @@ def get_train_val_test_splits(X, y, max_points, seed, confusion, seed_batch,
   assert all(y_noise[indices[0:max_points]] ==
              np.concatenate((y_train, y_val, y_test), axis=0))
   return (indices[0:max_points], X_train, y_train,
-          X_val, y_val, X_test, y_test, y_noise)
+          X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test)
 
 
 def get_sept_train_val_test(X, y, X_test, y_test, 
@@ -415,17 +419,21 @@ def get_sept_train_val_test(X, y, X_test, y_test,
   train_split = int(max_points * split[0])
   val_split = train_split + int(max_points * split[1])
 
-  X_train = X_copy[indices[0:train_split]]
-  X_val = X_copy[indices[train_split:val_split]]
+  idx_train = indices[0:train_split]
+  idx_val = indices[train_split:val_split]
+  idx_test = None
 
-  y_train = y_noise[indices[0:train_split]]
-  y_val = y_noise[indices[train_split:val_split]]
+  X_train = X_copy[idx_train]
+  X_val = X_copy[idx_val]
+
+  y_train = y_noise[idx_train]
+  y_val = y_noise[idx_val]
 
 
   # print(np.concatenate((y_train, y_val)))
   assert all(y_noise[indices[0:max_points]] == np.concatenate((y_train, y_val)))
   return (indices[0:max_points], X_train, y_train,
-          X_val, y_val, X_test, y_test, y_noise)
+          X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test)
 
 
 

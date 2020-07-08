@@ -149,9 +149,8 @@ def generate_one_curve(X, y,
 		batch_PL, p = uniform_sampler.select_batch(**kwargs)
 		return batch_AL + batch_PL, min_margin
 
-	
-	max_points, train_size, batch_size, seed_batch = get_othere_cfg(y,max_points,batch_size,warmstart_size)
-	
+	data_splits = [2./3, 1./6, 1./6]
+	max_points, train_size, batch_size, seed_batch = get_othere_cfg(y,max_points,batch_size,warmstart_size,seed,data_splits)
 	# print ("score_model", score_model)
 	# if not FLAGS.is_test_separate:
 	# 	indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
@@ -163,7 +162,7 @@ def generate_one_curve(X, y,
 	# 				max_points, seed, confusion, seed_batch, split=[2./3, 1./3], is_clf=FLAGS.is_clf) 
 	# 		)
 	all_X = get_train_test(X,y,X_sept_test, y_sept_test,max_points,seed,confusion,seed_batch,data_splits)
-	indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = all_X
+	indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = all_X
 
 
 	print("Done splitting train, val, test")
@@ -250,7 +249,7 @@ def generate_one_curve(X, y,
 			new_batch = new_batch_
 			min_margin = None
 
-		print("min_margin", min_margin)
+		print("selected_inds", selected_inds)
 
 		selected_inds.extend(new_batch)
 		print('Requested: %d, Selected: %d' % (n_sample, len(new_batch)))
@@ -263,6 +262,7 @@ def generate_one_curve(X, y,
 	assert all(y_noise[indices[selected_inds]] == y_train[selected_inds])
 	results["org_data_size"] = X.shape
 	results["save_model"] = save_model
+	results["all_X"] = all_X
 	results["n_test"] = len(y_test)
 	results["this_batch"] = new_batch # # save each batch
 	results["min_margin"] = min_margin # # save min_margin each calc time
@@ -292,19 +292,17 @@ def get_data_from_flags():
 
 def get_train_test(X,y,X_sept_test, y_sept_test,max_points,seed,confusion,seed_batch,data_splits):
 	if not FLAGS.is_test_separate:
-		indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
-				utils.get_train_val_test_splits(X,y,
+		all_X = (utils.get_train_val_test_splits(X,y,
 					max_points,seed,confusion,seed_batch,split=data_splits, is_clf=FLAGS.is_clf))
 	else:
-			indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
-				utils.get_sept_train_val_test(X,y,X_sept_test, y_sept_test, 
+		all_X = (utils.get_sept_train_val_test(X,y,X_sept_test, y_sept_test, 
 					max_points,seed,confusion,seed_batch,split=[2./3, 1./3], is_clf=FLAGS.is_clf) 
 			)
-	return indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise
 
-def get_othere_cfg(y,max_points,batch_size,warmstart_size):
+	return all_X
+
+def get_othere_cfg(y,max_points,batch_size,warmstart_size,seed,data_splits):
 	np.random.seed(seed)
-	data_splits = [2./3, 1./6, 1./6]
 	# 2/3 of data for training
 	if max_points is None:
 		max_points = len(y)
@@ -367,7 +365,7 @@ def run():
 	# 	X, y = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/train_"+FLAGS.test_prefix)
 	# 	X_sept_test, y_sept_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)
 	# 	print("Success in reading separated test set.")
-	X, y, index, X_sept_test, y_sept_test, index_test = get_data_from_flags()
+	X, y, un_shfl_train_val_idx, X_sept_test, y_sept_test, un_shfl_test_idx = get_data_from_flags()
  
 
 	starting_seed = FLAGS.seed
@@ -392,6 +390,9 @@ def run():
 							 c, standardize_data, normalize_data, seed)
 				sampler_output = sampler_state.to_dict()
 				results["sampler_output"] = sampler_output
+				results["un_shfl_train_val_idx"] = un_shfl_train_val_idx
+				results["un_shfl_test_idx"] = un_shfl_test_idx
+
 				all_results[key] = results
 	fields = [
 			"dataset", "sampler", "score_method", "select_method",

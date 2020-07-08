@@ -35,7 +35,7 @@ flags.DEFINE_float(
     ("Can be float or integer.  Float indicates batch size as a percentage "
      "of training data size.") # # number of updated data points to the model
 )
-flags.DEFINE_integer("trials", 3,
+flags.DEFINE_integer("trials", 1,
                      "Number of curves to create using different seeds")
 flags.DEFINE_integer("seed", 1, "Seed to use for rng and random state")
 # TODO(lisha): add feature noise to simulate data outliers
