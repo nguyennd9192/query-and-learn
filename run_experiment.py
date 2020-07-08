@@ -149,46 +149,23 @@ def generate_one_curve(X, y,
 		batch_PL, p = uniform_sampler.select_batch(**kwargs)
 		return batch_AL + batch_PL, min_margin
 
-	np.random.seed(seed)
-	data_splits = [2./3, 1./6, 1./6]
-
-	# 2/3 of data for training
-	if max_points is None:
-		max_points = len(y)
-	train_size = int(min(max_points, len(y)) * data_splits[0])
-	if batch_size < 1:
-		batch_size = int(batch_size * train_size)
-	else:
-		batch_size = int(batch_size)
-	if warmstart_size < 1:
-		# Set seed batch to provide enough samples to get at least 4 per class
-		# TODO(lishal): switch to sklearn stratified sampler
-		seed_batch = int(warmstart_size * train_size)
-	else:
-		seed_batch = int(warmstart_size)
-
-	if len(np.unique(y)) > 10 and FLAGS.is_clf:
-		# # if performing classification but y is continuous variable
-		print("Warning!!! Reconsidering is_clf tag. Number of classes is larger than 10.")
-
-	if FLAGS.is_clf:
-		# # check classification or not
-		seed_batch = max(seed_batch, 6 * len(np.unique(y)))
 	
-
-	# # Nguyen, for regression
-	if FLAGS.score_method == "krr":
-		seed_batch = 5000
+	max_points, train_size, batch_size, seed_batch = get_othere_cfg(y,max_points,batch_size,warmstart_size)
+	
 	# print ("score_model", score_model)
-	if not FLAGS.is_test_separate:
-		indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
-				utils.get_train_val_test_splits(X,y,max_points,seed,confusion,
-																				seed_batch, split=data_splits, is_clf=FLAGS.is_clf))
-	else:
-			indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
-				utils.get_sept_train_val_test(X, y, X_sept_test, y_sept_test, 
-					max_points, seed, confusion, seed_batch, split=[2./3, 1./3], is_clf=FLAGS.is_clf) 
-			)
+	# if not FLAGS.is_test_separate:
+	# 	indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
+	# 			utils.get_train_val_test_splits(X,y,max_points,seed,confusion,
+	# 																			seed_batch, split=data_splits, is_clf=FLAGS.is_clf))
+	# else:
+	# 		indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
+	# 			utils.get_sept_train_val_test(X, y, X_sept_test, y_sept_test, 
+	# 				max_points, seed, confusion, seed_batch, split=[2./3, 1./3], is_clf=FLAGS.is_clf) 
+	# 		)
+	all_X = get_train_test(X,y,X_sept_test, y_sept_test,max_points,seed,confusion,seed_batch,data_splits)
+	indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = all_X
+
+
 	print("Done splitting train, val, test")
 	
 	# Preprocess data
@@ -302,6 +279,56 @@ def generate_one_curve(X, y,
 	results["y_test_info"] = pd.DataFrame(y_test).describe()
 	return results, sampler
 
+def get_data_from_flags():
+	if not FLAGS.is_test_separate:
+		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset)
+		X_sept_test, y_sept_test, index_test = None, None
+	else:
+		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/train_"+FLAGS.test_prefix)
+		X_sept_test, y_sept_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)
+		print("Success in reading separated test set.")
+	return X, y, index, X_sept_test, y_sept_test, index_test
+
+
+def get_train_test(X,y,X_sept_test, y_sept_test,max_points,seed,confusion,seed_batch,data_splits):
+	if not FLAGS.is_test_separate:
+		indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
+				utils.get_train_val_test_splits(X,y,
+					max_points,seed,confusion,seed_batch,split=data_splits, is_clf=FLAGS.is_clf))
+	else:
+			indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = (
+				utils.get_sept_train_val_test(X,y,X_sept_test, y_sept_test, 
+					max_points,seed,confusion,seed_batch,split=[2./3, 1./3], is_clf=FLAGS.is_clf) 
+			)
+	return indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise
+
+def get_othere_cfg(y,max_points,batch_size,warmstart_size):
+	np.random.seed(seed)
+	data_splits = [2./3, 1./6, 1./6]
+	# 2/3 of data for training
+	if max_points is None:
+		max_points = len(y)
+	train_size = int(min(max_points, len(y)) * data_splits[0])
+	if batch_size < 1:
+		batch_size = int(batch_size * train_size)
+	else:
+		batch_size = int(batch_size)
+	if warmstart_size < 1:
+		# Set seed batch to provide enough samples to get at least 4 per class
+		# TODO(lishal): switch to sklearn stratified sampler
+		seed_batch = int(warmstart_size * train_size)
+	else:
+		seed_batch = int(warmstart_size)
+	if len(np.unique(y)) > 10 and FLAGS.is_clf:
+		# # if performing classification but y is continuous variable
+		print("Warning!!! Reconsidering is_clf tag. Number of classes is larger than 10.")
+	if FLAGS.is_clf:
+		# # check classification or not
+		seed_batch = max(seed_batch, 6 * len(np.unique(y)))
+	# # Nguyen, for regression
+	if FLAGS.score_method == "krr":
+		seed_batch = 5000
+	return max_points, train_size, batch_size, seed_batch
 
 def run():
 	if not gfile.exists(FLAGS.save_dir):
@@ -333,14 +360,15 @@ def run():
 			FLAGS.max_dataset_size)
 	normalize_data = FLAGS.normalize_data == "True"
 	standardize_data = FLAGS.standardize_data == "True"
-	if not FLAGS.is_test_separate:
-		X, y = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset)
-		X_sept_test, y_sept_test = None, None
-	else:
-		X, y = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/train_"+FLAGS.test_prefix)
-		X_sept_test, y_sept_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)
-		print("Success in reading separated test set.")
-
+	# if not FLAGS.is_test_separate:
+	# 	X, y = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset)
+	# 	X_sept_test, y_sept_test = None, None
+	# else:
+	# 	X, y = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/train_"+FLAGS.test_prefix)
+	# 	X_sept_test, y_sept_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)
+	# 	print("Success in reading separated test set.")
+	X, y, index, X_sept_test, y_sept_test, index_test = get_data_from_flags()
+ 
 
 	starting_seed = FLAGS.seed
 

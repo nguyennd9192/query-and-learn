@@ -132,7 +132,7 @@ class UncertainEnsembleRegression(object):
     return result
 
 class UncertainGaussianProcess(object):
-  def __init__(self,
+  def __init__(self, 
         random_state=1,
         cv=3, n_times=3, search_param=False,
         verbose=False, ):

@@ -123,10 +123,13 @@ def get_mldata(data_dir, name):
     data = load_pickle(filename)
     X = data["data"]
     y = data["target"]
+    index=None
+    if "index" in data:
+      index = data["index"]
     if "keras" in dataname:
       X = X / 255
       y = y.flatten()
-  return X, y
+  return X, y, index
 
 def filter_data(X, y, keep=None):
   """Filters data by class indicated in keep.
