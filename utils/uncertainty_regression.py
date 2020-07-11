@@ -157,7 +157,8 @@ class UncertainGaussianProcess(object):
     self.X_train = X_train
     self.y_train = y_train
 
-    if self.estimator is None:
+    if self.estimator is None: # # for not always search parameters:
+    # if self.estimator is None or self.search_param: # # either self.estimator is None or search_param is True-> require search
       estimator, GridSearchCV = RegressionFactory.get_regression(method="gp", 
           kernel='rbf', alpha=None, gamma=None, 
           search_param=self.search_param, X=X_train, y=y_train,  

@@ -202,12 +202,11 @@ def video_for_tunning(ith_trial, verbose=True):
 	x_lbl = "magmom_pa"
 	y_lbl = "energy_substance_pa"
 
-	x_train_plt = df.loc[index_trval_csv, x_lbl].values
-	y_train_plt = df.loc[index_trval_csv, y_lbl].values
-	x_test_plt = df.loc[test_idx_csv, x_lbl].values
-	y_test_plt = df.loc[test_idx_csv, y_lbl].values
+	# x_train_plt = df.loc[index_trval_csv, x_lbl].values
+	# y_train_plt = df.loc[index_trval_csv, y_lbl].values
+	# x_test_plt = df.loc[test_idx_csv, x_lbl].values
+	# y_test_plt = df.loc[test_idx_csv, y_lbl].values
 
-	print("index_trval_csv",index_trval_csv)
 
 	# # for video
 	width = 800
@@ -237,51 +236,54 @@ def video_for_tunning(ith_trial, verbose=True):
 		trace_selected_inds = np.array(result_dict["selected_inds"])
 
 		
-		batch_size = result_dict["data_sizes"][1] - result_dict["data_sizes"][0]
+		# batch_size = result_dict["data_sizes"][1] - result_dict["data_sizes"][0]
 		# print("all_X", result_dict["all_X"])
-		print("batch_size", batch_size)
-		print("exp_params:", exp_params)
-		print("selected_inds:", trace_selected_inds)
-		print("this_batch", result_dict["this_batch"])
+		# print("batch_size", batch_size)
+		# print("exp_params:", exp_params)
+		# print("selected_inds:", trace_selected_inds)
+		batches = result_dict["batches"]
+		min_margins = result_dict["min_margins"]
+		print("batches", batches)
 
-		print("un_shfl_test_idx:", result_dict["un_shfl_test_idx"])
-		print("un_shfl_train_val_idx:", result_dict["un_shfl_train_val_idx"])
+		# print("un_shfl_test_idx:", result_dict["un_shfl_test_idx"])
+		# print("un_shfl_train_val_idx:", result_dict["un_shfl_train_val_idx"])
 
 		shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
 		# # idx_train, idx_val, idx_test: index of train, test in np matrix after shuffling
-		print("idx_train:", idx_train)
-		print("idx_test:", idx_test)
+		# print("idx_train:", idx_train)
+		# print("idx_test:", idx_test)
+		n_train = len(y_train)
 
-		x_train_plt = df.loc[index_trval_csv[idx_train], x_lbl].values
-		y_train_plt = df.loc[index_trval_csv[idx_train], y_lbl].values
-		index_train_plt = index_trval_csv[idx_train]
+		# # currently, df hold all train, val and test set. This step to convert back from df to trval + test
+		x_trval_plt = df.loc[index_trval_csv, x_lbl].values
+		y_trval_plt = df.loc[index_trval_csv, y_lbl].values
+		
 
 		if idx_test is not None:
 			x_test_plt = df.loc[test_idx_csv[idx_test], x_lbl].values
 			y_test_plt = df.loc[test_idx_csv[idx_test], y_lbl].values
 			index_test_plt = test_idx_csv[idx_test]
 		else:
-			# # separated testset
+			# # for separated testset
 			x_test_plt = df.loc[test_idx_csv, x_lbl].values
 			y_test_plt = df.loc[test_idx_csv, y_lbl].values
 			index_test_plt = test_idx_csv
+		# # Finish converting back from df to trval + test
 
-		frameNo = 0
-		notEnd = True
+
 		selected_inds = []
-		while notEnd:
+		for frameNo, (batch, min_margin) in enumerate(zip(batches, min_margins)):
 			fig = plt.figure(figsize=(8, 8)) 
 			gs = gridspec.GridSpec(nrows=2,ncols=2,figure=fig,width_ratios=[1, 1]) 
 			canvas = FigureCanvas(fig)
 
 			# # must fix error of cannot get "this_batchs"
-			this_batch = trace_selected_inds[frameNo*batch_size:(frameNo+1)*batch_size]
-			selected_inds.extend(this_batch)
+			# this_batch = trace_selected_inds[frameNo*batch_size:(frameNo+1)*batch_size]
+			selected_inds.extend(batch)
 
-			frameNo += 1
-			if frameNo == 15:
-				notEnd = False
-			print("selected_inds", selected_inds)
+			# if frameNo == 15:
+			# 	notEnd = False
+			# print("selected_inds", selected_inds)
 			if len(selected_inds) == 0:
 				continue
 			if True:
@@ -290,21 +292,19 @@ def video_for_tunning(ith_trial, verbose=True):
 				"""
 				Begin plot map properties
 				"""
-				x_frame = x_train_plt[selected_inds]
-				y_frame = y_train_plt[selected_inds]
+				csv_idx_cvt = shfl_indices[selected_inds]
+				x_frame = x_trval_plt[csv_idx_cvt]
+				y_frame = y_trval_plt[csv_idx_cvt]
 				
-				train_colors = [get_color_112(k) for k in index_train_plt[selected_inds]]
-				train_name = process_name(input_name=index_train_plt[selected_inds], main_dir=struct_dir)
-				train_markers = [get_marker_112(k) for k in train_name]
-				ax_scatter(ax=ax1,x=x_frame,y=y_frame,
-					marker=train_markers,color=train_colors)
-				# test_idx = list(set(df.index) - set(index_train[selected_inds]))
+				train_colors = [get_color_112(k) for k in index_trval_csv[csv_idx_cvt]]
+				train_names = process_name(input_name=index_trval_csv[csv_idx_cvt], main_dir=struct_dir)
+				train_markers = [get_marker_112(k) for k in train_names]
+				ax_scatter(ax=ax1,x=x_frame,y=y_frame,marker=train_markers,color=train_colors)
 
+				# # for test points
 				colors = ["k" for k in index_test_plt]
-				# name = test_idx
 				name = process_name(input_name=index_test_plt, main_dir=struct_dir)
 				markers = ["*" for k in name]
-				
 				ax_scatter(ax=ax1,x=x_test_plt,y=y_test_plt,
 					marker=markers,color=colors)
 				fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -313,28 +313,30 @@ def video_for_tunning(ith_trial, verbose=True):
 				prediction plot
 				"""
 				ax2 = plt.subplot(gs[1, 0])
-				estimator_index = int(frameNo / batch_size)
-				try:
-					estimator = result_dict["save_model"][estimator_index].estimator
-				except:
-					pass
+				estimator = result_dict["save_model"][frameNo].estimator
+
 				partial_X = X_train[selected_inds]
 				partial_y = y_train[selected_inds]
+
+				# # check whether or not csv_idx_cvt point to partial_X
+				np.testing.assert_array_equal(partial_X, X_trval_csv[csv_idx_cvt])
+				np.testing.assert_array_equal(partial_y, y_trval_csv[csv_idx_cvt])
+
 				# # estimator saved here has already fit with the last selected inds
-				estimator.fit(partial_X, partial_y)
+				# estimator.fit(partial_X, partial_y)
 
 				y_test_pred = estimator.predict(X_test)
 				acc = estimator.score(X_test, y_test)
-				
+				print("frameNo:", frameNo, "acc:", acc)
 				# # train test prediction
-				ax2.scatter(y_test, y_test_pred, c="black", marker="*", label="acc: {0}".format(round(acc, 3)))
+				ax2.scatter(y_test, y_test_pred, c="black", marker="*", 
+					label="acc: {0}".format(round(acc, 3)))
 				ax_scatter(ax=ax2,x=partial_y,y=estimator.predict(partial_X),
 					marker=train_markers,color=train_colors)
+
 				lb, ub = -max_y, 0.3
 				ref = np.arange(lb, ub, (ub - lb)/100.0)
 				ax2.plot(ref, ref, linestyle="-.", c="r")
-
-				# # xlbl, ylbl, title setting
 				ax2.set_xlim(lb, ub) # max_y 
 				ax2.set_ylim(lb, ub)
 				ax2.set_xlabel("Observed value", **axis_font)
@@ -347,25 +349,35 @@ def video_for_tunning(ith_trial, verbose=True):
 				min_margin plot
 				"""
 				ax3 = plt.subplot(gs[0,1])
-				ax3.scatter([0, 1], [0, 1], #align='center',
-          # height=0.5, tick_label=selected_inds
+
+				acc_pos = range(frameNo)
+				ax3.plot(acc_pos,accuracies[:frameNo], "r"
           )
 				
 			if True:
 				ax4 = plt.subplot(gs[1,1])
-				min_margin = result_dict["min_margin"]
-				selected_inds_margin = min_margin[selected_inds]
-				pos = np.arange(len(selected_inds_margin))
-				print("selected_inds_margin", selected_inds_margin)
-				ax4.scatter(pos, selected_inds_margin, #align='center',
-          # height=0.5, tick_label=selected_inds
-          )
+				pos = np.arange(len(min_margin))
+
+				# # min_margin has the same index with X_train or idx_train
+				name_min_margin = np.array(["" for k in range(n_train)])
+				color_min_margin = np.array(["yellow" for k in range(n_train)])
+				marker_min_margin = np.array(["." for k in range(n_train)])
+
+				name_min_margin[selected_inds] = train_names
+				color_min_margin[selected_inds] = train_colors
+				marker_min_margin[selected_inds] = train_markers
+
+				ax_scatter(ax=ax4,x=pos,y=min_margin,
+					marker=marker_min_margin,color=color_min_margin)
+				# ax4.scatter(pos, min_margin, marker=marker_min_margin,color=color_min_margin
+    #       )
 				canvas.draw()
 				rgba_render = np.array(canvas.renderer.buffer_rgba())
 				final_frame = np.delete(rgba_render.reshape(-1,4),3,1)
+				# print("shape before:", final_frame.shape)
 				final_frame = final_frame.reshape(final_frame.shape[0],final_frame.shape[1],-1)
-
-				print(final_frame.shape)
+				final_frame = final_frame.reshape(800, 800,-1)
+				# print("shape after:", final_frame.shape)
 				out.write(final_frame)
 				plt.close()
 			# if frameNo == 15:
@@ -496,7 +508,7 @@ if __name__ == "__main__":
 	FLAGS(sys.argv)
 	# main_proc(ith_trial="000") # # to plot learning curver
 	# selection_path(ith_trial="000") # # to plot selection figure 
-	video_for_tunning(ith_trial="006") # # to prepare selection video
+	video_for_tunning(ith_trial="008") # # to prepare selection video
 
 
 

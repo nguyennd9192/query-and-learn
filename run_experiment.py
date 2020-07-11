@@ -195,16 +195,19 @@ def generate_one_curve(X, y,
 	cv_train_model = []
 	save_model = []
 
-	# If select model is None, use score_model
+	# # select_model is higher priority
+	# # If select model is None, use score_model as select_model
 	same_score_select = False
 	if select_model is None:
-		select_model = score_model
+		select_model = score_model # # te
 		same_score_select = True
 	n_batches = int(np.ceil((train_horizon * train_size - seed_batch) *
 													1.0 / batch_size)) + 1
 	print("n_batches: ", n_batches)
 	print("seed_batch: ", seed_batch)
 
+	batches=[]
+	min_margins=[]
 	for b in range(n_batches):
 		n_train = seed_batch + min(train_size - seed_batch, b * batch_size)
 		print("Training model on " + str(n_train) + " datapoints")
@@ -216,13 +219,13 @@ def generate_one_curve(X, y,
 		partial_X = X_train[sorted(selected_inds)]
 		partial_y = y_train[sorted(selected_inds)]
 		print("prepare to fit")
-		score_model.fit(partial_X, partial_y)
+		select_model.fit(partial_X, partial_y)
 		print("done fitting")
 
 		if not same_score_select:
 			select_model.fit(partial_X, partial_y)
-		acc = score_model.score(X_test, y_test)
-		cv_train_model.append(score_model.best_score_)
+		acc = select_model.score(X_test, y_test)
+		cv_train_model.append(select_model.best_score_)
 		save_model.append(select_model)
 
 
@@ -231,7 +234,7 @@ def generate_one_curve(X, y,
 
 		n_sample = min(batch_size, train_size - len(selected_inds))
 		select_batch_inputs = {
-				"model": select_model,
+				"model": select_model, #
 				"labeled": dict(zip(selected_inds, y_train[selected_inds])),
 				"eval_acc": accuracy[-1],
 				"X_test": X_val,
@@ -244,6 +247,7 @@ def generate_one_curve(X, y,
 		print("new_batch_", new_batch_)
 		if select_batch_inputs["verbose"]:
 			# # returning "min_margin" value
+			# # min_margin has not been sorted yet 
 			new_batch, min_margin = new_batch_[0], new_batch_[1]
 		else:
 			new_batch = new_batch_
@@ -252,6 +256,8 @@ def generate_one_curve(X, y,
 		print("selected_inds", selected_inds)
 
 		selected_inds.extend(new_batch)
+		batches.append(new_batch)
+		min_margins.append(min_margin) 
 		print('Requested: %d, Selected: %d' % (n_sample, len(new_batch)))
 		assert len(new_batch) == n_sample
 		# print (selected_inds)
@@ -264,8 +270,8 @@ def generate_one_curve(X, y,
 	results["save_model"] = save_model
 	results["all_X"] = all_X
 	results["n_test"] = len(y_test)
-	results["this_batch"] = new_batch # # save each batch
-	results["min_margin"] = min_margin # # save min_margin each calc time
+	results["batches"] = batches # # save each batch
+	results["min_margins"] = min_margins # # save min_margin each calc time
 	results["cv_train_model"] = cv_train_model
 	results["accuracy"] = accuracy
 	results["selected_inds"] = selected_inds
