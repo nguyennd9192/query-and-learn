@@ -23,7 +23,7 @@ from __future__ import division
 from __future__ import print_function
 
 from io import BytesIO
-import os
+import os, glob
 import pickle
 from io import StringIO
 import tarfile
@@ -47,7 +47,9 @@ from sklearn.feature_extraction.text import TfidfTransformer
 from absl import app
 from absl import flags
 from tensorflow.io import gfile
-from general_lib import makedirs
+from general_lib import makedirs, get_subdirs
+
+from features import OFMFeature
 
 flags.DEFINE_string('save_dir', '/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data',
                     'Where to save outputs')
@@ -75,7 +77,7 @@ def get_csv_data(filename):
   """
   f = gfile.GFile(filename, 'r')
   mat = []
-  for l in f:
+  for l in f: 
     row = l.strip()
     row = row.replace('"', '')
     row = row.split(',')
@@ -101,19 +103,32 @@ def get_pv_tv(df, pv, tv, rmvs):
 def get_ofm_data(filename, pv, tv, rmvs):
   df = pd.read_csv(filename, index_col=0)
   df = df.dropna()
-
   pv, tv = get_pv_tv(df, pv, tv, rmvs)
   X = df[pv].values
   fe = df[tv].values
-
   # # revise here
   stb_thres = 0.0603 # # found in 200318_note1
   y = np.array(['stable' if i < stb_thres else 'unstable' for i in fe])
   print ("N stable", len(np.where(y =="stable")[0]))
   print ("N unstable", len(np.where(y =="unstable")[0]))
-
   data = Dataset(X, y)
   return data
+
+
+def merge_df(filenames, pv, tv, rmvs):
+  dfs = []
+
+  for ith, filename in enumerate(filenames):
+    df = pd.read_csv(filename, index_col=0)
+    this_pv, tv = get_pv_tv(df, pv, tv, rmvs)
+    if ith == 0:
+      save_pv = this_pv
+    assert save_pv == this_pv
+    print(np.concatenate([pv, tv]))
+    dfs.append(df[np.concatenate([pv, tv])])
+
+  df_final = reduce(lambda left,right: pd.merge(left,right,on='name'), dfs)
+
 
 def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   df = pd.read_csv(filename, index_col=0)
@@ -139,8 +154,8 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   print ("N unstable train", len(np.where(y_train =="unstable")[0]))
   print ("N stable test", len(np.where(y_test =="stable")[0]))
   print ("N unstable test", len(np.where(y_test =="unstable")[0]))
-  print("5 train idx", y_train.index[:5])
-  print("5 test idx", idx[:5])
+  print ("5 train idx", y_train.index[:5])
+  print ("5 test idx", idx[:5])
 
 
   data_train = Dataset(X_train.values, y_train.values, y_train.index)
@@ -149,6 +164,45 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
 
   return data_train, data_test
 
+
+def get_unlbl_data(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
+  df = pd.read_csv(lbldata, index_col=0)
+  df = df.dropna()
+  pv, tv = get_pv_tv(df, pv, tv, rmvs)
+  
+  all_unlbl = []
+  unlbl_jobs = ["Sm-Fe9-Al1-Ga2", "Sm-Fe9-Al2-Ga1", 
+        "Sm-Fe9-Co1-Ga2", "Sm-Fe9-Co2-Ga1", 
+        "Sm-Fe9-Cu1-Ga2", "Sm-Fe9-Cu2-Ga1", 
+        "Sm-Fe9-Mo1-Ga2", "Sm-Fe9-Mo2-Ga1", 
+        "Sm-Fe9-Ti1-Ga2", "Sm-Fe9-Ti2-Ga1", 
+        "Sm-Fe9-Zn1-Ga2", "Sm-Fe9-Zn2-Ga1", 
+        "Sm-Fe10-Al1-Ga1", "Sm-Fe10-Co1-Ga1", 
+        "Sm-Fe10-Cu1-Ga1", "Sm-Fe10-Mo1-Ga1", 
+        "Sm-Fe10-Ti1-Ga1", "Sm-Fe10-Zn1-Ga1"]
+  unlbl_jobs = ["mix/" + k for k in unlbl_jobs]
+  for job in unlbl_jobs:
+    listdir = glob.glob("{0}/{1}/{2}/*.*".format(unlbl_data_dir, job, ft_type)) # os.listdir(current_dir)    
+    all_unlbl = np.concatenate((all_unlbl, listdir))
+  print(len(all_unlbl))
+  # with open(struct_dir_file) as file:
+  #   struct_reprs = file.read().splitlines()
+
+  data = []
+  for struct_repr in all_unlbl:
+    with open(struct_repr, "rb") as tmp_f:
+      struct_repr_obj = pickle.load(tmp_f,encoding='latin1') #
+      data.append(struct_repr_obj)
+
+  feature = np.array([file.__getattribute__('feature') for file in data])
+  feature_names = np.array(data[0].__getattribute__('feature_name'))
+
+  tmp_df = pd.DataFrame(feature, columns=feature_names)
+  X = tmp_df[pv].values
+
+  unlbl_data = Dataset(X=X, y=np.array([None]*X.shape[0]), index=all_unlbl)
+  dump_data(unlbl_data, unlbl_data_dir+'/mix.pkl')
+  print (X.shape)
 
 def get_wikipedia_talk_data():
   """Get wikipedia talk dataset.
@@ -410,14 +464,21 @@ def main(argv):
     subset = FLAGS.datasets.split(',')
     datasets = [d for d in datasets if d[1] in subset]
 
+  is_prepare_train_data = False
+  is_prepare_unlbl_data = True
+
   for d in datasets:
     print(d[1])
     # # non separate test set
     # get_mldata(d)
 
     # # separate test set
-    get_mldata(d, is_test_separate=True, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
-
+    if is_prepare_train_data:
+      get_mldata(d, is_test_separate=True, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
+    if is_prepare_unlbl_data:
+      get_unlbl_data(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
+        unlbl_data_dir=input_dir+"SmFe12/unlabeled_data")
+      
 
 if __name__ == '__main__':
   app.run(main)
@@ -425,7 +486,5 @@ if __name__ == '__main__':
   # df=pd.read_csv(filename, index_col=0)
   # df=df.dropna()
   # df.to_csv(filename)
-
-
 
 

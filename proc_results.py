@@ -53,7 +53,6 @@ markers = dict({0.1:"o", 0.3:"p", 0.5:"v", 0.7:"^", 0.9:"s"})
 
 
 def main_proc(ith_trial="000"):
-
 	result_dir = get_savedir()
 	filename = get_savefile()
 
@@ -152,9 +151,6 @@ def main_proc(ith_trial="000"):
 	plt.savefig(saveat, bbox_inches='tight')
 		# print("accuracy:", result_dict["accuracy"])
 		# break
-
-
-
 
 
 def video_for_tunning(ith_trial, verbose=True): 

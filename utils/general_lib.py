@@ -1,5 +1,5 @@
 
-import os
+import os, glob
 
 def release_mem(fig):
 	fig.clf()
@@ -16,3 +16,8 @@ def ax_setting():
 def makedirs(file):
 	if not os.path.isdir(os.path.dirname(file)):
 		os.makedirs(os.path.dirname(file))
+
+
+def get_subdirs(sdir):
+	subdirs = glob.glob(sdir+"/*")
+	return subdirs

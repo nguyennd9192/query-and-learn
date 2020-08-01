@@ -77,19 +77,19 @@ get_wrapper_AL_mapping()
 
 
 def generate_one_curve(X, y,
-											 X_sept_test, y_sept_test,
-											 sampler,
-											 score_model,
-											 seed,
-											 warmstart_size,
-											 batch_size,
-											 select_model=None,
-											 confusion=0.1,
-											 active_p=1.0,
-											 max_points=None,
-											 standardize_data=False,
-											 norm_data=False,
-											 train_horizon=0.5):
+				 X_sept_test, y_sept_test,
+				 sampler,
+				 score_model,
+				 seed,
+				 warmstart_size,
+				 batch_size,
+				 select_model=None,
+				 confusion=0.1,
+				 active_p=1.0,
+				 max_points=None,
+				 standardize_data=False,
+				 norm_data=False,
+				 train_horizon=0.5):
 	"""Creates one learning curve for both active and passive learning.
 
 	Will calculate accuracy on validation set as the number of training data
@@ -131,7 +131,7 @@ def generate_one_curve(X, y,
 	# test accuracy
 
 	# TODO(lishal): remove mixture parameter and have the mixture be specified as
-	# a mixture of samplers strategy
+	# a mixture of samplers strategyget
 	def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 									 **kwargs):
 		n_active = int(mixture * N)
@@ -285,6 +285,7 @@ def generate_one_curve(X, y,
 	results["y_test_info"] = pd.DataFrame(y_test).describe()
 	return results, sampler
 
+
 def get_data_from_flags():
 	if not FLAGS.is_test_separate:
 		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset)
@@ -306,6 +307,7 @@ def get_train_test(X,y,X_sept_test, y_sept_test,max_points,seed,confusion,seed_b
 			)
 
 	return all_X
+
 
 def get_othere_cfg(y,max_points,batch_size,warmstart_size,seed,data_splits):
 	np.random.seed(seed)
@@ -334,14 +336,8 @@ def get_othere_cfg(y,max_points,batch_size,warmstart_size,seed,data_splits):
 		seed_batch = 5000
 	return max_points, train_size, batch_size, seed_batch
 
-def run():
-	if not gfile.exists(FLAGS.save_dir):
-		try:
-			gfile.mkdir(FLAGS.save_dir)
-		except:
-			print(('WARNING: error creating save directory, '
-						 'directory most likely already created.'))
 
+def run():
 	save_dir = get_savedir()
 	do_save = FLAGS.do_save == "True"
 
@@ -372,7 +368,6 @@ def run():
 	# 	X_sept_test, y_sept_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)
 	# 	print("Success in reading separated test set.")
 	X, y, un_shfl_train_val_idx, X_sept_test, y_sept_test, un_shfl_test_idx = get_data_from_flags()
- 
 
 	starting_seed = FLAGS.seed
 

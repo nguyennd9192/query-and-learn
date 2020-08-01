@@ -64,8 +64,5 @@ flags.DEFINE_float("train_horizon", "1.0",
 flags.DEFINE_string("do_save", "True",
                     "whether to save log and results")
 
-
-
 FLAGS = flags.FLAGS
 
-# print ("here", FLAGS.select_method)
