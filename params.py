@@ -10,7 +10,7 @@ flags.DEFINE_string("sampling_method", "margin",
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
 flags.DEFINE_boolean(
-    "is_test_separate", True,
+    "is_test_separate", False,
     ("Whether or not the test file was prepared separately.")
 )
 flags.DEFINE_boolean(

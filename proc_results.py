@@ -269,8 +269,8 @@ def video_for_tunning(ith_trial, verbose=True):
 
 		selected_inds = []
 		for frameNo, (batch, min_margin) in enumerate(zip(batches, min_margins)):
-			fig = plt.figure(figsize=(8, 8)) 
-			gs = gridspec.GridSpec(nrows=2,ncols=2,figure=fig,width_ratios=[1, 1]) 
+			fig = plt.figure(figsize=(8, 12)) 
+			gs = gridspec.GridSpec(nrows=2,ncols=3,figure=fig,width_ratios=[1, 1]) 
 			canvas = FigureCanvas(fig)
 
 			# # must fix error of cannot get "this_batchs"
@@ -379,7 +379,8 @@ def video_for_tunning(ith_trial, verbose=True):
 			# if frameNo == 15:
 			# 	break
 			# break
-
+			# if True:
+				
 		out.release()
 		cv.destroyAllWindows()
 		print("Save at:", saveat)

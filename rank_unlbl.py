@@ -9,11 +9,12 @@ from utils.utils import load_pickle
 from proc_results import read_exp_params
 
 from utils import utils
-from proc_results import main_proc
 from sampling_methods.constants import AL_MAPPING
 from sampling_methods.constants import get_AL_sampler
+from sklearn.preprocessing import MinMaxScaler
 
-
+from utils.manifold_processing import Preprocessing
+from utils.plot import get_color_112, get_marker_112, scatter_plot_3, scatter_plot_4
 
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 									 **kwargs):
@@ -46,8 +47,8 @@ def rank_unlbl_data(ith_trial):
 	print(y_trval_csv.shape)
 
 	# # read load unlbl data
-	unlbl_file = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/unlabeled_data/mix.pkl"
-	data = load_pickle(unlbl_file)
+	unlbl_file = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/unlabeled_data/mix"
+	data = load_pickle(unlbl_file+".pkl")
 	unlbl_X = data["data"]
 	unlbl_y = data["target"]
 	unlbl_index = data["index"]
@@ -99,11 +100,78 @@ def rank_unlbl_data(ith_trial):
 		new_batch, min_margin = select_batch(sampler, uniform_sampler, active_p, n_sample,
 															 list(selected_inds), **select_batch_inputs)
 		print (new_batch)
-		print (unlbl_index[new_batch])
 
-		print (min_margin)
+		rank_ind = np.argsort(min_margin)
+		print (unlbl_index[rank_ind])
+
+		break
+
+	# # tsne
+	config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
+					"early_exaggeration":400.0, # same meaning as n_cluster
+					"learning_rate":1000.0, "n_iter":1000,
+					 "n_iter_without_progress":300, "min_grad_norm":1e-07, 
+					 "metric":'euclidean', "init":'random',
+					 "verbose":0, "random_state":None, "method":'barnes_hut', 
+					 "angle":0.5, "n_jobs":None})
+	processing = Preprocessing()
+	processing.similarity_matrix = unlbl_X
+	X_trans, _, a, b = processing.tsne(**config_tsne)
+	
+	name = [k.replace(unlbl_file, "") for k in unlbl_index]
+	family = []
+	for idx in unlbl_index:
+		if "Sm-Fe9" in idx:
+			family.append("1-9-3")
+		elif "Sm-Fe10" in idx:
+			family.append("1-10-2")
+
+	color_array = [get_color_112(k) for k in name]
+	marker_array = [get_marker_112(k) for k in family]
+
+	x = X_trans[:, 0]
+	y = X_trans[:, 1]
+
+	scaler = MinMaxScaler()
+	size_points = scaler.fit_transform(min_margin.reshape(-1, 1))
+	size_points *= 100
+	saveat = result_file.replace(".pkl","") + "/unlbl_rank.pdf"
+	scatter_plot_3(x=x, y=y, 
+			# xvlines=[xlb, xub], yhlines=[ylb, yub], 
+			xvlines=None, yhlines=None, 
+			s=size_points, alpha=0.2, 
+			# title=title,
+			sigma=None, mode='scatter', 
+			name=None,  # all_local_idxes
+			x_label='Dim 1', y_label="Dim 2", 
+			save_file=saveat,
+			interpolate=False, color_array=color_array, 
+			preset_ax=None, linestyle='-.', marker=marker_array)
+
+	# scatter_plot_4(x=x, y=y, 
+	# 		# xvlines=[xlb, xub], yhlines=[ylb, yub], 
+	# 		xvlines=None, yhlines=None, 
+	# 		s=80, alpha=0.2, 
+	# 		# title=title,
+	# 		sigma=None, mode='scatter', 
+	# 		name=None,  # all_local_idxes
+	# 		x_label='Dim 1', y_label="Dim 2", 
+	# 		save_file=saveat.replace(".pdf", "mix.pdf"),
+	# 		interpolate=False, color_array=color_array, 
+	# 		preset_ax=None, linestyle='-.', marker=marker_array)
+
+
+	return unlbl_X, unlbl_index, rank_ind
+
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 
-	rank_unlbl_data(ith_trial="009")
+	rank_unlbl_data(ith_trial="010")
+
+
+
+
+
+
+
