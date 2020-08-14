@@ -108,12 +108,16 @@ def joint_plot(x, y, xlabel, ylabel, save_at, is_show=False):
 	print ("Save file at:", "{0}".format(save_at))
 	release_mem(fig)
 
-def ax_scatter(ax,x,y,marker,color):
+def ax_scatter(ax,x,y,marker,color,name=None):
 	n_points = len(x)
 	for i in range(n_points):
 		ax.scatter(x[i], y[i], s=80, alpha=0.8, 
 		marker=marker[i], 
  		c=color[i], edgecolor="black") # brown
+
+	if name is not None:
+		for i in range(n_points):
+			ax.annotate(name[i], xy=(x[i], y[i]), size=12 ) # brown
 
 
 def scatter_plot(x, y, xvline=None, yhline=None, 
@@ -301,22 +305,17 @@ def process_name(input_name, main_dir):
 	name = [k.replace("Sm-Fe10-Ga2", "1-10-2") for k in name]
 	name = [k.replace("Sm2-Fe23-M", "2-23-1") for k in name]
 	name = [k.replace("Sm2-Fe23-Ga", "2-23-1") for k in name]
-
 	name = [k.replace("Sm2-Fe22-M2", "2-22-2") for k in name]
 	name = [k.replace("Sm2-Fe22-Ga2", "2-22-2") for k in name]
-
 	name = [k.replace("Sm2-Fe21-M3", "2-21-3") for k in name]
 	name = [k.replace("Sm2-Fe21-Ga3_std6000", "2-21-3") for k in name]
-
 	name = [k.replace("_wyckoff_2", "") for k in name]
-
 	name = [k.replace("_wyckoff", "").replace("*", "").replace("_", "") for k in name]
 
 	wck_idx = [k[k.find("/"):] for k in name]
 	system_name = [k[:k.find("/")] for k in name]
 	wck_idx = [''.join(i for i in k if not i.isdigit()) for k in wck_idx]
 	name = [i + j for i, j in zip(system_name, wck_idx)]
-	
 	name = [k.replace("CuAlZnTi", "") for k in name]
 
 	# name = [k.replace("Mo", "").replace("Ti", "").replace("Al", "") for k in name]
@@ -348,13 +347,13 @@ def scatter_plot_3(x, y, color_array=None, xvlines=None, yhlines=None,
     	sizes = s
     for _m, _c, _x, _y, _s in zip(marker, color_array, x, y, sizes):
         if _c == "orange":
-            plt.scatter(_x, _y, s=100, marker=_m, c=_c, alpha=0.2, edgecolor="black")# "black"
+            plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.2, edgecolor="black")# "black"
         else: 
-            plt.scatter(_x, _y, s=100, marker=_m, c=_c, alpha=0.7, edgecolor="black")
+            plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.7, edgecolor="black")
 
     for _m, _c, _x, _y in zip(marker, color_array, x, y):
         if _c == "blue": 
-            plt.scatter(_x, _y, s=100, marker=_m, c=_c, alpha=0.1, edgecolor="black")
+            plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.1, edgecolor="black")
 
     # else:
     #     main_plot = plt.scatter(x, y, s=150, alpha=0.8, marker=marker, 
@@ -500,3 +499,37 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
     release_mem(fig=fig)
 
 
+def plot_hist(x, ax, save_at=None, label=None, nbins=50):
+
+	if save_at is not None:
+		fig = plt.figure(figsize=(16, 16))
+
+	# hist, bins = np.histogram(x, bins=300, normed=True)
+	# xs = (bins[:-1] + bins[1:])/2
+
+	# plt.bar(xs, hist,  alpha=1.0)
+	# y_plot = hist
+	y_plot, x_plot, patches = ax.hist(x, bins=nbins, histtype='stepfilled', # step, stepfilled, 'bar', 'barstacked'
+										density=True, label=label, log=False,  
+										color='black', #edgecolor='none',
+										alpha=1.0, linewidth=2)
+
+	# X_plot = np.linspace(np.min(x), np.max(x), 1000)[:, np.newaxis]
+	# kde = KernelDensity(kernel='gaussian', bandwidth=2).fit(x.reshape(-1, 1))
+	# log_dens = kde.score_samples(X_plot)
+	# plt.fill(X_plot[:, 0], np.exp(log_dens), fc='#AAAAFF')
+	# plt.text(-3.5, 0.31, "Gaussian Kernel Density")
+
+	#plt.xticks(np.arange(x_min, x_max, (x_max - x_min) / 30), rotation='vertical', size=6)
+	# plt.ylim([1, np.max(y_plot)*1.01])
+	plt.legend()
+	plt.ylabel('Probability density', **axis_font)
+	plt.xlabel("Value", **axis_font)
+
+	ax_setting()
+
+	if save_at is not None:
+		makedirs(save_at)
+		plt.savefig(save_at)
+		print ("Save file at:", "{0}".format(save_at))
+		release_mem(fig)

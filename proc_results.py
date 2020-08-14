@@ -181,14 +181,17 @@ def video_for_tunning(ith_trial, verbose=True):
 	# indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise = all_X
 	if verbose:
 		print("X_train, y_train, index_train, X_test, y_test, test_idx")
-		print(X_trval_csv.shape, y_trval_csv.shape, len(index_trval_csv), X_test_csv.shape, y_test_csv.shape, len(test_idx_csv))
+		# print(X_trval_csv.shape, y_trval_csv.shape, len(index_trval_csv), X_test_csv.shape, y_test_csv.shape, len(test_idx_csv))
 		# print("indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise")
 		# print(len(indices), X_train.shape, y_train.shape, X_val.shape, y_val.shape, X_test.shape, y_test.shape, y_noise.shape)
 	# X_train_csv = normalize(X_train_csv)
 	# X_test_csv = normalize(X_test_csv)
 
-	max_y = max(np.abs(np.concatenate((y_test_csv, y_trval_csv))))*1.1
-
+	try:
+		max_y = max(np.abs(np.concatenate((y_test_csv, y_trval_csv))))*1.1
+	except Exception as e:
+		max_y = max(np.abs(y_trval_csv))*1.1
+		pass
 	"""
 	selected_inds: work only on X_train data
 	"""
@@ -202,7 +205,6 @@ def video_for_tunning(ith_trial, verbose=True):
 	# y_train_plt = df.loc[index_trval_csv, y_lbl].values
 	# x_test_plt = df.loc[test_idx_csv, x_lbl].values
 	# y_test_plt = df.loc[test_idx_csv, y_lbl].values
-
 
 	# # for video
 	width = 800
@@ -231,7 +233,6 @@ def video_for_tunning(ith_trial, verbose=True):
 		plot_idx = [k for k in x]
 		trace_selected_inds = np.array(result_dict["selected_inds"])
 
-		
 		# batch_size = result_dict["data_sizes"][1] - result_dict["data_sizes"][0]
 		# print("all_X", result_dict["all_X"])
 		# print("batch_size", batch_size)
@@ -245,32 +246,36 @@ def video_for_tunning(ith_trial, verbose=True):
 		# print("un_shfl_train_val_idx:", result_dict["un_shfl_train_val_idx"])
 
 		shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
+		# indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test
+
 		# # idx_train, idx_val, idx_test: index of train, test in np matrix after shuffling
-		# print("idx_train:", idx_train)
+		print("index_trval_csv:", index_trval_csv)
 		# print("idx_test:", idx_test)
 		n_train = len(y_train)
 
 		# # currently, df hold all train, val and test set. This step to convert back from df to trval + test
-		x_trval_plt = df.loc[index_trval_csv, x_lbl].values
-		y_trval_plt = df.loc[index_trval_csv, y_lbl].values
-		
 
-		if idx_test is not None:
-			x_test_plt = df.loc[test_idx_csv[idx_test], x_lbl].values
-			y_test_plt = df.loc[test_idx_csv[idx_test], y_lbl].values
-			index_test_plt = test_idx_csv[idx_test]
-		else:
-			# # for separated testset
+		if FLAGS.is_test_separate:
+			# # for separated test set
+			x_trval_plt = df.loc[index_trval_csv, x_lbl].values
+			y_trval_plt = df.loc[index_trval_csv, y_lbl].values
 			x_test_plt = df.loc[test_idx_csv, x_lbl].values
 			y_test_plt = df.loc[test_idx_csv, y_lbl].values
 			index_test_plt = test_idx_csv
+		else:
+			# # for not separating test set
+			# # x_trval_plt should be all data including train+val+test
+			x_trval_plt = df.loc[index_trval_csv, x_lbl].values
+			y_trval_plt = df.loc[index_trval_csv, y_lbl].values
+			x_test_plt = df.loc[index_trval_csv[idx_test], x_lbl].values
+			y_test_plt = df.loc[index_trval_csv[idx_test], y_lbl].values
+			index_test_plt = index_trval_csv[idx_test] # test_idx_csv[idx_test]
+
 		# # Finish converting back from df to trval + test
-
-
 		selected_inds = []
 		for frameNo, (batch, min_margin) in enumerate(zip(batches, min_margins)):
-			fig = plt.figure(figsize=(8, 12)) 
-			gs = gridspec.GridSpec(nrows=2,ncols=3,figure=fig,width_ratios=[1, 1]) 
+			fig = plt.figure(figsize=(8, 8)) 
+			gs = gridspec.GridSpec(nrows=2,ncols=2,figure=fig,width_ratios=[1, 1]) 
 			canvas = FigureCanvas(fig)
 
 			# # must fix error of cannot get "this_batchs"
@@ -291,7 +296,8 @@ def video_for_tunning(ith_trial, verbose=True):
 				csv_idx_cvt = shfl_indices[selected_inds]
 				x_frame = x_trval_plt[csv_idx_cvt]
 				y_frame = y_trval_plt[csv_idx_cvt]
-				
+					
+				print (index_trval_csv)
 				train_colors = [get_color_112(k) for k in index_trval_csv[csv_idx_cvt]]
 				train_names = process_name(input_name=index_trval_csv[csv_idx_cvt], main_dir=struct_dir)
 				train_markers = [get_marker_112(k) for k in train_names]
@@ -319,7 +325,7 @@ def video_for_tunning(ith_trial, verbose=True):
 				np.testing.assert_array_equal(partial_y, y_trval_csv[csv_idx_cvt])
 
 				# # estimator saved here has already fit with the last selected inds
-				# estimator.fit(partial_X, partial_y)
+				estimator.fit(partial_X, partial_y)
 
 				y_test_pred = estimator.predict(X_test)
 				acc = estimator.score(X_test, y_test)
@@ -347,8 +353,7 @@ def video_for_tunning(ith_trial, verbose=True):
 				ax3 = plt.subplot(gs[0,1])
 
 				acc_pos = range(frameNo)
-				ax3.plot(acc_pos,accuracies[:frameNo], "r"
-          )
+				ax3.plot(acc_pos,accuracies[:frameNo], "r")
 				
 			if True:
 				ax4 = plt.subplot(gs[1,1])
@@ -366,7 +371,7 @@ def video_for_tunning(ith_trial, verbose=True):
 				ax_scatter(ax=ax4,x=pos,y=min_margin,
 					marker=marker_min_margin,color=color_min_margin)
 				# ax4.scatter(pos, min_margin, marker=marker_min_margin,color=color_min_margin
-    #       )
+    		#       )
 				canvas.draw()
 				rgba_render = np.array(canvas.renderer.buffer_rgba())
 				final_frame = np.delete(rgba_render.reshape(-1,4),3,1)
@@ -380,7 +385,7 @@ def video_for_tunning(ith_trial, verbose=True):
 			# 	break
 			# break
 			# if True:
-				
+			# 	ax5 = plt.subplot(gs[0,2])
 		out.release()
 		cv.destroyAllWindows()
 		print("Save at:", saveat)

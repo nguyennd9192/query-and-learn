@@ -164,7 +164,6 @@ def generate_one_curve(X, y,
 	all_X = get_train_test(X,y,X_sept_test, y_sept_test,max_points,seed,confusion,seed_batch,data_splits)
 	indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = all_X
 
-
 	print("Done splitting train, val, test")
 	
 	# Preprocess data
@@ -289,7 +288,7 @@ def generate_one_curve(X, y,
 def get_data_from_flags():
 	if not FLAGS.is_test_separate:
 		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset)
-		X_sept_test, y_sept_test, index_test = None, None
+		X_sept_test, y_sept_test, index_test = None, None, None
 	else:
 		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/train_"+FLAGS.test_prefix)
 		X_sept_test, y_sept_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)

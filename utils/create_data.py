@@ -108,10 +108,11 @@ def get_ofm_data(filename, pv, tv, rmvs):
   fe = df[tv].values
   # # revise here
   stb_thres = 0.0603 # # found in 200318_note1
-  y = np.array(['stable' if i < stb_thres else 'unstable' for i in fe])
+  # y = np.array(['stable' if i < stb_thres else 'unstable' for i in fe])
+  y = fe
   print ("N stable", len(np.where(y =="stable")[0]))
   print ("N unstable", len(np.where(y =="unstable")[0]))
-  data = Dataset(X, y)
+  data = Dataset(X=X, y=y, index=df.index)
   return data
 
 
@@ -457,14 +458,13 @@ def main(argv):
               (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
                 '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d', 
                 'energy_substance_pa', ["atoms", "magmom_pa"])
-
               ]
 
   if FLAGS.datasets:
     subset = FLAGS.datasets.split(',')
     datasets = [d for d in datasets if d[1] in subset]
 
-  is_prepare_train_data = False
+  is_prepare_train_data = True
   is_prepare_unlbl_data = True
 
   for d in datasets:
@@ -474,7 +474,7 @@ def main(argv):
 
     # # separate test set
     if is_prepare_train_data:
-      get_mldata(d, is_test_separate=True, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
+      get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
     if is_prepare_unlbl_data:
       get_unlbl_data(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
         unlbl_data_dir=input_dir+"SmFe12/unlabeled_data")
