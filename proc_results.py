@@ -1,5 +1,5 @@
 import sys
-import os
+import os, copy
 from absl import app
 import numpy as np
 from matplotlib import pyplot as plt
@@ -52,6 +52,26 @@ markers = dict({0.1:"o", 0.3:"p", 0.5:"v", 0.7:"^", 0.9:"s"})
 # markers = ["o", "p", "v", "^", "s"]
 
 
+def params2text(exp_params, result_key_to_text):
+	pr = copy.copy(exp_params)
+	pr["dataset"] = "CuAlZnTiMoGa, ofm1_no_d"
+
+	text = "\n".join(["{0}: {1}".format(k, v) for k, v in pr.items() if k != "m" and k != "c"])
+	text += "\nm: Mix weights on ActSamp\n"
+	text += "c: percent of rand labels\n"
+	# text += "\n".join(["{0}: {1}".format(k, v) for k, v in result_key_to_text.items() if k != "data_sizes"])
+	text += "batch data size: " + str(result_key_to_text["data_sizes"][1] - result_key_to_text["data_sizes"][0]) + "\n"
+	# text += "init train size: "  + str(init_data_size)  + " cv: " + str(round(result_key_to_text["cv_train_model"][0], 2)) + "\n"
+	# text += "final train size: " + str(final_data_size) + " cv: " + str(round(result_key_to_text["cv_train_model"][-1], 2)) +  "\n"
+	text += "test data size: " + str(result_key_to_text["n_test"]) + "\n"
+	text += "is test separate: " + str(result_key_to_text["is_test_separate"]) + "\n"
+	text += "test_prefix: " + str(result_key_to_text["test_prefix"]) + "\n"
+
+	# text += "y_train_info: " + str(result_key_to_text["y_train_info"]) + "\n"
+	# text += "y_val_info: " + str(result_key_to_text["y_val_info"]) + "\n"
+	# text += "y_test_info: " + str(result_key_to_text["y_test_info"]) + "\n"
+	return text
+
 def main_proc(ith_trial="000"):
 	result_dir = get_savedir()
 	filename = get_savefile()
@@ -99,8 +119,6 @@ def main_proc(ith_trial="000"):
 
 		models = [k.estimator.get_params() for k in result_dict["save_model"]]
 		GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
-
-
 		for model, gscv in zip(models, GSCVs):
 			print(model)
 			print(gscv)
@@ -122,27 +140,12 @@ def main_proc(ith_trial="000"):
 
 	final_data_size = result_key_to_text["data_sizes"][-1]
 
-
-	text = "\n".join(["{0}: {1}".format(k, v) for k, v in exp_params.items() if k != "m" and k != "c"])
-	text += "\nm: Mix weights on ActSamp\n"
-	text += "c: percent of rand labels\n"
-	# text += "\n".join(["{0}: {1}".format(k, v) for k, v in result_key_to_text.items() if k != "data_sizes"])
-	text += "batch data size: " + str(batch_data_size) + "\n"
-	# text += "init train size: "  + str(init_data_size)  + " cv: " + str(round(result_key_to_text["cv_train_model"][0], 2)) + "\n"
-	# text += "final train size: " + str(final_data_size) + " cv: " + str(round(result_key_to_text["cv_train_model"][-1], 2)) +  "\n"
-	text += "test data size: " + str(result_key_to_text["n_test"]) + "\n"
-	text += "is test separate: " + str(result_key_to_text["is_test_separate"]) + "\n"
-	text += "test_prefix: " + str(result_key_to_text["test_prefix"]) + "\n"
-
-	text += "y_train_info: " + str(result_key_to_text["y_train_info"]) + "\n"
-	text += "y_val_info: " + str(result_key_to_text["y_val_info"]) + "\n"
-	text += "y_test_info: " + str(result_key_to_text["y_test_info"]) + "\n"
-
 	# org_data_size
 	print(result_key_to_text["y_train_info"])
 	print(str(result_key_to_text["data_sizes"]))
 	# plt.text(35.5, 0.5, text, fontsize=14)
 
+	text = params2text(exp_params=exp_params, result_key_to_text=result_key_to_text)
 	side_text = plt.figtext(0.91, 0.12, text, bbox=dict(facecolor='white'))
 	fig.subplots_adjust(top=0.8)
 	# plt.title(text, fontsize=14)
@@ -371,7 +374,7 @@ def video_for_tunning(ith_trial, verbose=True):
 				ax_scatter(ax=ax4,x=pos,y=min_margin,
 					marker=marker_min_margin,color=color_min_margin)
 				# ax4.scatter(pos, min_margin, marker=marker_min_margin,color=color_min_margin
-    		#       )
+			#       )
 				canvas.draw()
 				rgba_render = np.array(canvas.renderer.buffer_rgba())
 				final_frame = np.delete(rgba_render.reshape(-1,4),3,1)

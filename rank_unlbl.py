@@ -6,7 +6,7 @@ from params import *
 from absl import app
 from run_experiment import get_savedir, get_savefile, get_data_from_flags, get_train_test, get_othere_cfg
 from utils.utils import load_pickle
-from proc_results import read_exp_params
+from proc_results import read_exp_params, params2text
 
 from utils import utils
 from sampling_methods.constants import AL_MAPPING
@@ -92,13 +92,13 @@ def rank_unlbl_data(ith_trial):
 		 "metric":'euclidean', "init":'random',
 		 "verbose":0, "random_state":None, "method":'barnes_hut', 
 		 "angle":0.5, "n_jobs":None})
-	# processing.similarity_matrix = unlbl_X
-	# X_trans, _, a, b = processing.tsne(**config_tsne)
-	# x = X_trans[:, 0]
-	# y = X_trans[:, 1]	
+	processing.similarity_matrix = unlbl_X
+	X_trans, _, a, b = processing.tsne(**config_tsne)
+	x = X_trans[:, 0]
+	y = X_trans[:, 1]	
 
-	x = unlbl_X[:, 0]
-	y = unlbl_X[:, 1]
+	# x = unlbl_X[:, 0]
+	# y = unlbl_X[:, 1]
 	
 	for result_key, result_dict in all_results.items():
 		# # "k" of all_results store all setting params 
@@ -226,6 +226,12 @@ def rank_unlbl_data(ith_trial):
 		ax5.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
 			label="variance threshold", color="red", linestyle="-.")
 		ax5.legend()
+
+
+		# # add text config
+		text = params2text(exp_params=exp_params, result_key_to_text=result_key_to_text)
+		side_text = plt.figtext(0.75, 0.60, text, bbox=dict(facecolor='white'))
+
 
 		fig.tight_layout()
 
