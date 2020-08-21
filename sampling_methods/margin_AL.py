@@ -60,7 +60,7 @@ class MarginAL(SamplingMethod):
     else:
       sort_distances = np.sort(distances, 1)[:, -2:] # # 1: sorting follows each samples, get two most likely classes 
       min_margin = sort_distances[:, 1] - sort_distances[:, 0]
-    rank_ind = np.argsort(min_margin) # # sorting in ascending order
+    rank_ind = np.argsort(min_margin)[::-1] # # [::-1] sorting in descending order
     rank_ind = [i for i in rank_ind if i not in already_selected]
     active_samples = rank_ind[0:N] # # get instances with smallest distances
     

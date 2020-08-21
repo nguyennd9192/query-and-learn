@@ -12,7 +12,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 
-class RegressionFactory(object):
+class RegressionFactory(object): 
     
   @staticmethod
   def get_regression(method, kernel='rbf', alpha=1, gamma=1, 

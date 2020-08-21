@@ -75,8 +75,9 @@ def rank_unlbl_data(ith_trial):
 	sampler = sampler(unlbl_X, unlbl_y, FLAGS.seed)
 
 	# # save video at
-	width = 800
-	height = 800
+
+	height, width = 800, 1200
+
 	saveat = result_file.replace(".pkl","") + "/unlbl_rank.mp4"
 	out = cv.VideoWriter(saveat, cv.VideoWriter_fourcc(*'MP4V'),30.0,(width,height))
 
@@ -91,13 +92,13 @@ def rank_unlbl_data(ith_trial):
 		 "metric":'euclidean', "init":'random',
 		 "verbose":0, "random_state":None, "method":'barnes_hut', 
 		 "angle":0.5, "n_jobs":None})
-	processing.similarity_matrix = unlbl_X
-	X_trans, _, a, b = processing.tsne(**config_tsne)
-	x = X_trans[:, 0]
-	y = X_trans[:, 1]	
+	# processing.similarity_matrix = unlbl_X
+	# X_trans, _, a, b = processing.tsne(**config_tsne)
+	# x = X_trans[:, 0]
+	# y = X_trans[:, 1]	
 
-	# x = unlbl_X[:, 0]
-	# y = unlbl_X[:, 1]
+	x = unlbl_X[:, 0]
+	y = unlbl_X[:, 1]
 	
 	for result_key, result_dict in all_results.items():
 		# # "k" of all_results store all setting params 
@@ -129,6 +130,8 @@ def rank_unlbl_data(ith_trial):
 		selected_inds = []
 		new_batch, min_margin = select_batch(sampler, uniform_sampler, active_p, n_sample,
 															 list(selected_inds), **select_batch_inputs)
+		selected_inds.extend(new_batch)
+
 		rank_ind = np.argsort(min_margin)
 
 		print(unlbl_index[new_batch])
@@ -156,9 +159,11 @@ def rank_unlbl_data(ith_trial):
 
 		color_array = np.array([get_color_112(k) for k in name])
 		marker_array = np.array([get_marker_112(k) for k in family])
+		alphas = np.array([0.1] * len(min_margin))
+		alphas[selected_inds] = 0.8 
 
-		fig = plt.figure(figsize=(8, 8)) 
-		gs = gridspec.GridSpec(nrows=2,ncols=2,figure=fig, width_ratios=[1, 1]
+		fig = plt.figure(figsize=(width/100, height/100)) 
+		gs = gridspec.GridSpec(nrows=2,ncols=3,figure=fig, width_ratios=[1, 1, 1]
 			) 
 		canvas = FigureCanvas(fig)
 
@@ -168,37 +173,61 @@ def rank_unlbl_data(ith_trial):
 				interpolate=False, color_array=color_array, 
 				preset_ax=None, linestyle='-.', marker=marker_array)
 
+		lim_margin = np.min(min_margin[new_batch])
+
 		# # tSNE map
 		ax1 = plt.subplot(gs[0, 0])
-		ax_scatter(ax=ax1,x=x,y=y,marker=marker_array,color=color_array)
-
-		# # min margin 
-		ax2 = plt.subplot(gs[0,1])
-		pos = np.arange(len(min_margin))
-		ax_scatter(ax=ax2,x=pos,y=min_margin,
-			marker=marker_array,color=color_array)
-
-		# # min margin 
-		ax2 = plt.subplot(gs[0,1])
-		pos = np.arange(len(min_margin))
-		ax_scatter(ax=ax2,x=pos,y=min_margin,
-			marker=marker_array,color=color_array)
-
-		# # hist 
-		ax3 = plt.subplot(gs[1,0])
-		plot_hist(x=min_margin, save_at=None, label=None, nbins=50, ax=ax3)
+		ax_scatter(ax=ax1, x=x, y=y, marker=marker_array, color=color_array,
+			 x_label="tSNE axis 1", y_label="tSNE axis 2",
+			 alphas=alphas)
+		ax_setting()
 
 		# # recommended points 
-		ax4 = plt.subplot(gs[1, 1])
+		ax2 = plt.subplot(gs[0, 1])
 		# ax_scatter(ax=ax4,x=min_margin[new_batch],y=np.arange(len(new_batch)),
 		# 	marker=marker_array[new_batch],color=color_array[new_batch],
 		# 	name=unlbl_index[new_batch])
-		ax4.barh(new_batch, min_margin[new_batch])
+		ax2.barh(new_batch, min_margin[new_batch], color="black")
 		tmp = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/unlabeled_data/mix/Sm-Fe9-Co2-Ga1/ofm1_no_d/"
-		names = [k.replace(tmp, "") for k in unlbl_index[new_batch]]
-		
+		names = [k.replace(tmp, "").replace(".ofm1_no_d", "") for k in unlbl_index[new_batch]]
+		ax2.set_xlabel("Variance (exploration)", **axis_font)
+		ax2.set_ylabel("Selected structures", **axis_font)
 		for ith, index in enumerate(new_batch):
-			ax4.text(0.2, index, names[ith])
+			ax2.text(0.2, index+1, names[ith])
+		ax_setting()
+
+		# # histogram of min_margin
+		ax3 = plt.subplot(gs[1,0])
+		plot_hist(x=min_margin, x_label="Variance (exploration)", y_label="Probability density", 
+			save_at=None, label=None, nbins=50, ax=ax3)
+		ax3.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
+			label="variance threshold", color="red", linestyle="-.")
+		ax3.legend()
+
+		# # min margin 
+		ax4 = plt.subplot(gs[1,1])
+		pos = np.arange(len(min_margin))
+		print (unlbl_y_pred)
+		ax_scatter(ax=ax4,x=min_margin ,y=unlbl_y_pred,
+			marker=marker_array,color=color_array,
+			x_label="Variance (exploration)", y_label="Predicted value (exploitation)",
+			alphas=alphas)
+		# # get min of criteria to select new structures
+		ax4.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
+			label="variance threshold", color="red", linestyle="-.")
+		ax4.legend()
+		# print("min pred: ", min(unlbl_y_pred), "max pred: ", max(unlbl_y_pred))
+	
+		ax5 = plt.subplot(gs[1,2])
+		ax_scatter(ax=ax5,x=min_margin ,y=-unlbl_y_pred / min_margin,
+			marker=marker_array,color=color_array,
+			x_label="Variance (exploration)", y_label=r"\frac{-ypred}{\sigma}",
+			alphas=alphas)
+		ax5.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
+			label="variance threshold", color="red", linestyle="-.")
+		ax5.legend()
+
+		fig.tight_layout()
 
 
 		canvas.draw()
@@ -206,10 +235,10 @@ def rank_unlbl_data(ith_trial):
 		final_frame = np.delete(rgba_render.reshape(-1,4),3,1)
 		# print("shape before:", final_frame.shape)
 		final_frame = final_frame.reshape(final_frame.shape[0],final_frame.shape[1],-1)
-		final_frame = final_frame.reshape(800, 800,-1)
+		final_frame = final_frame.reshape(height, width,-1)
 		# print("shape after:", final_frame.shape)
-		out.write(final_frame)
-
+		# out.write(final_frame)
+		# # save for last frame
 		plt.savefig(saveat.replace(".mp4", "_full.pdf"))
 		plt.close()
 
@@ -242,7 +271,7 @@ def rank_unlbl_data(ith_trial):
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 
-	rank_unlbl_data(ith_trial="012")
+	rank_unlbl_data(ith_trial="014")
 
 
 

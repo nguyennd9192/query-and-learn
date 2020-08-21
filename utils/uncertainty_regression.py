@@ -108,17 +108,15 @@ class UncertainEnsembleRegression(object):
     return val_acc
 
   def predict_proba(self, X):
-    # # large variance -> probability to be observed small
+    # # large variance -> probability to be observed small -> sorting descending take first
     # # small variance -> probability to be observed large 
     y_val_preds = self.predict(X, get_pred_vals=True)
     # print("y_val_preds.shape", np.array(y_val_preds).shape)
     # # normalize variance to 0-1
     var = np.var(np.array(y_val_preds), axis=0)
     var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
-    prob = 1 / (var_norm)
-    # print(var_norm)
-    # print(len(var_norm))
-    return prob.ravel()
+    # prob = 1 / (var_norm)
+    return var_norm.ravel()
   def best_score_(self):
     # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
     # # GridSearchCV.best_score_ returns cv score of best parameter
@@ -182,14 +180,14 @@ class UncertainGaussianProcess(object):
     return val_acc
 
   def predict_proba(self, X):
-    # # large variance -> probability to be observed small
+    # # large variance -> probability to be observed small -> sorting descending take first
     # # small variance -> probability to be observed large 
     y_val_preds, y_val_pred_std = self.predict(X, get_variance=True)
 
     # # normalize variance to 0-1
     var_norm = MinMaxScaler().fit_transform(X=y_val_pred_std.reshape(-1, 1))
-    prob = 1 / var_norm
-    return prob.ravel()
+    # prob = 1 / var_norm
+    return var_norm.ravel()
 
   def best_score_(self):
     # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:

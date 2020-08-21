@@ -24,56 +24,56 @@ def makedirs(file):
 		os.makedirs(os.path.dirname(file))
 
 def set_plot_configuration(x, y, rmin=None, rmax=None):
-    if rmin is None and rmax is None:
-        y_min = min([min(x), min(y)])
-        y_max = max([max(x), max(y)])
-        y_mean = (y_max + y_min) / 2.0
-        y_std = (y_max - y_mean) / 2.0
-        y_min_plot = y_mean - 2.4 * y_std
-        y_max_plot = y_mean + 2.4 * y_std
-    else:
-        y_min_plot = rmin
-        y_max_plot = rmax
+	if rmin is None and rmax is None:
+		y_min = min([min(x), min(y)])
+		y_max = max([max(x), max(y)])
+		y_mean = (y_max + y_min) / 2.0
+		y_std = (y_max - y_mean) / 2.0
+		y_min_plot = y_mean - 2.4 * y_std
+		y_max_plot = y_mean + 2.4 * y_std
+	else:
+		y_min_plot = rmin
+		y_max_plot = rmax
 
-    # threshold = 0.1
-    # plt.plot(x_ref, x_ref * (1 + threshold), 'g--', label=r'$\pm 10 \%$')
-    # plt.plot(x_ref, x_ref * (1 - threshold), 'g--', label='')
+	# threshold = 0.1
+	# plt.plot(x_ref, x_ref * (1 + threshold), 'g--', label=r'$\pm 10 \%$')
+	# plt.plot(x_ref, x_ref * (1 - threshold), 'g--', label='')
 
-    plt.ylim([y_min_plot, y_max_plot])
-    plt.xlim([y_min_plot, y_max_plot])
+	plt.ylim([y_min_plot, y_max_plot])
+	plt.xlim([y_min_plot, y_max_plot])
 
-    plt.tick_params(axis='x', which='major', labelsize=16)
-    plt.tick_params(axis='y', which='major', labelsize=16)
+	plt.tick_params(axis='x', which='major', labelsize=16)
+	plt.tick_params(axis='y', which='major', labelsize=16)
 
-    plt.legend(loc=2, fontsize=18)
+	plt.legend(loc=2, fontsize=18)
 
-    return y_min_plot, y_max_plot
+	return y_min_plot, y_max_plot
 
 def plot_regression(x, y, tv, dim, rmin=None, rmax=None, name=None, 
-    label=None, title=None, point_color='blue', save_file=None):
-    
-    fig = plt.figure(figsize=(8, 8))
-    plt.scatter(x, y, s=size_point, alpha=alpha_point, c=point_color, label=label,
-        edgecolor="black")
-    y_min_plot, y_max_plot = set_plot_configuration(x=x, y=y, rmin=rmin, rmax=rmax)
-    x_ref = np.linspace(y_min_plot, y_max_plot, 100)
-    plt.plot(x_ref, x_ref, linestyle='-.', c='red', alpha=0.8)
+	label=None, title=None, point_color='blue', save_file=None):
+	
+	fig = plt.figure(figsize=(8, 8))
+	plt.scatter(x, y, s=size_point, alpha=alpha_point, c=point_color, label=label,
+		edgecolor="black")
+	y_min_plot, y_max_plot = set_plot_configuration(x=x, y=y, rmin=rmin, rmax=rmax)
+	x_ref = np.linspace(y_min_plot, y_max_plot, 100)
+	plt.plot(x_ref, x_ref, linestyle='-.', c='red', alpha=0.8)
 
-    if name is not None:
-       for i in range(len(name)):
-           plt.annotate(str(name[i]), xy=(x[i], y[i]), size=size_text)
+	if name is not None:
+	   for i in range(len(name)):
+		   plt.annotate(str(name[i]), xy=(x[i], y[i]), size=size_text)
 
-    plt.ylabel(r'%s predicted (%s)' % (tv, dim), **axis_font)
-    plt.xlabel(r'%s observed (%s)' % (tv, dim), **axis_font)
-    plt.title(title, **title_font)
-    plt.tight_layout(pad=1.1)
-    
-    if save_file is not None:
-        makedirs(save_file)
+	plt.ylabel(r'%s predicted (%s)' % (tv, dim), **axis_font)
+	plt.xlabel(r'%s observed (%s)' % (tv, dim), **axis_font)
+	plt.title(title, **title_font)
+	plt.tight_layout(pad=1.1)
+	
+	if save_file is not None:
+		makedirs(save_file)
 
-        plt.savefig(save_file, transparent=False)
-        print ("Save at: ", save_file)
-        # release_mem(fig=fig)
+		plt.savefig(save_file, transparent=False)
+		print ("Save at: ", save_file)
+		# release_mem(fig=fig)
 
 def joint_plot(x, y, xlabel, ylabel, save_at, is_show=False):
 	fig = plt.figure(figsize=(20, 20))
@@ -108,16 +108,23 @@ def joint_plot(x, y, xlabel, ylabel, save_at, is_show=False):
 	print ("Save file at:", "{0}".format(save_at))
 	release_mem(fig)
 
-def ax_scatter(ax,x,y,marker,color,name=None):
+def ax_scatter(ax, x, y, marker, color, x_label=None, y_label=None, name=None, alphas=None):
 	n_points = len(x)
+
+	if alphas.all() == None:
+		alphas = [0.8] * n_points
 	for i in range(n_points):
-		ax.scatter(x[i], y[i], s=80, alpha=0.8, 
+		ax.scatter(x[i], y[i], s=80, alpha=alphas[i], 
 		marker=marker[i], 
- 		c=color[i], edgecolor="black") # brown
+		c=color[i], edgecolor="black") # brown
 
 	if name is not None:
 		for i in range(n_points):
 			ax.annotate(name[i], xy=(x[i], y[i]), size=12 ) # brown
+	ax_setting()
+
+	ax.set_xlabel(x_label, **axis_font)
+	ax.set_ylabel(y_label, **axis_font)
 
 
 def scatter_plot(x, y, xvline=None, yhline=None, 
@@ -323,183 +330,184 @@ def process_name(input_name, main_dir):
 	return name
 
 def scatter_plot_3(x, y, color_array=None, xvlines=None, yhlines=None, 
-    sigma=None, mode='scatter', lbl=None, name=None, 
-    s=100, alpha=0.8, title=None,
-    x_label='x', y_label='y', 
-    save_file=None, interpolate=False, color='blue', 
-    preset_ax=None, linestyle='-.', marker='o'):
+	sigma=None, mode='scatter', lbl=None, name=None, 
+	s=100, alpha=0.8, title=None,
+	x_label='x', y_label='y', 
+	save_file=None, interpolate=False, color='blue', 
+	preset_ax=None, linestyle='-.', marker='o'):
 
-    fig = plt.figure(figsize=(8, 8), linewidth=1.0)
-    sns.kdeplot(x, y,
-             # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
-             cmap='Oranges',
-             shade=True, shade_lowest=False,
-             fontsize=10, linewidths=1,
-             vertical=True)
-    # if color_array is None:
-    #     plt.scatter(x, y, s=s, alpha=alpha, marker=marker, c=color, 
-    #         edgecolor="black")
-    # elif isinstance(marker, list):
+	fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+	sns.kdeplot(x, y,
+			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+			 cmap='Oranges',
+			 shade=True, shade_lowest=False,
+			 fontsize=10, linewidths=1,
+			 vertical=True)
+	# if color_array is None:
+	#     plt.scatter(x, y, s=s, alpha=alpha, marker=marker, c=color, 
+	#         edgecolor="black")
+	# elif isinstance(marker, list):
 
-    if type(s) == float:
-    	sizes = [s] * len(x)
-    else:
-    	sizes = s
-    for _m, _c, _x, _y, _s in zip(marker, color_array, x, y, sizes):
-        if _c == "orange":
-            plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.2, edgecolor="black")# "black"
-        else: 
-            plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.7, edgecolor="black")
+	if type(s) == float:
+		sizes = [s] * len(x)
+	else:
+		sizes = s
+	for _m, _c, _x, _y, _s in zip(marker, color_array, x, y, sizes):
+		if _c == "orange":
+			plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.2, edgecolor="black")# "black"
+		else: 
+			plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.7, edgecolor="black")
 
-    for _m, _c, _x, _y in zip(marker, color_array, x, y):
-        if _c == "blue": 
-            plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.1, edgecolor="black")
+	for _m, _c, _x, _y in zip(marker, color_array, x, y):
+		if _c == "blue": 
+			plt.scatter(_x, _y, s=_s, marker=_m, c=_c, alpha=0.1, edgecolor="black")
 
-    # else:
-    #     main_plot = plt.scatter(x, y, s=150, alpha=0.8, marker=marker, 
-    #         c=color_array, cmap='viridis',
-    #         edgecolor="white")
-    #     fig.colorbar(main_plot)
+	# else:
+	#     main_plot = plt.scatter(x, y, s=150, alpha=0.8, marker=marker, 
+	#         c=color_array, cmap='viridis',
+	#         edgecolor="white")
+	#     fig.colorbar(main_plot)
 
-    if name is not None:
-        for i in range(len(x)):
-            # only for lattice_constant problem, 1_Ag-H, 10_Ag-He
-            # if tmp_check_name(name=name[i]):
-               # reduce_name = str(name[i]).split('_')[1]
-               # plt.annotate(reduce_name, xy=(x[i], y[i]), size=5)
-            main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
-    for spine in plt.gca().spines.values():
-        spine.set_visible(False)
-    plt.tick_params(top='off', bottom='off', left='off', right='off', 
-        labelleft='off', labelbottom='off')
-    plt.tight_layout(pad=1.1)
-    sns.set_style(style='white') 
+	if name is not None:
+		for i in range(len(x)):
+			# only for lattice_constant problem, 1_Ag-H, 10_Ag-He
+			# if tmp_check_name(name=name[i]):
+			   # reduce_name = str(name[i]).split('_')[1]
+			   # plt.annotate(reduce_name, xy=(x[i], y[i]), size=5)
+			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+	for spine in plt.gca().spines.values():
+		spine.set_visible(False)
+	plt.tick_params(top='off', bottom='off', left='off', right='off', 
+		labelleft='off', labelbottom='off')
+	plt.tight_layout(pad=1.1)
+	sns.set_style(style='white') 
 
 
-    makedirs(save_file)
-    plt.savefig(save_file, transparent=False)
-    print ("Save at: ", save_file)
-    release_mem(fig=fig)
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
 
 
 def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None, 
-    sigma=None, mode='scatter', lbl=None, name=None, 
-    s=100, alpha=0.8, title=None,
-    x_label='x', y_label='y', 
-    save_file=None, interpolate=False, color='blue', 
-    preset_ax=None, linestyle='-.', marker='o'):
+	sigma=None, mode='scatter', lbl=None, name=None, 
+	s=100, alpha=0.8, title=None,
+	x_label='x', y_label='y', 
+	save_file=None, interpolate=False, color='blue', 
+	preset_ax=None, linestyle='-.', marker='o'):
 
 
-    fig = plt.figure(figsize=(8, 8), linewidth=1.0)
-    grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
-    main_ax = fig.add_subplot(grid[1:, :-1])
-    y_hist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
-    x_hist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
-    
-    sns.set_style(style='white') 
+	fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+	grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+	main_ax = fig.add_subplot(grid[1:, :-1])
+	y_hist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
+	x_hist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
+	
+	sns.set_style(style='white') 
 
 
-    main_ax = sns.kdeplot(x, y,
-             # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
-             cmap='Oranges',
-             shade=True, shade_lowest=False,
-             fontsize=10, ax=main_ax, linewidths=1,
-             vertical=True)
-    # main_ax.legend(lbl, 
-    #   loc='lower left', fontsize=18,
-    #   bbox_to_anchor=(1.05, 1.05, ),  borderaxespad=0)
-    # plt.title(title, **title_font)
+	main_ax = sns.kdeplot(x, y,
+			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+			 cmap='Oranges',
+			 shade=True, shade_lowest=False,
+			 fontsize=10, ax=main_ax, linewidths=1,
+			 vertical=True)
+	# main_ax.legend(lbl, 
+	#   loc='lower left', fontsize=18,
+	#   bbox_to_anchor=(1.05, 1.05, ),  borderaxespad=0)
+	# plt.title(title, **title_font)
 
-    # if color_array is None:
-    #     plt.scatter(x, y, s=s, alpha=alpha, marker=marker, c=color, 
-    #         edgecolor="black")
-    # elif isinstance(marker, list):
-    for _m, _c, _x, _y in zip(marker, color_array, x, y):
-        main_ax.scatter(_x, _y, marker=_m, c=_c, alpha=alpha, edgecolor="black")
-    # else:
-    #     main_plot = plt.scatter(x, y, s=150, alpha=0.8, marker=marker, 
-    #         c=color_array, cmap='viridis',
-    #         edgecolor="white")
-    #     fig.colorbar(main_plot)
+	# if color_array is None:
+	#     plt.scatter(x, y, s=s, alpha=alpha, marker=marker, c=color, 
+	#         edgecolor="black")
+	# elif isinstance(marker, list):
+	for _m, _c, _x, _y in zip(marker, color_array, x, y):
+		main_ax.scatter(_x, _y, marker=_m, c=_c, alpha=alpha, edgecolor="black")
+	# else:
+	#     main_plot = plt.scatter(x, y, s=150, alpha=0.8, marker=marker, 
+	#         c=color_array, cmap='viridis',
+	#         edgecolor="white")
+	#     fig.colorbar(main_plot)
 
-    # for xvline in xvlines:
-    #   main_ax.axvline(x=xvline, linestyle='-.', color='black')
-    # for yhline in yhlines:
-    #   main_ax.axhline(y=yhline, linestyle='-.', color='black')
+	# for xvline in xvlines:
+	#   main_ax.axvline(x=xvline, linestyle='-.', color='black')
+	# for yhline in yhlines:
+	#   main_ax.axhline(y=yhline, linestyle='-.', color='black')
 
-    main_ax.set_xlabel(x_label, **axis_font)
-    main_ax.set_ylabel(y_label, **axis_font)
-    if name is not None:
-        for i in range(len(x)):
-            # only for lattice_constant problem, 1_Ag-H, 10_Ag-He
-            # if tmp_check_name(name=name[i]):
-               # reduce_name = str(name[i]).split('_')[1]
-               # plt.annotate(reduce_name, xy=(x[i], y[i]), size=5)
-            main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+	main_ax.set_xlabel(x_label, **axis_font)
+	main_ax.set_ylabel(y_label, **axis_font)
+	if name is not None:
+		for i in range(len(x)):
+			# only for lattice_constant problem, 1_Ag-H, 10_Ag-He
+			# if tmp_check_name(name=name[i]):
+			   # reduce_name = str(name[i]).split('_')[1]
+			   # plt.annotate(reduce_name, xy=(x[i], y[i]), size=5)
+			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
 
-    # x_hist.hist(x, c='orange', linewidth=1)
-    # y_hist.hist(y, c='orange', linewidth=1)
-    red_idx = np.where((np.array(color)=="red"))[0]
+	# x_hist.hist(x, c='orange', linewidth=1)
+	# y_hist.hist(y, c='orange', linewidth=1)
+	red_idx = np.where((np.array(color)=="red"))[0]
 
-    n_total = len(x)
-    n_blue = len(x)
+	n_total = len(x)
+	n_blue = len(x)
 
-    # # x-axis histogram
-    sns.distplot(x, bins=100, ax=x_hist, hist=False,
-        kde_kws={"color": "grey", "lw": 1},
-        # shade=True,
-        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
-        vertical=False, norm_hist=True)
-    l1 = x_hist.lines[0]
-    x1 = l1.get_xydata()[:,0]
-    y1 = l1.get_xydata()[:,1]
-    x_hist.fill_between(x1, y1, color="orange", alpha=0.3)
+	# # x-axis histogram
+	sns.distplot(x, bins=100, ax=x_hist, hist=False,
+		kde_kws={"color": "grey", "lw": 1},
+		# shade=True,
+		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+		vertical=False, norm_hist=True)
+	l1 = x_hist.lines[0]
+	x1 = l1.get_xydata()[:,0]
+	y1 = l1.get_xydata()[:,1]
+	x_hist.fill_between(x1, y1, color="orange", alpha=0.3)
 
-    sns.distplot(x[red_idx], bins=100, ax=x_hist, hist=False,
-        kde_kws={"color": "blue", "lw": 1},
-        # shade=True,
-        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
-        vertical=False, norm_hist=True)
-    # l1 = x_hist.lines[0]
-    # x1 = l1.get_xydata()[:,0]
-    # y1 = l1.get_xydata()[:,1]
-    # x_hist.fill_between(x1, y1, color="blue", alpha=0.3)
+	sns.distplot(x[red_idx], bins=100, ax=x_hist, hist=False,
+		kde_kws={"color": "blue", "lw": 1},
+		# shade=True,
+		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
+		vertical=False, norm_hist=True)
+	# l1 = x_hist.lines[0]
+	# x1 = l1.get_xydata()[:,0]
+	# y1 = l1.get_xydata()[:,1]
+	# x_hist.fill_between(x1, y1, color="blue", alpha=0.3)
 
-    # # y-axis histogram
-    sns.distplot(y, bins=100, ax=y_hist, hist=False,
-        kde_kws={"color": "orange", "lw": 1},
-        # shade=True,
-        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
-        vertical=True, norm_hist=True)
-    l1 = y_hist.lines[0]
-    x1 = l1.get_xydata()[:,0]
-    y1 = l1.get_xydata()[:,1]
-    y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
-
-
-    sns.distplot(y[red_idx], bins=100, ax=y_hist, hist=False,
-        kde_kws={"color": "blue", "lw": 1},
-        # shade=True,
-        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
-        vertical=True, norm_hist=True)
-    # l1 = y_hist.lines[0]
-    # x1 = l1.get_xydata()[:,0]
-    # y1 = l1.get_xydata()[:,1]
-    # y_hist.fill_between(x1, y1, color="blue", alpha=0.3)
+	# # y-axis histogram
+	sns.distplot(y, bins=100, ax=y_hist, hist=False,
+		kde_kws={"color": "orange", "lw": 1},
+		# shade=True,
+		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+		vertical=True, norm_hist=True)
+	l1 = y_hist.lines[0]
+	x1 = l1.get_xydata()[:,0]
+	y1 = l1.get_xydata()[:,1]
+	y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
 
 
+	sns.distplot(y[red_idx], bins=100, ax=y_hist, hist=False,
+		kde_kws={"color": "blue", "lw": 1},
+		# shade=True,
+		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
+		vertical=True, norm_hist=True)
+	# l1 = y_hist.lines[0]
+	# x1 = l1.get_xydata()[:,0]
+	# y1 = l1.get_xydata()[:,1]
+	# y_hist.fill_between(x1, y1, color="blue", alpha=0.3)
 
-    plt.setp(x_hist.get_xticklabels(), visible=False)
-    plt.setp(y_hist.get_yticklabels(), visible=False)
-    plt.tight_layout(pad=1.1)
-
-    makedirs(save_file)
-    plt.savefig(save_file, transparent=False)
-    print ("Save at: ", save_file)
-    release_mem(fig=fig)
 
 
-def plot_hist(x, ax, save_at=None, label=None, nbins=50):
+	plt.setp(x_hist.get_xticklabels(), visible=False)
+	plt.setp(y_hist.get_yticklabels(), visible=False)
+	plt.tight_layout(pad=1.1)
+
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
+
+def plot_hist(x, ax, x_label, y_label, 
+	save_at=None, label=None, nbins=50):
 
 	if save_at is not None:
 		fig = plt.figure(figsize=(16, 16))
@@ -522,10 +530,9 @@ def plot_hist(x, ax, save_at=None, label=None, nbins=50):
 
 	#plt.xticks(np.arange(x_min, x_max, (x_max - x_min) / 30), rotation='vertical', size=6)
 	# plt.ylim([1, np.max(y_plot)*1.01])
-	plt.legend()
-	plt.ylabel('Probability density', **axis_font)
-	plt.xlabel("Value", **axis_font)
-
+	# plt.legend()
+	ax.set_ylabel(y_label, **axis_font)
+	ax.set_xlabel(x_label, **axis_font)
 	ax_setting()
 
 	if save_at is not None:
@@ -533,3 +540,12 @@ def plot_hist(x, ax, save_at=None, label=None, nbins=50):
 		plt.savefig(save_at)
 		print ("Save file at:", "{0}".format(save_at))
 		release_mem(fig)
+
+
+
+
+
+
+
+
+
