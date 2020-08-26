@@ -111,7 +111,7 @@ def joint_plot(x, y, xlabel, ylabel, save_at, is_show=False):
 def ax_scatter(ax, x, y, marker, color, x_label=None, y_label=None, name=None, alphas=None):
 	n_points = len(x)
 
-	if alphas.all() == None:
+	if alphas is None:
 		alphas = [0.8] * n_points
 	for i in range(n_points):
 		ax.scatter(x[i], y[i], s=80, alpha=alphas[i], 

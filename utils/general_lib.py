@@ -1,5 +1,5 @@
 
-import os, glob
+import os, glob, ntpath
 
 def release_mem(fig):
 	fig.clf()
@@ -21,3 +21,8 @@ def makedirs(file):
 def get_subdirs(sdir):
 	subdirs = glob.glob(sdir+"/*")
 	return subdirs
+
+def get_basename(filename):
+    head, tail = ntpath.split(filename)
+    basename = os.path.splitext(tail)[0]
+    return tail

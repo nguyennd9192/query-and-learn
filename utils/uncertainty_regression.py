@@ -115,6 +115,7 @@ class UncertainEnsembleRegression(object):
     # # normalize variance to 0-1
     var = np.var(np.array(y_val_preds), axis=0)
     var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
+    # var_norm = var.reshape(-1, 1)
     # prob = 1 / (var_norm)
     return var_norm.ravel()
   def best_score_(self):
@@ -186,6 +187,8 @@ class UncertainGaussianProcess(object):
 
     # # normalize variance to 0-1
     var_norm = MinMaxScaler().fit_transform(X=y_val_pred_std.reshape(-1, 1))
+    # var_norm = y_val_pred_std.reshape(-1, 1)
+    
     # prob = 1 / var_norm
     return var_norm.ravel()
 
