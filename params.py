@@ -1,12 +1,12 @@
 
 
 # # latbx_ofm1, ofm_subs_Ga123, letter, latbx_ofm1_fe
-# # running: uniform, bandit_discrete, margin, simulate_batch_best_sim 
+# # sampling_method: uniform, exploitation, margin, bandit_discrete, simulate_batch_best_sim
 # # simulate_batch_mixture (not work yet), 
 from absl import flags 
 
 flags.DEFINE_string("dataset", "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d", "Dataset name") 
-flags.DEFINE_string("sampling_method", "margin", 
+flags.DEFINE_string("sampling_method", "uniform", 
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
 flags.DEFINE_boolean(
@@ -44,7 +44,7 @@ flags.DEFINE_string("confusions", "0.1",
 flags.DEFINE_string("active_sampling_percentage", "0.1 0.3 0.5 0.7 0.9",
                     "Mixture weights on active sampling.")
 flags.DEFINE_string(
-    "score_method", "e_krr", # # logistic, kernel_svm, e_krr, u_gp
+    "score_method", "u_gp", # # logistic, kernel_svm, e_krr, u_gp
     "Method to use to calculate accuracy.")  
 flags.DEFINE_string(
     "select_method", "None",

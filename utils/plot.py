@@ -16,8 +16,8 @@ def release_mem(fig):
 
 def ax_setting():
 	plt.style.use('default')
-	plt.tick_params(axis='x', which='major', labelsize=13)
-	plt.tick_params(axis='y', which='major', labelsize=13)
+	plt.tick_params(axis='x', which='major', labelsize=15)
+	plt.tick_params(axis='y', which='major', labelsize=15)
 
 def makedirs(file):
 	if not os.path.isdir(os.path.dirname(file)):
@@ -114,7 +114,7 @@ def ax_scatter(ax, x, y, marker, color, x_label=None, y_label=None, name=None, a
 	if alphas is None:
 		alphas = [0.8] * n_points
 	for i in range(n_points):
-		ax.scatter(x[i], y[i], s=80, alpha=alphas[i], 
+		ax.scatter(x[i], y[i], s=120, alpha=alphas[i], 
 		marker=marker[i], 
 		c=color[i], edgecolor="black") # brown
 

@@ -24,7 +24,6 @@ import cv2 as cv
 import random
 from scipy.interpolate import griddata
 
-
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 									 **kwargs):
 		n_active = int(mixture * N)
@@ -322,13 +321,14 @@ def map_unlbl_data(ith_trial):
 	sampler = get_AL_sampler(FLAGS.sampling_method)
 	sampler = sampler(unlbl_X, unlbl_y, FLAGS.seed)
 
-	saveat = result_file.replace(".pkl","") + "/cmap_unlbl_rank.pdf"
+	saveat = result_file.replace(".pkl","") + "/cmap_unlbl_rank_unlbl_y_pred.pdf"
+	csv_save_dir = result_file.replace(".pkl","") + "/query_01"
 	init_axis = False
 
 	# # tsne
 	processing = Preprocessing()
 	config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
-		"early_exaggeration":1000.0, # same meaning as n_cluster
+		"early_exaggeration":100.0, # same meaning as n_cluster
 		"learning_rate":1000.0, "n_iter":1000,
 		 "n_iter_without_progress":300, "min_grad_norm":1e-07, 
 		 "metric":'euclidean', "init":'random',
@@ -337,11 +337,13 @@ def map_unlbl_data(ith_trial):
 	processing.similarity_matrix = unlbl_X
 	X_trans, _, a, b = processing.tsne(**config_tsne)
 	x = X_trans[:, 0]
-	y = X_trans[:, 1]	
+	y = X_trans[:, 1]
+	scaler = MinMaxScaler()
+	x = scaler.fit_transform(x.reshape(-1, 1)).ravel()
+	y = scaler.fit_transform(y.reshape(-1, 1)).ravel()
 
 	# x = unlbl_X[:, 0]
 	# y = unlbl_X[:, 1]
-	
 	for result_key, result_dict in all_results.items():
 		# # "k" of all_results store all setting params 
 		if result_key == "tuple_keys":
@@ -350,7 +352,15 @@ def map_unlbl_data(ith_trial):
 			result_key_to_text = result_dict
 		exp_params = read_exp_params(result_key)
 
+		# # save querying data 
+		query_data = dict()
+		query_data["unlbl_file"] = unlbl_file
+		query_data["unlbl_index"] = unlbl_index
+		# # end save querying data 
+
 		m, c = exp_params["m"], exp_params["c"]
+		csv_saveat = csv_save_dir + "/m{0}_c{1}.csv".format(m, c)
+
 		accuracies = np.array(result_dict["accuracy"])
 		acc_cv_train = np.array(result_dict["cv_train_model"])
 
@@ -365,6 +375,8 @@ def map_unlbl_data(ith_trial):
 		estimator.fit(X_trval_csv, y_trval_csv)
 
 		unlbl_y_pred = estimator.predict(unlbl_X)
+		query_data["unlbl_y_pred"] = unlbl_y_pred
+
 		select_batch_inputs = {"model": estimator, "labeled": None, 
 				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True}
 		n_sample = min(batch_size, N_unlbl)
@@ -375,22 +387,41 @@ def map_unlbl_data(ith_trial):
 		new_batch, min_margin = select_batch(sampler, uniform_sampler, active_p, n_sample,
 															 list(selected_inds), **select_batch_inputs)
 		selected_inds.extend(new_batch)
+		query2update_DQ = np.array([None] * len(unlbl_index))
+		query2update_DQ[new_batch] = "query2update_DQ"
+		query_data["query2update_DQ"] = query2update_DQ
+		query_data["variance"] = min_margin
+
 
 		# # 2. select by D_{o/s}
 		argsort_y_pred = np.argsort(unlbl_y_pred)
 		outstand_idx = [k for k in argsort_y_pred if k not in selected_inds]
 		outstand_list = outstand_idx[:batch_outstand]
-		max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
+
+		query_outstanding = np.array([None] * len(unlbl_index))
+		query_outstanding[outstand_list] = "query_outstanding"
+		query_data["query_outstanding"] = query_outstanding
 
 		selected_inds.extend(outstand_list)
+		max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
 		# # 3. select by D_{rand}
 		the_rest = list(set(range(N_unlbl)) - set(selected_inds))
 		random_list = random.sample(the_rest, batch_rand)
+
+		query_random = np.array([None] * len(unlbl_index))
+		query_random[random_list] = "query_random"
+		query_data["query_random"] = query_random
+		query_df = pd.DataFrame().from_dict(query_data)
+		makedirs(csv_saveat)
+		query_df.to_csv(csv_saveat)
+		print("Save query data at:", csv_saveat)
+
 		selected_inds.extend(random_list)
 
 		# # AL points ~ smallest min margin ~ biggest apparent points
-		min_margin[np.isinf(min_margin)] = 100
+		if FLAGS.sampling_method == "margin":
+			min_margin[np.isinf(min_margin)] = 100
 		scaler = MinMaxScaler()
 		size_points = scaler.fit_transform(min_margin.reshape(-1, 1))
 
@@ -408,48 +439,54 @@ def map_unlbl_data(ith_trial):
 		alphas = np.array([0.1] * len(min_margin))
 		alphas[selected_inds] = 1.0 
 
-		fig = plt.figure(figsize=(8, 8)) 
-		ax1 = fig.add_subplot(1, 1, 1)
+		fig = plt.figure(figsize=(10, 8)) 
+		ax = fig.add_subplot(1, 1, 1)
 
 		lim_margin = np.min(min_margin[new_batch])
 
-
-		# data coordinates and values
-
-		z = unlbl_y_pred
+		z =  unlbl_y_pred # unlbl_y_pred, min_margin
 		# x *= 10^8
 		# y *= 10^8
 		# # target grid to interpolate to
-		xi = np.arange(min(x), max(x), (max(x) - min(x))/100.0)
-		yi = np.arange(min(y), max(y), (max(y) - min(y))/100.0)
+		# xi = np.arange(-0.1, 1.1, 0.05)
+		# yi = np.arange(-0.1, 1.1, 0.05)
 
-		# xi = np.arange(0.0, 1.0, 0.1)
-		# yi = np.arange(0.0, 1.0, 0.1)
+		xi = np.arange(min(x), max(x), (max(x) - min(x))/200)
+		yi = np.arange(min(y), max(y), (max(y) - min(x))/200)
+
 
 		xi, yi = np.meshgrid(xi,yi)
-		print(x)
 		# interpolate
 		zi = griddata((x,y),z,(xi,yi),method='nearest')
-		ax1.contourf(xi,yi,zi, levels=10, cmap="jet")
-
+		cs = ax.contourf(xi,yi,zi, levels=20, cmap="jet")
+		cbar = fig.colorbar(cs, label="unlbl_y_pred")
+		
 		# # tSNE map
-		ax_scatter(ax=ax1, x=x, y=y, marker=marker_array, color=color_array,
+		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, color=color_array,
 			 x_label="tSNE axis 1", y_label="tSNE axis 2",
 			 alphas=alphas)
-		ax_setting()
-		plt.colorbar()
+		# ax_setting()
+		# plt.colorbar()
+		# plt.title()
+		# for spine in plt.gca().spines.values():
+		# 	spine.set_visible(False)
+		# ax.tick_params(top='off', bottom='off', left='off', right='off', 
+		# 		labelleft='off', labelbottom='off')
+
+		fig.patch.set_visible(False)
+		ax.axis('off')
+		plt.tight_layout(pad=1.1)
 		plt.savefig(saveat)
 		plt.close()
 
 		break
-		
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 
-	# rank_unlbl_data(ith_trial="002") # 014 for u_gp
+	# rank_unlbl_data(ith_trial="000") # 014 for u_gp
 
-	map_unlbl_data(ith_trial="002")
+	map_unlbl_data(ith_trial="000")
 
 
 

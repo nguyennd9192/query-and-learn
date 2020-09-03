@@ -27,6 +27,9 @@ def get_base_AL_mapping():
   from sampling_methods.represent_cluster_centers import RepresentativeClusterMeanSampling
   from sampling_methods.graph_density import GraphDensitySampler
   from sampling_methods.kcenter_greedy import kCenterGreedy
+  
+  from sampling_methods.exploitation import Exploitation
+
   AL_MAPPING['margin'] = MarginAL
   AL_MAPPING['informative_diverse'] = InformativeClusterDiverseSampler
   AL_MAPPING['hierarchical'] = HierarchicalClusterAL
@@ -34,6 +37,8 @@ def get_base_AL_mapping():
   AL_MAPPING['margin_cluster_mean'] = RepresentativeClusterMeanSampling
   AL_MAPPING['graph_density'] = GraphDensitySampler
   AL_MAPPING['kcenter'] = kCenterGreedy
+  AL_MAPPING['exploitation'] = Exploitation
+
 
 
 def get_all_possible_arms():
