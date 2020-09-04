@@ -447,7 +447,7 @@ def map_unlbl_data(ith_trial):
 		z =  unlbl_y_pred # unlbl_y_pred, min_margin
 		# x *= 10^8
 		# y *= 10^8
-		# # target grid to interpolate to
+		# # target grid to interpolate to 
 		# xi = np.arange(-0.1, 1.1, 0.05)
 		# yi = np.arange(-0.1, 1.1, 0.05)
 

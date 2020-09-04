@@ -29,10 +29,12 @@ from io import StringIO
 import tarfile
 import urllib
 
-import keras.backend as K
-from keras.datasets import cifar10
-from keras.datasets import cifar100
-from keras.datasets import mnist
+# import keras.backend as K
+# from keras.datasets import cifar10
+# from keras.datasets import cifar100
+# from keras.datasets import mnist
+from tensorflow.io import gfile
+
 
 import numpy as np
 import pandas as pd
@@ -46,9 +48,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 
 from absl import app
 from absl import flags
-from tensorflow.io import gfile
 from general_lib import makedirs, get_subdirs
-
 from features import OFMFeature
 
 flags.DEFINE_string('save_dir', '/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data',
@@ -172,18 +172,25 @@ def get_unlbl_data(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
   pv, tv = get_pv_tv(df, pv, tv, rmvs)
   
   all_unlbl = []
-  unlbl_jobs = ["Sm-Fe9-Al1-Ga2", "Sm-Fe9-Al2-Ga1", 
-        "Sm-Fe9-Co1-Ga2", "Sm-Fe9-Co2-Ga1", 
-        "Sm-Fe9-Cu1-Ga2", "Sm-Fe9-Cu2-Ga1", 
-        "Sm-Fe9-Mo1-Ga2", "Sm-Fe9-Mo2-Ga1", 
-        "Sm-Fe9-Ti1-Ga2", "Sm-Fe9-Ti2-Ga1", 
-        "Sm-Fe9-Zn1-Ga2", "Sm-Fe9-Zn2-Ga1", 
-        "Sm-Fe10-Al1-Ga1", "Sm-Fe10-Co1-Ga1", 
-        "Sm-Fe10-Cu1-Ga1", "Sm-Fe10-Mo1-Ga1", 
-        "Sm-Fe10-Ti1-Ga1", "Sm-Fe10-Zn1-Ga1"]
-  unlbl_jobs = ["mix/" + k for k in unlbl_jobs]
+  # unlbl_jobs = ["Sm-Fe9-Al1-Ga2", "Sm-Fe9-Al2-Ga1", 
+  #       "Sm-Fe9-Co1-Ga2", "Sm-Fe9-Co2-Ga1", 
+  #       "Sm-Fe9-Cu1-Ga2", "Sm-Fe9-Cu2-Ga1", 
+  #       "Sm-Fe9-Mo1-Ga2", "Sm-Fe9-Mo2-Ga1", 
+  #       "Sm-Fe9-Ti1-Ga2", "Sm-Fe9-Ti2-Ga1", 
+  #       "Sm-Fe9-Zn1-Ga2", "Sm-Fe9-Zn2-Ga1", 
+  #       "Sm-Fe10-Al1-Ga1", "Sm-Fe10-Co1-Ga1", 
+  #       "Sm-Fe10-Cu1-Ga1", "Sm-Fe10-Mo1-Ga1", 
+  #       "Sm-Fe10-Ti1-Ga1", "Sm-Fe10-Zn1-Ga1"]
+  # unlbl_jobs = ["mix/" + k for k in unlbl_jobs]
+  # for job in unlbl_jobs:
+  #   listdir = glob.glob("{0}/{1}/{2}/*.*".format(unlbl_data_dir, job, ft_type)) # os.listdir(current_dir)    
+  #   all_unlbl = np.concatenate((all_unlbl, listdir))
+
+  # # point to datadir of Volume6TB
+  unlbl_jobs = get_subdirs(unlbl_data_dir)
+  print("unlbl_jobs", unlbl_jobs)
   for job in unlbl_jobs:
-    listdir = glob.glob("{0}/{1}/{2}/*.*".format(unlbl_data_dir, job, ft_type)) # os.listdir(current_dir)    
+    listdir = glob.glob("{0}/{1}/*.*".format(job, ft_type)) # os.listdir(current_dir)    
     all_unlbl = np.concatenate((all_unlbl, listdir))
   print(len(all_unlbl))
   # with open(struct_dir_file) as file:
@@ -344,8 +351,11 @@ def get_mldata(dataset, is_test_separate=False, prefix=None):
   # Use scikit to grab datasets and save them save_dir.
   save_dir = FLAGS.save_dir
 
-  if not gfile.exists(save_dir):
-    gfile.mkdir(save_dir)
+  # if not gfile.exists(save_dir):
+  #   gfile.mkdir(save_dir)
+
+  if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
 
   # # revise here, do we need to remove existed dataset first
   if is_test_separate:
@@ -464,7 +474,7 @@ def main(argv):
     subset = FLAGS.datasets.split(',')
     datasets = [d for d in datasets if d[1] in subset]
 
-  is_prepare_train_data = True
+  is_prepare_train_data = False
   is_prepare_unlbl_data = True
 
   for d in datasets:
@@ -477,7 +487,9 @@ def main(argv):
       get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
     if is_prepare_unlbl_data:
       get_unlbl_data(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
-        unlbl_data_dir=input_dir+"SmFe12/unlabeled_data")
+        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix"
+        # input_dir+"SmFe12/unlabeled_data"
+        )
       
 
 if __name__ == '__main__':

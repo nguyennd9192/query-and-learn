@@ -29,7 +29,6 @@ def query2vasp():
 		"11*10*23-21_CuAlZnTiMoGa___ofm1_no_d_exploitation/results_score_u_gp_select_None_norm_True_is_search_params_True_stand_False_000/query_01/m0.1_c0.1.csv",
 		"11*10*23-21_CuAlZnTiMoGa___ofm1_no_d_margin/results_score_e_krr_select_None_norm_True_is_search_params_True_stand_False_000/query_01/m0.1_c0.1.csv",
 		"11*10*23-21_CuAlZnTiMoGa___ofm1_no_d_margin/results_score_u_gp_select_None_norm_True_is_search_params_True_stand_False_000/query_01/m0.1_c0.1.csv",
-		"11*10*23-21_CuAlZnTiMoGa___ofm1_no_d_margin/results_score_e_krr_select_None_norm_True_is_search_params_True_stand_False_000/query_01/m0.1_c0.1.csv",
 		"11*10*23-21_CuAlZnTiMoGa___ofm1_no_d_uniform/results_score_e_krr_select_None_norm_True_is_search_params_True_stand_False_000/query_01/m0.1_c0.1.csv",
 		"11*10*23-21_CuAlZnTiMoGa___ofm1_no_d_uniform/results_score_u_gp_select_None_norm_True_is_search_params_True_stand_False_000/query_01/m0.1_c0.1.csv"
 		]

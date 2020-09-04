@@ -27,11 +27,15 @@ from sklearn import metrics
 from utils.regression import RegressionFactory, CV_predict_score
 from sklearn.preprocessing import MinMaxScaler
 from utils.combination_generator import CombinationGeneratorFactory
+from scipy import stats
+from scipy.signal import find_peaks, peak_prominences
+
+# from statsmodels.distributions.empirical_distribution import ECDF
 
 class UncertainEnsembleRegression(object):
   def __init__(self,
         random_state=1, 
-        n_shuffle=1000,
+        n_shuffle=100,
         alpha=0.1, gamma=0.1,
         cv=3, n_times=3,
         score_method="kr", search_param=False, # # GaussianProcess
@@ -113,8 +117,33 @@ class UncertainEnsembleRegression(object):
     y_val_preds = self.predict(X, get_pred_vals=True)
     # print("y_val_preds.shape", np.array(y_val_preds).shape)
     # # normalize variance to 0-1
-    var = np.var(np.array(y_val_preds), axis=0)
+
+    # # canonical method
+    # var = np.var(np.array(y_val_preds), axis=0)
+
+    # # fitting with mixture gaussian, find cummulative
+    # ecdf = ECDF(sample)
+    var = []
+    y_val_preds_T = np.array(y_val_preds).T
+    for y_val_pred in y_val_preds_T:
+      print (y_val_pred, len(y_val_pred))
+      kernel = stats.gaussian_kde(y_val_pred)
+      yref = np.linspace(min(y_val_pred),max(y_val_pred),100)
+      pdf = kernel(yref).T
+
+      # # find peaks
+      peaks, _ = find_peaks(pdf)
+      pr = peak_prominences(pdf, peaks)[0]
+      argmax1, argmax2 = np.argsort(pr)[-2:] # # two largest prominence
+      y_pred_peak1, y_pred_peak2 = yref[argmax1], yref[argmax2]
+
+      # # variance between two largest peaks
+      v = y_pred_peak2 - y_pred_peak1
+      var.append([v])
+    var = np.array(var)
+
     var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
+
     # var_norm = var.reshape(-1, 1)
     # prob = 1 / (var_norm)
     return var_norm.ravel()
