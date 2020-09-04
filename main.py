@@ -3,7 +3,7 @@
 from absl import app
 from run_experiment import run
 from proc_results import main_proc, video_for_tunning
-from rank_unlbl  import rank_unlbl_data
+from rank_unlbl  import rank_unlbl_data, map_unlbl_data
 
 def model_selection(argv):
 	extend_save_idx = run() 

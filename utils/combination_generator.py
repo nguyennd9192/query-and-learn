@@ -1,12 +1,12 @@
 import random
 from itertools import combinations
-from scipy.special import comb
+from scipy.special import comb 
 
 class CombinationGeneratorFactory(object):
 
     @staticmethod
     def get_generator(method, items,
-            sample_size=3, n_shuffle=100000,
+            sample_size, n_shuffle,
             reverse=True, extened=False):
         
         method = method.strip().lower()
@@ -35,7 +35,7 @@ class CombinationGeneratorFactory(object):
 
 class BaggingCombinationGenerator(object):
 
-    def __init__(self, items, sample_size=0.6, n_shuffle=100000):
+    def __init__(self, items, sample_size, n_shuffle):
         self.__items = items
         self.__sample_size = sample_size
         self.__n_shuffle = n_shuffle
@@ -51,7 +51,7 @@ class BaggingCombinationGenerator(object):
     
 class KCombinationGenerator(object):
     
-    def __init__(self, items, sample_size=10, n_shuffle=10000):
+    def __init__(self, items, sample_size, n_shuffle):
         self.__items = items
         self.__sample_size = sample_size
         self.__n_shuffle = n_shuffle

@@ -374,7 +374,7 @@ def run():
 		for m in mixtures:
 			for seed in range(starting_seed, starting_seed + FLAGS.trials):
 				sampler = get_AL_sampler(FLAGS.sampling_method)
-				score_model = utils.get_model(FLAGS.score_method, seed, FLAGS.is_search_params)
+				score_model = utils.get_model(FLAGS.score_method, seed, FLAGS.is_search_params, n_shuffle=100000)
 				if (FLAGS.select_method == "None" or
 						FLAGS.select_method == FLAGS.score_method):
 					select_model = None

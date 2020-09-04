@@ -1,7 +1,7 @@
 
 
 import sys
-import numpy as np
+import numpy as np 
 from params import *
 from absl import app
 from run_experiment import get_savedir, get_savefile, get_data_from_flags, get_train_test, get_othere_cfg

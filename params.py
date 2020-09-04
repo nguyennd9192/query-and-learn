@@ -6,7 +6,7 @@
 from absl import flags 
 
 flags.DEFINE_string("dataset", "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d", "Dataset name") 
-flags.DEFINE_string("sampling_method", "margin", 
+flags.DEFINE_string("sampling_method", "uniform", 
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
 flags.DEFINE_boolean(
