@@ -111,7 +111,7 @@ class UncertainEnsembleRegression(object):
     val_acc = metrics.r2_score(y_val, y_pred)
     return val_acc
 
-  def predict_proba(self, X):
+  def predict_proba(self, X, is_norm=True):
     # # large variance -> probability to be observed small -> sorting descending take first
     # # small variance -> probability to be observed large 
     y_val_preds = self.predict(X, get_pred_vals=True)
@@ -119,7 +119,7 @@ class UncertainEnsembleRegression(object):
     # # normalize variance to 0-1
 
     # # canonical method
-    var = np.var(np.array(y_val_preds), axis=0)
+    var = np.var(np.array(y_val_preds), axis=0).reshape(-1, 1)
 
     # # fitting with mixture gaussian, find cummulative
     # ecdf = ECDF(sample)
@@ -143,11 +143,15 @@ class UncertainEnsembleRegression(object):
     #   var.append([v])
     # var = np.array(var)
 
-    var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
+    var_norm = MinMaxScaler().fit_transform(X=var).ravel()
 
     # var_norm = var.reshape(-1, 1)
     # prob = 1 / (var_norm)
-    return var_norm.ravel()
+    if is_norm:
+      return var_norm
+    else:
+      return var
+
   def best_score_(self):
     # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
     # # GridSearchCV.best_score_ returns cv score of best parameter
@@ -208,7 +212,7 @@ class UncertainGaussianProcess(object):
     val_acc = metrics.r2_score(y_val, y_pred)
     return val_acc
 
-  def predict_proba(self, X):
+  def predict_proba(self, X, is_norm=True):
     # # large variance -> probability to be observed small -> sorting descending take first
     # # small variance -> probability to be observed large 
     y_val_preds, y_val_pred_std = self.predict(X, get_variance=True)
@@ -216,9 +220,12 @@ class UncertainGaussianProcess(object):
     # # normalize variance to 0-1
     var_norm = MinMaxScaler().fit_transform(X=y_val_pred_std.reshape(-1, 1))
     # var_norm = y_val_pred_std.reshape(-1, 1)
-    
     # prob = 1 / var_norm
-    return var_norm.ravel()
+    if is_norm:
+      return var_norm.ravel()
+    else:
+      return y_val_pred_std.reshape(-1, 1)
+
 
   def best_score_(self):
     # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:

@@ -15,7 +15,7 @@ def model_selection(argv):
 	# # to process video for tunning
 	video_for_tunning(ith_trial=extend_save_idx)
 
-	# # rank unlabel data
+	# # rank unlabel data 
 	rank_unlbl_data(ith_trial=extend_save_idx)
 
 	map_unlbl_data(ith_trial=extend_save_idx)

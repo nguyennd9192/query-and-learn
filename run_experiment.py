@@ -3,7 +3,7 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#  
 #      http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
@@ -149,7 +149,9 @@ def generate_one_curve(X, y,
 		batch_PL, p = uniform_sampler.select_batch(**kwargs)
 		return batch_AL + batch_PL, min_margin
 
-	data_splits = [2./3, 1./6, 1./6]
+	# data_splits = [2./3, 1./6, 1./6]
+	data_splits = [2./3, 0.0, 1./3]
+
 	max_points, train_size, batch_size, seed_batch = get_othere_cfg(y,max_points,batch_size,warmstart_size,seed,data_splits)
 	# print ("score_model", score_model)
 	# if not FLAGS.is_test_separate:
@@ -170,13 +172,15 @@ def generate_one_curve(X, y,
 	if norm_data:
 		print("Normalizing data")
 		X_train = normalize(X_train)
-		X_val = normalize(X_val)
+		if len(X_val) != 0:
+			X_val = normalize(X_val)
 		X_test = normalize(X_test)
 	if standardize_data:
 		print("Standardizing data")
 		scaler = StandardScaler().fit(X_train)
 		X_train = scaler.transform(X_train)
-		X_val = scaler.transform(X_val)
+		if len(X_val) != 0:
+			X_val = scaler.transform(X_val)
 		X_test = scaler.transform(X_test)
 	print("X shape: " + str(X.shape) + "y shape: " + str(y.shape) + " " +
 		"train_size: " + str(train_size) + "active percentage: " + str(active_p) + " " +
@@ -239,10 +243,11 @@ def generate_one_curve(X, y,
 				"X_test": X_val,
 				"y_test": y_val,
 				"y": y_train,
-				"verbose": True
+				"verbose": True,
+				"y_star": min(partial_y)# 0
 		}
 		new_batch_ = select_batch(sampler, uniform_sampler, active_p, n_sample,
-															 list(selected_inds), **select_batch_inputs)
+									list(selected_inds), **select_batch_inputs)
 		print("new_batch_", new_batch_)
 		if select_batch_inputs["verbose"]:
 			# # returning "min_margin" value
@@ -276,7 +281,7 @@ def generate_one_curve(X, y,
 	results["selected_inds"] = selected_inds
 	results["data_sizes"] = data_sizes
 	results["indices"] = indices
-	results["noisy_targets"] = y_noise
+	results["noisy_targets"] = y_noise 
 	results["is_test_separate"] = FLAGS.is_test_separate
 	results["test_prefix"] = FLAGS.test_prefix
 	results["y_train_info"] = pd.DataFrame(y_train).describe()

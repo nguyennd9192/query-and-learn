@@ -28,7 +28,9 @@ def get_base_AL_mapping():
   from sampling_methods.graph_density import GraphDensitySampler
   from sampling_methods.kcenter_greedy import kCenterGreedy
   
+  # # new build
   from sampling_methods.exploitation import Exploitation
+  from sampling_methods.expected_improvement import ExpectedImprovement
 
   AL_MAPPING['margin'] = MarginAL
   AL_MAPPING['informative_diverse'] = InformativeClusterDiverseSampler
@@ -38,6 +40,8 @@ def get_base_AL_mapping():
   AL_MAPPING['graph_density'] = GraphDensitySampler
   AL_MAPPING['kcenter'] = kCenterGreedy
   AL_MAPPING['exploitation'] = Exploitation
+  AL_MAPPING['expected_improvement'] = ExpectedImprovement
+
 
 
 

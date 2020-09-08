@@ -57,20 +57,18 @@ def ofm(struct, is_ofm1=True, is_including_d=True):
 		
 		atom_xyz = [atom]
 		coords_xyz = [site.coords]
-		
-
 		for nn in neighbors:
-				site_x = nn['site']
-				w = nn['weight']
-				site_x_label = site_x.species_string
-				atom_xyz += [site_x_label]
-				coords_xyz += [site_x.coords]
-				neigh_vector = get_element_representation(site_x_label)
-				d = np.sqrt(np.sum((site.coords - site_x.coords)**2))
-				if is_including_d:
-					env_vector += neigh_vector * w  / d
-				else:
-					env_vector += neigh_vector * w
+			site_x = nn['site']
+			w = nn['weight']
+			site_x_label = site_x.species_string
+			atom_xyz += [site_x_label]
+			coords_xyz += [site_x.coords]
+			neigh_vector = get_element_representation(site_x_label)
+			d = np.sqrt(np.sum((site.coords - site_x.coords)**2))
+			if is_including_d:
+				env_vector += neigh_vector * w  / d
+			else:
+				env_vector += neigh_vector * w
 		
 		if is_ofm1:
 			env_vector = np.concatenate(([1.0], env_vector))

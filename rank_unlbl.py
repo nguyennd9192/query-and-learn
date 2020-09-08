@@ -1,6 +1,6 @@
 
 
-import sys
+import sys, pickle
 import numpy as np 
 from params import *
 from absl import app
@@ -13,10 +13,11 @@ from utils import utils
 from sampling_methods.constants import AL_MAPPING
 from sampling_methods.constants import get_AL_sampler
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics.pairwise import cosine_similarity
 
 from utils.manifold_processing import Preprocessing
-# from utils.plot import get_color_112, get_marker_112, scatter_plot_3, scatter_plot_4
 from utils.plot import *
+from tensorflow.io import gfile
 
 from matplotlib import gridspec
 from matplotlib.backends.backend_agg import FigureCanvas
@@ -30,7 +31,7 @@ def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 		n_passive = N - n_active
 		kwargs["N"] = n_active
 		kwargs["already_selected"] = already_selected
-		batch_AL, min_margin = sampler.select_batch(**kwargs)
+		batch_AL, acq_val = sampler.select_batch(**kwargs)
 		already_selected = already_selected + batch_AL
 		kwargs["N"] = n_passive
 		kwargs["already_selected"] = already_selected
@@ -39,8 +40,27 @@ def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 		#   del kwargs_copy[key]
 		# batch_PL = uniform_sampler.select_batch(**kwargs_copy)
 		batch_PL, p = uniform_sampler.select_batch(**kwargs)
-		return batch_AL + batch_PL, min_margin
+		return batch_AL + batch_PL, acq_val
 
+def process_dimensional_reduction(unlbl_X):
+	# # tsne
+	processing = Preprocessing()
+	# config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
+	# 	"early_exaggeration":1000.0, # same meaning as n_cluster
+	# 	"learning_rate":1000.0, "n_iter":1000,
+	# 	 "n_iter_without_progress":300, "min_grad_norm":1e-07, 
+	# 	 "metric":'euclidean', "init":'random',
+	# 	 "verbose":0, "random_state":None, "method":'barnes_hut', 
+	# 	 "angle":0.5, "n_jobs":None})
+	# processing.similarity_matrix = unlbl_X
+	# X_trans, _, a, b = processing.tsne(**config_tsne)
+
+	config_mds = dict({"n_components":2, "metric":True, "n_init":4, "max_iter":300, "verbose":0,
+            "eps":0.001, "n_jobs":None, "random_state":None, "dissimilarity":'precomputed'})
+	cosine_distance = 1 - cosine_similarity(unlbl_X)
+	processing.similarity_matrix = cosine_distance
+	X_trans, _ = processing.mds(**config_mds)
+	return X_trans
 
 def rank_unlbl_data(ith_trial):
 	active_p = 1.0
@@ -87,17 +107,8 @@ def rank_unlbl_data(ith_trial):
 
 	init_axis = False
 
-	# # tsne
-	processing = Preprocessing()
-	config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
-		"early_exaggeration":1000.0, # same meaning as n_cluster
-		"learning_rate":1000.0, "n_iter":1000,
-		 "n_iter_without_progress":300, "min_grad_norm":1e-07, 
-		 "metric":'euclidean', "init":'random',
-		 "verbose":0, "random_state":None, "method":'barnes_hut', 
-		 "angle":0.5, "n_jobs":None})
-	processing.similarity_matrix = unlbl_X
-	X_trans, _, a, b = processing.tsne(**config_tsne)
+	X_trans = process_dimensional_reduction(unlbl_X)
+	
 	x = X_trans[:, 0]
 	y = X_trans[:, 1]	
 
@@ -128,13 +139,14 @@ def rank_unlbl_data(ith_trial):
 
 		unlbl_y_pred = estimator.predict(unlbl_X)
 		select_batch_inputs = {"model": estimator, "labeled": None, 
-				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True}
+				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True,
+				"y_star":min(y_trval_csv)}
 		n_sample = min(batch_size, N_unlbl)
 
 		# while(len(selected_inds) <= N_unlbl)
 		selected_inds = []
 		# # 1. update by D_{Q}
-		new_batch, min_margin = select_batch(sampler, uniform_sampler, active_p, n_sample,
+		new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
 															 list(selected_inds), **select_batch_inputs)
 		selected_inds.extend(new_batch)
 
@@ -152,14 +164,14 @@ def rank_unlbl_data(ith_trial):
 		selected_inds.extend(random_list)
 
 		print(unlbl_index[new_batch])
-		print(min_margin[new_batch])
-		print(min(min_margin), max(min_margin))
+		print(acq_val[new_batch])
+		print(min(acq_val), max(acq_val))
 
 
 		# # AL points ~ smallest min margin ~ biggest apparent points
-		min_margin[np.isinf(min_margin)] = 100
+		acq_val[np.isinf(acq_val)] = np.max(acq_val)
 		scaler = MinMaxScaler()
-		size_points = scaler.fit_transform(min_margin.reshape(-1, 1))
+		size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
 		# size_points *= 100
 		# size_points = 130 - size_points
 		# print (min(size_points), max(size_points))
@@ -175,7 +187,7 @@ def rank_unlbl_data(ith_trial):
 
 		color_array = np.array([get_color_112(k) for k in name])
 		marker_array = np.array([get_marker_112(k) for k in family])
-		alphas = np.array([0.1] * len(min_margin))
+		alphas = np.array([0.5] * len(acq_val))
 		alphas[selected_inds] = 1.0 
 
 		fig = plt.figure(figsize=(width/100, height/100)) 
@@ -188,7 +200,7 @@ def rank_unlbl_data(ith_trial):
 				interpolate=False, color_array=color_array, 
 				preset_ax=None, linestyle='-.', marker=marker_array)
 
-		lim_margin = np.min(min_margin[new_batch])
+		lim_margin = np.min(acq_val[new_batch])
 
 		# # tSNE map
 		ax1 = plt.subplot(gs[0, 0])
@@ -202,7 +214,7 @@ def rank_unlbl_data(ith_trial):
 		# ax_scatter(ax=ax4,x=min_margin[new_batch],y=np.arange(len(new_batch)),
 		# 	marker=marker_array[new_batch],color=color_array[new_batch],
 		# 	name=unlbl_index[new_batch])
-		ax2.barh(new_batch, min_margin[new_batch], color="black")
+		ax2.barh(new_batch, acq_val[new_batch], color="black")
 		names = [get_basename(k).replace(".ofm1_no_d", "") for k in unlbl_index[new_batch]]
 		ax2.set_xlabel("Variance (exploration)", **axis_font)
 		ax2.set_ylabel("Selected structures", **axis_font)
@@ -210,23 +222,23 @@ def rank_unlbl_data(ith_trial):
 			ax2.text(0.2, index+1, names[ith])
 		ax_setting()
 
-		# # histogram of min_margin
+		# # histogram of acq_val
 		ax3 = plt.subplot(gs[1,0])
-		plot_hist(x=min_margin, x_label="Variance (exploration)", y_label="Probability density", 
+		plot_hist(x=acq_val, x_label=sampler.name, y_label="Probability density", 
 			save_at=None, label=None, nbins=50, ax=ax3)
 		ax3.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
 			label="variance threshold", color="red", linestyle="-.")
 		ax3.legend()
 
-		# # min margin 
+		# # acq_val 
 		ax4 = plt.subplot(gs[1,1])
-		pos = np.arange(len(min_margin))
+		pos = np.arange(len(sampler.name))
 		print (unlbl_y_pred)
-		ax_scatter(ax=ax4,x=min_margin ,y=unlbl_y_pred,
+		ax_scatter(ax=ax4,x=acq_val ,y=unlbl_y_pred,
 			marker=marker_array,color=color_array,
-			x_label="Variance (exploration)", y_label="Predicted value (exploitation)",
+			x_label=sampler.name, y_label="Predicted value (exploitation)",
 			alphas=alphas)
-		# ax4.set_xlim((min(min_margin), max(min_margin)))
+		# ax4.set_xlim((min(acq_val), max(acq_val)))
 		# # get min of criteria to select new structures
 		ax4.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
 			label="variance threshold", color="red", linestyle="-.")
@@ -236,13 +248,13 @@ def rank_unlbl_data(ith_trial):
 		# print("min pred: ", min(unlbl_y_pred), "max pred: ", max(unlbl_y_pred))
 	
 		ax5 = plt.subplot(gs[1,2])
-		ax_scatter(ax=ax5,x=min_margin ,y=-unlbl_y_pred / min_margin,
+		ax_scatter(ax=ax5, x=acq_val ,y=-unlbl_y_pred,
 			marker=marker_array,color=color_array,
-			x_label="Variance (exploration)", y_label=r"\frac{-ypred}{\sigma}",
+			x_label=sampler.name, y_label=r"\frac{-ypred}{\sigma}",
 			alphas=alphas)
 		ax5.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
 			label="variance threshold", color="red", linestyle="-.")
-		# ax5.set_xlim((min(min_margin), max(min_margin)))
+		# ax5.set_xlim((min(sampler.name), max(sampler.name)))
 		ax5.legend()
 
 		# # add text config
@@ -302,6 +314,7 @@ def map_unlbl_data(ith_trial):
 
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
 	X_trval_csv, y_trval_csv, index_trval_csv, X_test_csv, y_test_csv, test_idx_csv = get_data_from_flags()
+	n_trval = len(X_trval_csv)
 
 	# # round data
 	round1 = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/with_standard_ene/mix/rand1___ofm1_no_d.csv"
@@ -326,18 +339,40 @@ def map_unlbl_data(ith_trial):
 	init_axis = False
 
 	# # tsne
-	processing = Preprocessing()
-	config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
-		"early_exaggeration":100.0, # same meaning as n_cluster
-		"learning_rate":1000.0, "n_iter":1000,
-		 "n_iter_without_progress":300, "min_grad_norm":1e-07, 
-		 "metric":'euclidean', "init":'random',
-		 "verbose":0, "random_state":None, "method":'barnes_hut', 
-		 "angle":0.5, "n_jobs":None})
-	processing.similarity_matrix = unlbl_X
-	X_trans, _, a, b = processing.tsne(**config_tsne)
-	x = X_trans[:, 0]
-	y = X_trans[:, 1]
+
+	tsne_file = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/X_trval_tsne_fit.pkl"
+	is_load_pre_trained = False
+
+	if is_load_pre_trained:
+		X_all_trans = load_pickle(tsne_file)
+	else:
+		# makedirs(tsne_file)
+
+		# processing = Preprocessing()
+		# config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
+		# 	"early_exaggeration":100.0, # same meaning as n_cluster
+		# 	"learning_rate":1000.0, "n_iter":1000,
+		# 	 "n_iter_without_progress":300, "min_grad_norm":1e-01, 
+		# 	 "metric":'euclidean', "init":'random',
+		# 	 "verbose":0, "random_state":None, "method":'barnes_hut', 
+		# 	 "angle":0.5, "n_jobs":None})
+		# # processing.similarity_matrix = unlbl_X
+		# processing.similarity_matrix = X_all
+
+		# X_all_trans, _, tsne, results = processing.tsne(**config_tsne)
+		X_all = np.concatenate((X_trval_csv, unlbl_X))
+		X_all_trans = process_dimensional_reduction(unlbl_X=X_all)
+
+
+		pickle.dump(X_all_trans, gfile.GFile(tsne_file, 'w'))
+
+	# X_trans = tsne.transform(unlbl_X)
+	x_trval = X_all_trans[:n_trval, 0]
+	y_trval = X_all_trans[:n_trval, 1]
+
+
+	x = X_all_trans[n_trval:, 0]
+	y = X_all_trans[n_trval:, 1]
 	scaler = MinMaxScaler()
 	x = scaler.fit_transform(x.reshape(-1, 1)).ravel()
 	y = scaler.fit_transform(y.reshape(-1, 1)).ravel()
@@ -378,25 +413,27 @@ def map_unlbl_data(ith_trial):
 		query_data["unlbl_y_pred"] = unlbl_y_pred
 
 		select_batch_inputs = {"model": estimator, "labeled": None, 
-				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True}
+				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True,
+				"y_star": min(y_trval_csv)}
 		n_sample = min(batch_size, N_unlbl)
 
 		# while(len(selected_inds) <= N_unlbl)
 		selected_inds = []
 		# # 1. update by D_{Q}
-		new_batch, min_margin = select_batch(sampler, uniform_sampler, active_p, n_sample,
+		new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
 															 list(selected_inds), **select_batch_inputs)
 		selected_inds.extend(new_batch)
 		query2update_DQ = np.array([None] * len(unlbl_index))
 		query2update_DQ[new_batch] = "query2update_DQ"
 		query_data["query2update_DQ"] = query2update_DQ
-		query_data["variance"] = min_margin
+		query_data["variance"] = acq_val
 
 
 		# # 2. select by D_{o/s}
 		argsort_y_pred = np.argsort(unlbl_y_pred)
 		outstand_idx = [k for k in argsort_y_pred if k not in selected_inds]
 		outstand_list = outstand_idx[:batch_outstand]
+		lim_outstand_list = max(unlbl_y_pred[outstand_list])
 
 		query_outstanding = np.array([None] * len(unlbl_index))
 		query_outstanding[outstand_list] = "query_outstanding"
@@ -421,9 +458,9 @@ def map_unlbl_data(ith_trial):
 
 		# # AL points ~ smallest min margin ~ biggest apparent points
 		if FLAGS.sampling_method == "margin":
-			min_margin[np.isinf(min_margin)] = 100
+			acq_val[np.isinf(acq_val)] = np.max(acq_val)
 		scaler = MinMaxScaler()
-		size_points = scaler.fit_transform(min_margin.reshape(-1, 1))
+		size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
 
 		# # name, color, marker for plot
 		name = [k.replace(unlbl_file, "") for k in unlbl_index]
@@ -436,13 +473,13 @@ def map_unlbl_data(ith_trial):
 
 		color_array = np.array([get_color_112(k) for k in name])
 		marker_array = np.array([get_marker_112(k) for k in family])
-		alphas = np.array([0.1] * len(min_margin))
+		alphas = np.array([0.1] * len(acq_val))
 		alphas[selected_inds] = 1.0 
 
 		fig = plt.figure(figsize=(10, 8)) 
 		ax = fig.add_subplot(1, 1, 1)
 
-		lim_margin = np.min(min_margin[new_batch])
+		lim_acq_val = min(acq_val[new_batch])
 
 		z =  unlbl_y_pred # unlbl_y_pred, min_margin
 		# x *= 10^8
@@ -465,6 +502,15 @@ def map_unlbl_data(ith_trial):
 		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, color=color_array,
 			 x_label="tSNE axis 1", y_label="tSNE axis 2",
 			 alphas=alphas)
+
+		scatter_plot_4(x=acq_val, y=unlbl_y_pred, color_array=color_array, 
+			xvlines=[lim_acq_val], yhlines=[lim_outstand_list], 
+				sigma=None, mode='scatter', lbl=None, name=None, 
+				s=80, alphas=alphas, title=None,
+				x_label=sampler.name, y_label='unlbl_y_pred', 
+				save_file=saveat.replace(".pdf", "_2.pdf"),
+				interpolate=False, color='blue', 
+				preset_ax=None, linestyle='-.', marker=marker_array)
 		# ax_setting()
 		# plt.colorbar()
 		# plt.title()
@@ -480,6 +526,11 @@ def map_unlbl_data(ith_trial):
 		plt.close()
 
 		break
+
+
+
+
+
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)

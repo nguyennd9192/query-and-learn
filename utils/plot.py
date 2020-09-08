@@ -9,6 +9,46 @@ size_text = 10
 alpha_point = 0.8
 size_point = 100
 
+
+# color_mix =dict({	[Sm-Fe10-Al1-Co1	Sm-Fe10-Ti1-Cu1	Sm-Fe9-Al2-Co1	Sm-Fe9-Cu2-Ga1	Sm-Fe9-Ti2-Ga1
+# Sm-Fe10-Al1-Cu1	Sm-Fe10-Ti1-Ga1	Sm-Fe9-Al2-Cu1	Sm-Fe9-Cu2-Mo1	Sm-Fe9-Ti2-Mo1
+# Sm-Fe10-Al1-Ga1	Sm-Fe10-Ti1-Mo1	Sm-Fe9-Al2-Ga1	Sm-Fe9-Mo1-Ga2	Sm-Fe9-Ti2-Zn1
+# Sm-Fe10-Al1-Mo1	Sm-Fe10-Ti1-Zn1	Sm-Fe9-Al2-Mo1	Sm-Fe9-Mo2-Ga1	Sm-Fe9-Zn1-Co2
+# Sm-Fe10-Al1-Zn1	Sm-Fe10-Zn1-Co1	Sm-Fe9-Al2-Zn1	Sm-Fe9-Ti1-Al2	Sm-Fe9-Zn1-Cu2
+# Sm-Fe10-Co1-Cu1	Sm-Fe10-Zn1-Cu1	Sm-Fe9-Co1-Cu2	Sm-Fe9-Ti1-Co2	Sm-Fe9-Zn1-Ga2
+# Sm-Fe10-Co1-Ga1	Sm-Fe10-Zn1-Ga1	Sm-Fe9-Co1-Ga2	Sm-Fe9-Ti1-Cu2	Sm-Fe9-Zn1-Mo2
+# Sm-Fe10-Co1-Mo1	Sm-Fe10-Zn1-Mo1	Sm-Fe9-Co1-Mo2	Sm-Fe9-Ti1-Ga2	Sm-Fe9-Zn2-Co1
+# Sm-Fe10-Cu1-Ga1	Sm-Fe9-Al1-Co2	Sm-Fe9-Co2-Cu1	Sm-Fe9-Ti1-Mo2	Sm-Fe9-Zn2-Cu1
+# Sm-Fe10-Cu1-Mo1	Sm-Fe9-Al1-Cu2	Sm-Fe9-Co2-Ga1	Sm-Fe9-Ti1-Zn2	Sm-Fe9-Zn2-Ga1
+# Sm-Fe10-Mo1-Ga1	Sm-Fe9-Al1-Ga2	Sm-Fe9-Co2-Mo1	Sm-Fe9-Ti2-Al1	Sm-Fe9-Zn2-Mo1
+# Sm-Fe10-Ti1-Al1	Sm-Fe9-Al1-Mo2	Sm-Fe9-Cu1-Ga2	Sm-Fe9-Ti2-Co1
+# Sm-Fe10-Ti1-Co1	Sm-Fe9-Al1-Zn2	Sm-Fe9-Cu1-Mo2	Sm-Fe9-Ti2-Cu1
+
+
+# Sm2-Fe21-Al2-Co1	Sm2-Fe21-Ga2-Mo1	Sm2-Fe22-Al1-Co1
+# Sm2-Fe21-Al2-Cu1	Sm2-Fe21-Ga2-Ti1	Sm2-Fe22-Al1-Cu1
+# Sm2-Fe21-Al2-Ga1	Sm2-Fe21-Ga2-Zn1	Sm2-Fe22-Al1-Ga1
+# Sm2-Fe21-Al2-Mo1	Sm2-Fe21-Mo2-Al1	Sm2-Fe22-Al1-Mo1
+# Sm2-Fe21-Al2-Ti1	Sm2-Fe21-Mo2-Co1	Sm2-Fe22-Al1-Zn1
+# Sm2-Fe21-Al2-Zn1	Sm2-Fe21-Mo2-Cu1	Sm2-Fe22-Co1-Cu1
+# Sm2-Fe21-Co2-Al1	Sm2-Fe21-Mo2-Ga1	Sm2-Fe22-Co1-Ga1
+# Sm2-Fe21-Co2-Cu1	Sm2-Fe21-Mo2-Ti1	Sm2-Fe22-Co1-Mo1
+# Sm2-Fe21-Co2-Ga1	Sm2-Fe21-Mo2-Zn1	Sm2-Fe22-Cu1-Ga1
+# Sm2-Fe21-Co2-Mo1	Sm2-Fe21-Ti2-Al1	Sm2-Fe22-Cu1-Mo1
+# Sm2-Fe21-Co2-Ti1	Sm2-Fe21-Ti2-Co1	Sm2-Fe22-Mo1-Ga1
+# Sm2-Fe21-Co2-Zn1	Sm2-Fe21-Ti2-Cu1	Sm2-Fe22-Ti1-Al1
+# Sm2-Fe21-Cu2-Al1	Sm2-Fe21-Ti2-Ga1	Sm2-Fe22-Ti1-Co1
+# Sm2-Fe21-Cu2-Co1	Sm2-Fe21-Ti2-Mo1	Sm2-Fe22-Ti1-Cu1
+# Sm2-Fe21-Cu2-Ga1	Sm2-Fe21-Ti2-Zn1	Sm2-Fe22-Ti1-Ga1
+# Sm2-Fe21-Cu2-Mo1	Sm2-Fe21-Zn2-Al1	Sm2-Fe22-Ti1-Mo1
+# Sm2-Fe21-Cu2-Ti1	Sm2-Fe21-Zn2-Co1	Sm2-Fe22-Ti1-Zn1
+# Sm2-Fe21-Cu2-Zn1	Sm2-Fe21-Zn2-Cu1	Sm2-Fe22-Zn1-Co1
+# Sm2-Fe21-Ga2-Al1	Sm2-Fe21-Zn2-Ga1	Sm2-Fe22-Zn1-Cu1
+# Sm2-Fe21-Ga2-Co1	Sm2-Fe21-Zn2-Mo1	Sm2-Fe22-Zn1-Ga1
+# Sm2-Fe21-Ga2-Cu1	Sm2-Fe21-Zn2-Ti1	Sm2-Fe22-Zn1-Mo1]})
+
+
+
 def release_mem(fig):
 	fig.clf()
 	plt.close()
@@ -286,6 +326,12 @@ def get_color_112(index):
 		c = "cyan"
 	if "Al" in index:
 		c = "green"
+
+	#normalize item number values to colormap
+	norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
+
+	#colormap possible values = viridis, jet, spectral
+	rgba_color = cm.jet(norm(400),bytes=True) 
 	return c
 
 def get_marker_112(index):
@@ -391,7 +437,7 @@ def scatter_plot_3(x, y, color_array=None, xvlines=None, yhlines=None,
 
 def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
-	s=100, alpha=0.8, title=None,
+	s=100, alphas=0.8, title=None,
 	x_label='x', y_label='y', 
 	save_file=None, interpolate=False, color='blue', 
 	preset_ax=None, linestyle='-.', marker='o'):
@@ -406,12 +452,7 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	sns.set_style(style='white') 
 
 
-	main_ax = sns.kdeplot(x, y,
-			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
-			 cmap='Oranges',
-			 shade=True, shade_lowest=False,
-			 fontsize=10, ax=main_ax, linewidths=1,
-			 vertical=True)
+
 	# main_ax.legend(lbl, 
 	#   loc='lower left', fontsize=18,
 	#   bbox_to_anchor=(1.05, 1.05, ),  borderaxespad=0)
@@ -421,18 +462,21 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	#     plt.scatter(x, y, s=s, alpha=alpha, marker=marker, c=color, 
 	#         edgecolor="black")
 	# elif isinstance(marker, list):
-	for _m, _c, _x, _y in zip(marker, color_array, x, y):
-		main_ax.scatter(_x, _y, marker=_m, c=_c, alpha=alpha, edgecolor="black")
-	# else:
-	#     main_plot = plt.scatter(x, y, s=150, alpha=0.8, marker=marker, 
-	#         c=color_array, cmap='viridis',
-	#         edgecolor="white")
-	#     fig.colorbar(main_plot)
+	for _m, _c, _x, _y, _a in zip(marker, color_array, x, y, alphas):
+		main_ax.scatter(_x, _y, s=s, marker=_m, c=_c, alpha=_a, edgecolor="black")
 
-	# for xvline in xvlines:
-	#   main_ax.axvline(x=xvline, linestyle='-.', color='black')
-	# for yhline in yhlines:
-	#   main_ax.axhline(y=yhline, linestyle='-.', color='black')
+	main_ax = sns.kdeplot(x, y,
+			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+			 cmap='Oranges',
+			 shade=True, shade_lowest=False,
+			 fontsize=10, ax=main_ax, linewidths=1,
+			 # vertical=True
+			 )
+
+	for xvline in xvlines:
+	  main_ax.axvline(x=xvline, linestyle='-.', color='black')
+	for yhline in yhlines:
+	  main_ax.axhline(y=yhline, linestyle='-.', color='black')
 
 	main_ax.set_xlabel(x_label, **axis_font)
 	main_ax.set_ylabel(y_label, **axis_font)
@@ -446,10 +490,8 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 
 	# x_hist.hist(x, c='orange', linewidth=1)
 	# y_hist.hist(y, c='orange', linewidth=1)
-	red_idx = np.where((np.array(color)=="red"))[0]
+	# red_idx = np.where((np.array(color)=="red"))[0]
 
-	n_total = len(x)
-	n_blue = len(x)
 
 	# # x-axis histogram
 	sns.distplot(x, bins=100, ax=x_hist, hist=False,
@@ -462,11 +504,11 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	y1 = l1.get_xydata()[:,1]
 	x_hist.fill_between(x1, y1, color="orange", alpha=0.3)
 
-	sns.distplot(x[red_idx], bins=100, ax=x_hist, hist=False,
-		kde_kws={"color": "blue", "lw": 1},
-		# shade=True,
-		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
-		vertical=False, norm_hist=True)
+	# sns.distplot(x[red_idx], bins=100, ax=x_hist, hist=False,
+	# 	kde_kws={"color": "blue", "lw": 1},
+	# 	# shade=True,
+	# 	# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
+	# 	vertical=False, norm_hist=True)
 	# l1 = x_hist.lines[0]
 	# x1 = l1.get_xydata()[:,0]
 	# y1 = l1.get_xydata()[:,1]
@@ -474,7 +516,7 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 
 	# # y-axis histogram
 	sns.distplot(y, bins=100, ax=y_hist, hist=False,
-		kde_kws={"color": "orange", "lw": 1},
+		kde_kws={"color": "grey", "lw": 1},
 		# shade=True,
 		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
 		vertical=True, norm_hist=True)
@@ -484,11 +526,11 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
 
 
-	sns.distplot(y[red_idx], bins=100, ax=y_hist, hist=False,
-		kde_kws={"color": "blue", "lw": 1},
-		# shade=True,
-		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
-		vertical=True, norm_hist=True)
+	# sns.distplot(y[red_idx], bins=100, ax=y_hist, hist=False,
+	# 	kde_kws={"color": "blue", "lw": 1},
+	# 	# shade=True,
+	# 	# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "blue"},
+	# 	vertical=True, norm_hist=True)
 	# l1 = y_hist.lines[0]
 	# x1 = l1.get_xydata()[:,0]
 	# y1 = l1.get_xydata()[:,1]
