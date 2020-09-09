@@ -328,10 +328,10 @@ def get_color_112(index):
 		c = "green"
 
 	#normalize item number values to colormap
-	norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
+	# norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
 
 	#colormap possible values = viridis, jet, spectral
-	rgba_color = cm.jet(norm(400),bytes=True) 
+	# rgba_color = cm.jet(norm(400),bytes=True) 
 	return c
 
 def get_marker_112(index):
@@ -349,6 +349,25 @@ def get_marker_112(index):
 	if "2-21-3" in index:
 		m = "^"
 	return m
+
+def get_family(index):
+	if "Sm-Fe9" in index:
+		f = "1-9-3"
+	elif "Sm-Fe10" in index:
+		f = "1-10-2"
+	elif "Sm-Fe11" in index:
+		f = "1-11-1"
+	elif "Sm2-Fe23" in index:
+		f = "2-23-1"
+	elif "Sm2-Fe22" in index:
+		f = "2-22-2"
+	elif "Sm2-Fe21" in index:
+		f = "2-21-3"
+	elif "2-22-2" in index:
+		f = "2-22-2"
+	else:
+		print(index)
+	return f
 
 
 def process_name(input_name, main_dir):
@@ -451,8 +470,6 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	
 	sns.set_style(style='white') 
 
-
-
 	# main_ax.legend(lbl, 
 	#   loc='lower left', fontsize=18,
 	#   bbox_to_anchor=(1.05, 1.05, ),  borderaxespad=0)
@@ -462,9 +479,6 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	#     plt.scatter(x, y, s=s, alpha=alpha, marker=marker, c=color, 
 	#         edgecolor="black")
 	# elif isinstance(marker, list):
-	for _m, _c, _x, _y, _a in zip(marker, color_array, x, y, alphas):
-		main_ax.scatter(_x, _y, s=s, marker=_m, c=_c, alpha=_a, edgecolor="black")
-
 	main_ax = sns.kdeplot(x, y,
 			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
 			 cmap='Oranges',
@@ -472,6 +486,11 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 			 fontsize=10, ax=main_ax, linewidths=1,
 			 # vertical=True
 			 )
+
+	for _m, _c, _x, _y, _a in zip(marker, color_array, x, y, alphas):
+		main_ax.scatter(_x, _y, s=s, marker=_m, c=_c, alpha=_a, edgecolor="black")
+
+	
 
 	for xvline in xvlines:
 	  main_ax.axvline(x=xvline, linestyle='-.', color='black')

@@ -20,7 +20,7 @@ class Preprocessing():
         self.ticklabels = ticklabels
 
     def iso_map(self, n_neighbors=5, n_components=2, eigen_solver='auto', tol=0, max_iter=None, path_method='auto',
-                neighbors_algorithm='auto', n_jobs=None):
+                neighbors_algorithm='auto', n_jobs=None, metric="minkowski", p=2):
         # Y = manifold.Isomap(n_neighbors, n_components, eigen_solver, tol, max_iter, path_method,
         #                     neighbors_algorithm, n_jobs).fit_transform(self.similarity_matrix)
         # return Y, self.ticklabels

@@ -25,6 +25,8 @@ import cv2 as cv
 import random
 from scipy.interpolate import griddata
 
+from deformation import read_deformation
+
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 									 **kwargs):
 		n_active = int(mixture * N)
@@ -44,6 +46,10 @@ def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 
 def process_dimensional_reduction(unlbl_X):
 	# # tsne
+	is_tsne = False
+	is_mds = True
+	is_isomap = False # True
+
 	processing = Preprocessing()
 	# config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
 	# 	"early_exaggeration":1000.0, # same meaning as n_cluster
@@ -55,11 +61,22 @@ def process_dimensional_reduction(unlbl_X):
 	# processing.similarity_matrix = unlbl_X
 	# X_trans, _, a, b = processing.tsne(**config_tsne)
 
-	config_mds = dict({"n_components":2, "metric":True, "n_init":4, "max_iter":300, "verbose":0,
-            "eps":0.001, "n_jobs":None, "random_state":None, "dissimilarity":'precomputed'})
-	cosine_distance = 1 - cosine_similarity(unlbl_X)
-	processing.similarity_matrix = cosine_distance
-	X_trans, _ = processing.mds(**config_mds)
+	if is_mds:
+		config_mds = dict({"n_components":2, "metric":True, "n_init":4, "max_iter":300, "verbose":0,
+	            "eps":0.001, "n_jobs":None, "random_state":None, "dissimilarity":'precomputed'})
+		cosine_distance = 1 - cosine_similarity(unlbl_X)
+		processing.similarity_matrix = cosine_distance
+		X_trans, _ = processing.mds(**config_mds)
+
+	if is_isomap:
+
+		config_isomap = dict({"n_neighbors":5, "n_components":2, "eigen_solver":'auto', "tol":0, 
+				"max_iter":None, "path_method":'auto', "neighbors_algorithm":'auto', "n_jobs":None,
+				"metric":"l1"})
+		processing.similarity_matrix = unlbl_X
+		X_trans, a, b = processing.iso_map(**config_isomap)
+
+
 	return X_trans
 
 def rank_unlbl_data(ith_trial):
@@ -314,6 +331,9 @@ def map_unlbl_data(ith_trial):
 
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
 	X_trval_csv, y_trval_csv, index_trval_csv, X_test_csv, y_test_csv, test_idx_csv = get_data_from_flags()
+	
+	deformations = read_deformation(qr_indexes=index_trval_csv)
+
 	n_trval = len(X_trval_csv)
 
 	# # round data
@@ -367,12 +387,16 @@ def map_unlbl_data(ith_trial):
 		pickle.dump(X_all_trans, gfile.GFile(tsne_file, 'w'))
 
 	# X_trans = tsne.transform(unlbl_X)
-	x_trval = X_all_trans[:n_trval, 0]
-	y_trval = X_all_trans[:n_trval, 1]
+	# x_trval = X_all_trans[:n_trval, 0]
+	# y_trval = X_all_trans[:n_trval, 1]
 
 
-	x = X_all_trans[n_trval:, 0]
-	y = X_all_trans[n_trval:, 1]
+	# x = X_all_trans[n_trval:, 0]
+	# y = X_all_trans[n_trval:, 1]
+
+	x = X_all_trans[:, 0]
+	y = X_all_trans[:, 1]
+
 	scaler = MinMaxScaler()
 	x = scaler.fit_transform(x.reshape(-1, 1)).ravel()
 	y = scaler.fit_transform(y.reshape(-1, 1)).ravel()
@@ -421,7 +445,7 @@ def map_unlbl_data(ith_trial):
 		selected_inds = []
 		# # 1. update by D_{Q}
 		new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
-															 list(selected_inds), **select_batch_inputs)
+											list(selected_inds), **select_batch_inputs)
 		selected_inds.extend(new_batch)
 		query2update_DQ = np.array([None] * len(unlbl_index))
 		query2update_DQ[new_batch] = "query2update_DQ"
@@ -463,35 +487,24 @@ def map_unlbl_data(ith_trial):
 		size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
 
 		# # name, color, marker for plot
-		name = [k.replace(unlbl_file, "") for k in unlbl_index]
-		family = []
-		for idx in unlbl_index:
-			if "Sm-Fe9" in idx:
-				family.append("1-9-3")
-			elif "Sm-Fe10" in idx:
-				family.append("1-10-2")
+		plot_index = np.concatenate((unlbl_index, index_trval_csv), axis=0)
+		name = [k.replace(unlbl_file, "") for k in plot_index]
+		family = [get_family(k) for k in plot_index]
 
 		color_array = np.array([get_color_112(k) for k in name])
 		marker_array = np.array([get_marker_112(k) for k in family])
-		alphas = np.array([0.1] * len(acq_val))
+		alphas = np.array([0.1] * len(plot_index))
 		alphas[selected_inds] = 1.0 
+		alphas[len(unlbl_index):] = 1.0
 
 		fig = plt.figure(figsize=(10, 8)) 
 		ax = fig.add_subplot(1, 1, 1)
 
 		lim_acq_val = min(acq_val[new_batch])
 
-		z =  unlbl_y_pred # unlbl_y_pred, min_margin
-		# x *= 10^8
-		# y *= 10^8
-		# # target grid to interpolate to 
-		# xi = np.arange(-0.1, 1.1, 0.05)
-		# yi = np.arange(-0.1, 1.1, 0.05)
-
+		z =  np.concatenate((unlbl_y_pred, y_trval_csv)) # unlbl_y_pred, min_margin
 		xi = np.arange(min(x), max(x), (max(x) - min(x))/200)
 		yi = np.arange(min(y), max(y), (max(y) - min(x))/200)
-
-
 		xi, yi = np.meshgrid(xi,yi)
 		# interpolate
 		zi = griddata((x,y),z,(xi,yi),method='nearest')
@@ -502,6 +515,51 @@ def map_unlbl_data(ith_trial):
 		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, color=color_array,
 			 x_label="tSNE axis 1", y_label="tSNE axis 2",
 			 alphas=alphas)
+		fig.patch.set_visible(False)
+		ax.axis('off')
+		plt.tight_layout(pad=1.1)
+		plt.savefig(saveat)
+		plt.close()
+
+
+		# # acp_val_map
+		fig = plt.figure(figsize=(10, 8)) 
+		ax = fig.add_subplot(1, 1, 1)
+
+		lim_acq_val = min(acq_val[new_batch])
+
+		z =  np.concatenate((acq_val, [0]*len(y_trval_csv))) # unlbl_y_pred, min_margin
+		xi = np.arange(min(x), max(x), (max(x) - min(x))/200)
+		yi = np.arange(min(y), max(y), (max(y) - min(x))/200)
+		xi, yi = np.meshgrid(xi,yi)
+		# interpolate
+		zi = griddata((x,y),z,(xi,yi),method='nearest')
+		cs = ax.contourf(xi,yi,zi, levels=20, cmap="jet")
+		cbar = fig.colorbar(cs, label="acq_val")
+		
+		# # tSNE map
+		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, color=color_array,
+			 x_label="tSNE axis 1", y_label="tSNE axis 2",
+			 alphas=alphas)
+		fig.patch.set_visible(False)
+		ax.axis('off')
+		plt.tight_layout(pad=1.1)
+		plt.savefig(saveat.replace("unlbl_y_pred", "acq_val"))
+		plt.close()
+
+		# # plot traininig validation points only
+		#  for idx in unlbl_index:
+		# 	if "Sm-Fe9" in idx:
+		# 		family.append("1-9-3")
+		# 	elif "Sm-Fe10" in idx:
+		# 		family.append("1-10-2")
+		# color_trval = np.array([get_color_112(k) for k in index_trval_csv])
+		# marker_trval = np.array([get_marker_112(k) for k in family])
+
+		# ax_scatter(ax=ax, x=x_trval, y=x_trval, marker=marker_trval, color=color_trval,
+		# 	 x_label="tSNE axis 1", y_label="tSNE axis 2",
+		# 	 alphas=alphas)
+		# index_trval_csv
 
 		scatter_plot_4(x=acq_val, y=unlbl_y_pred, color_array=color_array, 
 			xvlines=[lim_acq_val], yhlines=[lim_outstand_list], 
@@ -519,11 +577,7 @@ def map_unlbl_data(ith_trial):
 		# ax.tick_params(top='off', bottom='off', left='off', right='off', 
 		# 		labelleft='off', labelbottom='off')
 
-		fig.patch.set_visible(False)
-		ax.axis('off')
-		plt.tight_layout(pad=1.1)
-		plt.savefig(saveat)
-		plt.close()
+
 
 		break
 

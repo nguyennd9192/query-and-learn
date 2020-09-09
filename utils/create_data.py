@@ -48,7 +48,7 @@ from sklearn.feature_extraction.text import TfidfTransformer
 
 from absl import app
 from absl import flags
-from general_lib import makedirs, get_subdirs
+from general_lib import makedirs, get_subdirs, get_basename
 from features import OFMFeature
 
 flags.DEFINE_string('save_dir', '/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data',
@@ -209,7 +209,7 @@ def get_unlbl_data(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
   X = tmp_df[pv].values
 
   unlbl_data = Dataset(X=X, y=np.array([None]*X.shape[0]), index=all_unlbl)
-  dump_data(unlbl_data, unlbl_data_dir+'/mix.pkl')
+  dump_data(unlbl_data, unlbl_data_dir+'.pkl')
   print (X.shape)
 
 def get_wikipedia_talk_data():
@@ -479,7 +479,7 @@ def main(argv):
 
   for d in datasets:
     print(d[1])
-    # # non separate test set
+    # # non-separate test set
     # get_mldata(d)
 
     # # separate test set
@@ -487,16 +487,13 @@ def main(argv):
       get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
     if is_prepare_unlbl_data:
       get_unlbl_data(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
-        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix"
+        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix_2-24" # mix_2-24, mix
         # input_dir+"SmFe12/unlabeled_data"
         )
       
 
 if __name__ == '__main__':
   app.run(main)
-  # filename="/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/11*10*23-21_CuAlZnTiMoGa|ofm1_no_d|rm_dupl.csv"
-  # df=pd.read_csv(filename, index_col=0)
-  # df=df.dropna()
-  # df.to_csv(filename)
+
 
 
