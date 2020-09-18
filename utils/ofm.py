@@ -115,8 +115,7 @@ if __name__ == '__main__':
 	# Testing
 	# data = np.load("data.npy", encoding = 'latin1')
 	# a = data[0]
-	filename = "/media/nguyen/work/SmFe12_screening/input/icsd_magnet/icsd_1-12/SmFeMo_1-12/SmFeMo 1-12_CollCode103537.cif"
-
+	filename = "test.cif"
 	with open(filename, 'r') as f:
 		inp = f.read()
 	struct = pm.Structure.from_str(inp, fmt="cif")

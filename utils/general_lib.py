@@ -26,3 +26,9 @@ def get_basename(filename):
     head, tail = ntpath.split(filename)
     basename = os.path.splitext(tail)[0]
     return tail
+
+def merge_two_dicts(x, y):
+    """Given two dictionaries, merge them into a new dict as a shallow copy."""
+    z = x.copy()
+    z.update(y)
+    return z
