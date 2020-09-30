@@ -222,6 +222,7 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 		plt.savefig(save_file)
 		release_mem(fig=fig)
 
+
 def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	x_label='x', y_label='y', 
@@ -309,6 +310,7 @@ def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None,
 	plt.savefig(save_file, transparent=False, bbox_inches="tight")
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)
+
 
 def get_color_112(index):
 	c = "yellow"

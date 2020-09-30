@@ -43,11 +43,11 @@ def search_space():
 
 	plt.style.use('default')
 
-	axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
-	title_font = {'fontname': 'serif', 'size': 14}
+	axis_font = {'fontname': 'serif', 'size': 20, 'labelpad': 10}
+	title_font = {'fontname': 'serif', 'size': 20}
 	size_text = 10
 	alpha_point = 0.8
-	size_point = 12
+	size_point = 18
 	c_12 = "blue"
 	c_24 = "red"
 
@@ -56,32 +56,34 @@ def search_space():
 	print (nsubs_12)
 	print (12, "n_structures_12", n_structures_12)
 	print ("form_nck_12", form_nck_12)
-	ax.plot(nsubs_12, n_structures_12, # s=size_point, edgecolor="black",
-		alpha=alpha_point, markersize=size_point,
-		c=c_12, label=r"$SmFe_{12-x}M_{x}$", marker="o", linestyle="-.")
-	for x, y, n in zip(nsubs_12, n_structures_12, formula_12):
-		ax.annotate(n, xy=(x, y), size=size_text)
-		if x < 4:
-			ax.scatter(x, y, alpha=alpha_point, s=size_point, c=c_12, edgecolor="black")
+	# ax.plot(nsubs_12, n_structures_12, # s=size_point, edgecolor="black",
+	# 	alpha=alpha_point, markersize=size_point,
+	# 	c=c_12, label=r"$REFe_{12-x}A_{x}$", marker="o", linestyle="-.")
+	# for x, y, n in zip(nsubs_12, n_structures_12, formula_12):
+	# 	ax.annotate(n, xy=(x, y), size=size_text)
+	# 	if x < 4:
+	# 		ax.scatter(x, y, alpha=alpha_point, s=size_point, c=c_12, edgecolor="black")
 
-	# # config 24
+	# # # config 24
 	nsubs_24, nFe_rest_24, formula_24, n_structures_24, form_nck_24 = info24
-	ax.plot(nsubs_24, n_structures_24, # s=size_point, edgecolor="black",
-		alpha=alpha_point, markersize=size_point,
-		c=c_24, label=r"$Sm_{2}Fe_{24-x}M_{x}$", marker="o", linestyle="-.")
-	for x, y, n in zip(nsubs_24, n_structures_24, formula_24):
-		ax.annotate(n, xy=(x, y), size=size_text)
+	# ax.plot(nsubs_24, n_structures_24, # s=size_point, edgecolor="black",
+	# 	alpha=alpha_point, markersize=size_point,
+	# 	c=c_24, label=r"$RE_{2}Fe_{24-x}A_{x}$", marker="o", linestyle="-.")
+	# for x, y, n in zip(nsubs_24, n_structures_24, formula_24):
+	# 	ax.annotate(n, xy=(x, y), size=size_text)
 
 
 	# # mix 12
 	n_structures_12_mix = [(2**nsub)*nstr for nsub, nstr in zip(nsubs_12, n_structures_12)] # np.math.factorial(nsub)*nck
 	ax.plot(nsubs_12, n_structures_12_mix, # s=size_point, edgecolor="black",
 		alpha=alpha_point, markersize=size_point, 
-		c=c_12, label=r"$SmFe_{12-x}AB_{x}$", marker="^", linestyle="-.")
-	for x, y, n in zip(nsubs_12, n_structures_12_mix, formula_12):
-		ax.annotate(n.replace("M", "AB"), xy=(x, y), size=size_text)
-		if x < 4:
-			ax.scatter(x, y, alpha=alpha_point, s=size_point, c=c_12, edgecolor="black")
+		c="black",# c_12 
+		mfc=None, 
+		label=r"$REFe_{12-x-y}A_{x}B_{y}$", marker="o", linestyle="-.")
+	# for x, y, n in zip(nsubs_12, n_structures_12_mix, formula_12):
+	# 	ax.annotate(n.replace("M", "AB"), xy=(x, y), size=size_text)
+	# 	if x < 4:
+			# ax.scatter(x, y, alpha=alpha_point, s=size_point, c=c_12, edgecolor="black")
 
 
 
@@ -89,11 +91,14 @@ def search_space():
 	n_structures_24_mix = [(2**nsub)*nstr for nsub, nstr in zip(nsubs_24, n_structures_24)] # np.math.factorial(nsub)*nck
 	ax.plot(nsubs_24, n_structures_24_mix, # s=size_point, edgecolor="black",
 		alpha=alpha_point, markersize=size_point, 
-		c=c_24, label=r"$Sm_{2}Fe_{24-x}AB_{x}$", marker="^", linestyle="-.")
-	for x, y, n in zip(nsubs_24[:len(n_structures_24_mix)], n_structures_24_mix, formula_24):
-		ax.annotate(n.replace("M", "AB"), xy=(x, y), size=size_text)
-		if x < 4:
-			ax.scatter(x, y, alpha=alpha_point, s=size_point, c=c_12, edgecolor="black")
+		c="black", # c_24
+		mfc=None, 
+
+		label=r"$RE_{2}Fe_{24-x-y}A_{x}B_{y}$", marker="^", linestyle="-.")
+	# for x, y, n in zip(nsubs_24[:len(n_structures_24_mix)], n_structures_24_mix, formula_24):
+	# 	ax.annotate(n.replace("M", "AB"), xy=(x, y), size=size_text)
+	# 	if x < 4:
+	# 		ax.scatter(x, y, alpha=alpha_point, s=size_point, c=c_12, edgecolor="black")
 	
 	# plt.yscale("log") # , nonposy='clip'
 	# subs = list(range(2, 10))
@@ -107,19 +112,19 @@ def search_space():
 	# ax2.set_yscale("log", nonposy='clip')
 
 
-	plt.xlabel(r'x - number of substituted sites', **axis_font)
+	plt.xlabel(r'Number of substituted sites, x+y', **axis_font)
 	plt.ylabel(r'Number of hypothetical structures', **axis_font)
 	# plt.title(, **title_font)
-	plt.legend(prop={'size': 14})
-	plt.tick_params(axis='x', which='major', labelsize=16)
-	plt.tick_params(axis='y', which='major', labelsize=16)
+	plt.legend(prop={'size': 18})
+	plt.tick_params(axis='x', which='major', labelsize=18)
+	plt.tick_params(axis='y', which='major', labelsize=18)
 
 	plt.tight_layout(pad=1.1)
 	plt.xticks(nsubs_24)
 	plt.yticks([10**k for k in range(1, 12)])
 
 	
-	save_file = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/search_space.pdf"
+	save_file = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results/search_space_reduce.pdf"
 	makedirs(save_file)
 	plt.savefig(save_file, transparent=False)
 	print ("Save at: ", save_file)

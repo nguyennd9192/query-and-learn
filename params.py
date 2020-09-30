@@ -44,7 +44,7 @@ flags.DEFINE_string("confusions", "0.1",
 flags.DEFINE_string("active_sampling_percentage", "0.1 0.3 0.5 0.7 0.9",
                     "Mixture weights on active sampling.")
 flags.DEFINE_string(
-    "score_method", "e_krr", # # logistic, kernel_svm, e_krr, u_gp
+    "score_method", "u_gp", # # logistic, kernel_svm, e_krr, u_gp
     "Method to use to calculate accuracy.")  
 flags.DEFINE_string(
     "select_method", "None",

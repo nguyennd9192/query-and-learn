@@ -24,13 +24,12 @@ from matplotlib.backends.backend_agg import FigureCanvas
 import cv2 as cv
 import random, re
 from scipy.interpolate import griddata
-
 from deformation import read_deformation
 from query2vasp import get_qrindex
+from sklearn.metrics import r2_score, mean_absolute_error, accuracy_score, precision_recall_fscore_support
 
 __localdir__ = "/Volumes/Nguyen_6TB/work/SmFe12_screening"
 __ALdir__ = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-
 
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 									 **kwargs):
@@ -65,10 +64,9 @@ def process_dimensional_reduction(unlbl_X):
 	# 	 "angle":0.5, "n_jobs":None})
 	# processing.similarity_matrix = unlbl_X
 	# X_trans, _, a, b = processing.tsne(**config_tsne)
-
 	if is_mds:
 		config_mds = dict({"n_components":2, "metric":True, "n_init":4, "max_iter":300, "verbose":0,
-	            "eps":0.001, "n_jobs":None, "random_state":None, "dissimilarity":'precomputed'})
+				"eps":0.001, "n_jobs":None, "random_state":None, "dissimilarity":'precomputed'})
 		cosine_distance = 1 - cosine_similarity(unlbl_X)
 		processing.similarity_matrix = cosine_distance
 		X_trans, _ = processing.mds(**config_mds)
@@ -80,8 +78,6 @@ def process_dimensional_reduction(unlbl_X):
 				"metric":"l1"})
 		processing.similarity_matrix = unlbl_X
 		X_trans, a, b = processing.iso_map(**config_isomap)
-
-
 	return X_trans
 
 def rank_unlbl_data(ith_trial):
@@ -305,7 +301,8 @@ def rank_unlbl_data(ith_trial):
 
 	return unlbl_X, unlbl_index
 
-def load_unlbl_data(unlbl_job, result_file, next_query_idx, queried_idxes):
+
+def load_unlbl_data(unlbl_job, result_file):
 	# # round data
 	# round1 = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/with_standard_ene/mix/rand1___ofm1_no_d.csv"
 	# round1_df = pd.read_csv(round1, index_col=0)
@@ -317,11 +314,9 @@ def load_unlbl_data(unlbl_job, result_file, next_query_idx, queried_idxes):
 	unlbl_y = data["target"]
 	unlbl_index = data["index"]
 
-	# # save dir. result_file: saved AL results
-	saveat = result_file.replace(".pkl","")+"/"+unlbl_job +"/"+"/cmap_unlbl_rank_unlbl_y_pred.pdf"
-	csv_save_dir = result_file.replace(".pkl","")+"/"+unlbl_job+"/query_{}".format(next_query_idx)
+	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
+	return unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir
 
-	return unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, saveat, csv_save_dir
 
 def id_qr_to_database(id_qr, db_results):
 	# id_qr = arg[0]
@@ -338,10 +333,14 @@ def id_qr_to_database(id_qr, db_results):
 	return (id_qr, id_qr_cvt, target_y)
 
 
-def get_queried_data(queried_files, database_results):
-	# dqs = dict({})
-	# oss = dict({})
-	# rnds = dict({})
+def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index):
+	"""
+	database_results: *.csv of all vasp calculated data, normally in the standard step
+	queried_files: all queried files
+	unlbl_X: original ublbl data, before any querying
+	unlbl_index: original index of ublbl data, before any querying
+	"""
+
 	dqs = []
 	oss = []
 	rnds = []
@@ -370,11 +369,27 @@ def get_queried_data(queried_files, database_results):
 		oss.extend(os_cvt)
 		rnds.extend(rnd_cvt)
 
-	return np.array(dqs), oss, rnds
+	DQs, OSs, RNDs = np.array(dqs), np.array(oss), np.array(rnds)
+
+	valid_Xyid = []
+	fig, ax=plt.subplots(figsize=(12, 12))
+
+	for data in [DQs, OSs, RNDs]:
+		_y =  data[:, -1] 
+		# # last column as predicted variable
+		# # data in the format of: [id_qr, id_qr_cvt, target]
+		valid_id = [i for i, val in enumerate(_y) if val != None] 
+		_y = [float(k) for k in _y[valid_id]] 
+		_idx = data[valid_id, 0]
+
+		_X = unlbl_X[[np.where(unlbl_index==k)[0][0] for k in _idx], :]
+		valid_Xyid.append((_X, _y, _idx))
+	
+	return valid_Xyid
 
 def plot_and_query(FLAGS, all_results,
 	X_trval_csv, y_trval_csv, index_trval_csv, unlbl_X, unlbl_index,
-	sampler, uniform_sampler, active_p, is_save_query):
+	sampler, uniform_sampler, active_p, is_save_query, csv_save_dir):
 
 	tsne_file = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/X_trval_tsne_fit.pkl"
 	is_load_pre_trained = False
@@ -576,17 +591,117 @@ def plot_and_query(FLAGS, all_results,
 		# ax.tick_params(top='off', bottom='off', left='off', right='off', 
 		# 		labelleft='off', labelbottom='off')
 
-
-
 		break
+
+def evaluation_map(FLAGS, all_results,
+	X_trval_csv, y_trval_csv, index_trval_csv, 
+	all_query,
+	sampler, uniform_sampler, active_p, save_at):
+	"""
+	"
+	# # to create an error map of samples in each query batch
+	"
+	"""
+	DQ, OS, RND = all_query 
+
+	for result_key, result_dict in all_results.items():
+		# # "k" of all_results store all setting params 
+		if result_key == "tuple_keys":
+			continue
+		else:
+			result_key_to_text = result_dict
+		exp_params = read_exp_params(result_key)
+
+		m, c = exp_params["m"], exp_params["c"]
+		# csv_saveat = csv_save_dir + "/m{0}_c{1}.csv".format(m, c)
+
+		accuracies = np.array(result_dict["accuracy"])
+		acc_cv_train = np.array(result_dict["cv_train_model"])
+
+		models = [k.estimator.get_params() for k in result_dict["save_model"]]
+		GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
+
+		shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
+
+		estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
+		print(dir(estimator))
+		# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
+		
+		# fig, ax =plt.subplots(figsize=(8, 8))
+		fig = plt.figure(figsize=(8, 8))
+
+		grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+		ax = fig.add_subplot(grid[:3, :], xticklabels=[])
+		y_star_ax = fig.add_subplot(grid[-1:, :], sharex=ax)
+
+		color_codes = ["firebrick", "forestgreen", "darkblue"]
+		flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
+				  linestyle='none', markeredgecolor='k')
+		dx = 0.2
+		ndx = 0
+		for dt, color in zip(all_query, color_codes):
+			X_qr, y_qr, idx_qr = dt
+			estimator.fit(X_trval_csv, y_trval_csv)
+
+			unlbl_y_pred = estimator.predict(X_qr)
+			# r2_score, mean_absolute_error
+			# acc = estimator.score(qr_X, qr_y)
+			mae = mean_absolute_error(y_qr, unlbl_y_pred)
+			r2 = r2_score(y_qr, unlbl_y_pred)
+
+			error = np.abs(y_qr - unlbl_y_pred)
+			mean = np.mean(error)
+
+			y_min = np.min(y_qr)
+			pos_x = 1.0 + ndx*dx
+			bplot = ax.boxplot(x=error, vert=True, #notch=True, 
+				# sym='rs',
+				positions=[pos_x],
+				# whiskerprops={'linewidth':2},
+				patch_artist=True,
+				widths=0.1, meanline=True, #flierprops=flierprops,
+				showfliers=True, 
+				showbox=True, showmeans=True
+				)
+			y_star_ax.scatter([pos_x], [y_min], s=100, marker="+", 
+				c=color, alpha=1.0, edgecolor="black")
+			patch = bplot['boxes'][0]
+			patch.set_facecolor(color)
+			
+			ax.text(pos_x, mean, round(mean, 2),
+				horizontalalignment='center', size=14, 
+				color='black', weight='semibold')
+			ndx += 1
+			print (r2, mae, y_min)		
+			print ("=============")
+
+		ax.set_yscale('log')
+		ax.set_xlabel(r"Query index", **axis_font) 
+		ax.set_ylabel(r"|y_obs - y_pred|", **axis_font)
+		y_star_ax.set_ylabel(r"y_os", **axis_font)
+
+		ax.tick_params(axis='both', labelsize=12)
+		# y_star_ax.set_yscale('log')
+
+		plt.setp(ax.get_xticklabels(), visible=False)
+
+		plt.tight_layout(pad=1.1)
+		makedirs(save_at)
+		plt.savefig(save_at, transparent=False)
+		print ("Save at:", save_at)
+
+		break	
 
 def map_unlbl_data(ith_trial):
 	active_p = 1.0
 	batch_size = 10
 	batch_outstand = 10
 	batch_rand = 10
-	queried_idxes = [1] # # update query time
-	next_query_idx = max(queried_idxes) + 1
+	current_tsne_map = True
+	is_save_query = False
+
+
+
 	unlbl_job = "mix" # mix, mix_2-24
 	database_dir = __localdir__ + "/result/standard/"
 	result_dropbox_dir = __ALdir__ + "/results"
@@ -601,45 +716,72 @@ def map_unlbl_data(ith_trial):
 	n_trval = len(X_trval_csv)
 	
 	# deformations = read_deformation(qr_indexes=index_trval_csv)
-	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, saveat, csv_save_dir = load_unlbl_data(
-		unlbl_job=unlbl_job,  result_file=result_file, 
-		queried_idxes=queried_idxes, next_query_idx=next_query_idx)
-	# # read load queried data
-	# # queried_idxes is None mean all we investigate at initial step
-	if queried_idxes is not None:
-		# qr_dir = csv_save_dir.replace(result_dropbox_dir, __ALdir__+"input/origin_struct/queries/")
-		qr_dir = csv_save_dir.replace("query_{}".format(next_query_idx), "")
-		queried_files = []
-		for k in queried_idxes:
-			newdir = qr_dir + "query_{}".format(k) + "/m0.1_c0.1.csv"
-			queried_files.append(newdir)
-		database_results = [database_dir+"query_{}.csv".format(k) for k in queried_idxes]
-		# queried_files = [database_dir+"query_{}_csv".format(k) for k in queried_idxes]
-		DQs, OSs, RNDs = get_queried_data(queried_files=queried_files, database_results=database_results)
-		print ("Here", DQs[:, 0])
-		# print ("DBS:", database_results)
+	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
+		unlbl_job=unlbl_job,  result_file=result_file)
+	# saveat = savedir+"/cmap_unlbl_rank_unlbl_y_pred.pdf"
+	# csv_save_dir = unlbl_dir+"/query_{}".format(next_query_idx)
 
-		for tmp in DQs[:, 0]:
-			print (tmp in unlbl_index)
+	for next_query_idx in [2, 3]:
+		queried_idxes = range(1, next_query_idx)
+		# # read load queried data
+		# # queried_idxes is None mean all we investigate at initial step
+		if next_query_idx != 0:
+			# qr_dir = csv_save_dir.replace(result_dropbox_dir, __ALdir__+"input/origin_struct/queries/")
+			# # vasp run results
+			database_results = [database_dir+"query_{}.csv".format(k) for k in queried_idxes]
+			# # queried files
+			queried_files = [unlbl_dir + "/query_{}".format(k) + "/m0.1_c0.1.csv" for k in queried_idxes]
+
+			# # get calculated  
+			# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
+			valid_Xyid = get_queried_data(queried_files=queried_files, 
+				database_results=database_results, unlbl_X=unlbl_X, unlbl_index=unlbl_index)
+			# # alocate representation, label and id of labeled data
+			dq_X, dq_y, dq_idx = valid_Xyid[0]
+			os_X, os_y, os_idx = valid_Xyid[1]
+			rnd_X, rnd_y, rnd_idx = valid_Xyid[2]
+
+			all_query = [[dq_X, dq_y, dq_idx], [os_X, os_y, os_idx], [rnd_X, rnd_y, rnd_idx]]
+			print (dq_X.shape)
+
+			# # remove all labeled data of X, y, id to update sampler
+			all_lbl_id = np.concatenate((dq_idx, os_idx, rnd_idx)).ravel()
+			labeled_num_id = [np.where(unlbl_index==k)[0][0] for k in all_lbl_id]
+			print (all_lbl_id)
+			print (labeled_num_id) 
+			print (len(labeled_num_id))
+			unlbl_index = np.delete(unlbl_index, labeled_num_id)
+			unlbl_X = np.delete(unlbl_X, labeled_num_id)
+			unlbl_y = np.delete(unlbl_y, labeled_num_id)
 
 
-	N_unlbl = unlbl_X.shape[0]
+		N_unlbl = unlbl_X.shape[0]
 
-	# # prepare sampler
-	uniform_sampler = AL_MAPPING["uniform"](unlbl_X, unlbl_y, FLAGS.seed)
-	sampler = get_AL_sampler(FLAGS.sampling_method)
-	sampler = sampler(unlbl_X, unlbl_y, FLAGS.seed)
+		# # prepare sampler
+		uniform_sampler = AL_MAPPING["uniform"](unlbl_X, unlbl_y, FLAGS.seed)
+		sampler = get_AL_sampler(FLAGS.sampling_method)
+		sampler = sampler(unlbl_X, unlbl_y, FLAGS.seed)
 
-
-	init_axis = False
-	is_save_query = False
-	# # tsne
-
-	# plot_and_query(FLAGS, all_results,
-	# 	X_trval_csv, y_trval_csv, index_trval_csv, unlbl_X, unlbl_index,
-	# 	sampler, uniform_sampler, active_p, is_save_query)
-
-
+		# # tsne
+		if current_tsne_map:
+			"""
+			plot current state of hypothetical structures + querying 
+			"""
+			csv_save_dir = unlbl_dir + "/query_{}".format(next_query_idx)
+			plot_and_query(FLAGS, all_results,
+				X_trval_csv, y_trval_csv, index_trval_csv, unlbl_X, unlbl_index,
+				sampler, uniform_sampler, active_p, is_save_query, csv_save_dir)
+		# if next_query_idx != 0:
+		if False:
+			save_at = unlbl_dir + "/query_performance.pdf"
+			"""
+			# # to create an error map of samples in each query batch
+			"""
+			evaluation_map(FLAGS, all_results,
+				X_trval_csv, y_trval_csv, index_trval_csv, 
+				all_query,
+				sampler, uniform_sampler, active_p, save_at, csv_save_dir)
+		break
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
@@ -647,9 +789,3 @@ if __name__ == "__main__":
 	# rank_unlbl_data(ith_trial="000") # 014 for u_gp
 
 	map_unlbl_data(ith_trial="000")
-
-
-
-
-
-

@@ -56,7 +56,7 @@ def query2vasp():
 	# # temporary
 	for qr_file in query_list:
 		df = pd.read_csv(qr_file, index_col=0)
-		update_DQ_str, outstand_str, random_str = get_index(df=df)
+		update_DQ_str, outstand_str, random_str = get_qrindex(df=df)
 
 		# print (update_DQ_str)
 		pickup(struct_list=update_DQ_str, savedir=savedir)
