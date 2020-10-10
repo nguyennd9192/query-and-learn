@@ -1,9 +1,14 @@
-
-
 # # latbx_ofm1, ofm_subs_Ga123, letter, latbx_ofm1_fe
 # # sampling_method: uniform, exploitation, margin, bandit_discrete, simulate_batch_best_sim
 # # simulate_batch_mixture (not work yet), 
 from absl import flags 
+
+localdir = "/Volumes/Nguyen_6TB/work/SmFe12_screening"
+ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+database_dir = localdir + "/result/standard"
+result_dropbox_dir = ALdir + "/results"
+color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue"})
+
 
 flags.DEFINE_string("dataset", "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d", "Dataset name") 
 flags.DEFINE_string("sampling_method", "margin", # uniform, exploitation, margin, expected_improvement

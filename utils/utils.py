@@ -227,13 +227,13 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000):
   # but should probably tune.
   # # for my building u_gp vs e_krr
   if method=="u_gp":
-    model = UncertainGaussianProcess(random_state=1, cv=10, n_times=3,
+    model = UncertainGaussianProcess(random_state=1, cv=5, n_times=3,
               search_param=is_search_params, verbose=False)
     return model
   if method=="e_krr":
     model = UncertainEnsembleRegression(random_state=1, 
         n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
-        cv=10, n_times=3, score_method="kr", search_param=is_search_params, # # GaussianProcess
+        cv=5, n_times=3, score_method="kr", search_param=is_search_params, # # GaussianProcess
         verbose=False)
     return model
     

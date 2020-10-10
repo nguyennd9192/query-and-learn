@@ -3,6 +3,14 @@ import matplotlib.pyplot as plt
 import time, gc, os
 import pandas as pd
 import seaborn as sns
+from mpl_toolkits.mplot3d import Axes3D
+import mpl_toolkits.mplot3d.art3d as art3d
+from mpl_toolkits.mplot3d.art3d import Line3DCollection
+
+from matplotlib.collections import LineCollection
+
+import matplotlib as mpl
+
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
 size_text = 10
@@ -58,6 +66,34 @@ def ax_setting():
 	plt.style.use('default')
 	plt.tick_params(axis='x', which='major', labelsize=15)
 	plt.tick_params(axis='y', which='major', labelsize=15)
+
+def ax_setting_3d(ax):
+	ax.grid(which='minor', alpha=0.2)
+	ax.grid(which='major', alpha=0.5)
+	ax.xaxis._axinfo["grid"]['color'] =  "w"
+	ax.yaxis._axinfo["grid"]['color'] =  "w"
+	ax.zaxis._axinfo["grid"]['color'] =  "w"
+
+	# ax.set_xticks([])
+	# ax.set_zticks([])
+
+	ax.tick_params(axis='x', which='major', labelsize=15)
+	ax.tick_params(axis='y', which='major', labelsize=15)
+	ax.tick_params(axis='z', which='major', labelsize=15)
+
+	ax.xaxis.pane.fill = False
+	ax.yaxis.pane.fill = False
+	ax.zaxis.pane.fill = False
+
+
+	ax.xaxis.pane.set_edgecolor('w')
+	ax.yaxis.pane.set_edgecolor('w')
+	ax.zaxis.pane.set_edgecolor('w')
+
+	ax.zaxis.set_rotate_label(False)
+
+	# ax.view_init(45, 120) # good for Tc
+	plt.tight_layout(pad=1.1)
 
 def makedirs(file):
 	if not os.path.isdir(os.path.dirname(file)):
@@ -148,24 +184,51 @@ def joint_plot(x, y, xlabel, ylabel, save_at, is_show=False):
 	print ("Save file at:", "{0}".format(save_at))
 	release_mem(fig)
 
-def ax_scatter(ax, x, y, marker, color, x_label=None, y_label=None, name=None, alphas=None):
+def ax_scatter(ax, x, y, marker, list_cdict, x_label=None, y_label=None, 
+			name=None, alphas=None, save_at=None, plt_mode="2D"):
 	n_points = len(x)
 
 	if alphas is None:
 		alphas = [0.8] * n_points
-	for i in range(n_points):
-		ax.scatter(x[i], y[i], s=120, alpha=alphas[i], 
-		marker=marker[i], 
-		c=color[i], edgecolor="black") # brown
 
-	if name is not None:
+	if plt_mode == "2D":
 		for i in range(n_points):
-			ax.annotate(name[i], xy=(x[i], y[i]), size=12 ) # brown
+			_cdict = list_cdict[i]
+			if len(_cdict.keys()) == 1:
+				ax.scatter(x[i], y[i], s=120, 
+					alpha=alphas[i], marker=marker[i], 
+					c=list(_cdict.keys())[0], edgecolor="black")
+			else:
+				plt_half_filled(ax=ax, x=x[i], y=y[i], 
+					cdict=_cdict, alpha=alphas[i])
+
+		if name is not None:
+			for i in range(n_points):
+				ax.annotate(name[i], xy=(x[i], y[i]), size=12 )
+	if "3D" in plt_mode:
+		for i in range(n_points):
+			_cdict = list_cdict[i]
+			if len(_cdict.keys()) == 1:
+				ax.scatter(x[i], y[i], 0, s=120, 
+					alpha=alphas[i], marker=marker[i], 
+					c=list(_cdict.keys())[0], edgecolor="black")
+			else:
+				plt_half_filled(ax=ax, x=x[i], y=y[i], 
+					cdict=_cdict, alpha=alphas[i])
+
+		if name is not None:
+			for i in range(n_points):
+				ax.annotate(name[i], xy=(x[i], y[i]), size=12 )
+
+
 	ax_setting()
 
 	ax.set_xlabel(x_label, **axis_font)
 	ax.set_ylabel(y_label, **axis_font)
-
+	if save_at is not None:
+		makedirs(save_at)
+		plt.savefig(save_at)
+		plt.close()
 
 def scatter_plot(x, y, xvline=None, yhline=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
@@ -208,8 +271,6 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 	ax_setting()
 
 	if preset_ax is not None:
-		
-
 		# min_y, max_y = np.min(y), np.max(y)
 		# dy = max_y - min_y
 		# min_y -= 0.2*dy
@@ -300,8 +361,6 @@ def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None,
 	y1 = l1.get_xydata()[:,1]
 	y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
 
-
-
 	plt.setp(x_hist.get_xticklabels(), visible=False)
 	plt.setp(y_hist.get_yticklabels(), visible=False)
 	plt.tight_layout(pad=1.1)
@@ -311,30 +370,45 @@ def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None,
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)
 
+def get_ratio(index, element):
+	if "/feature/" in index:
+		index = index[index.find("/feature/")+len("/feature/"):]
+	if "/ofm1_no_d/" in index:
+		index = index[:index.find("/ofm1_no_d/")]
+	pos = index.find(element)
+	# print (index, element)
+
+	r = int(index[pos+2:pos+3])
+	# print (index, element, r)
+	return r
 
 def get_color_112(index):
-	c = "yellow"
-	if "Ga" in index:
-		c = "purple"
-	if "Mo" in index:
-		c = "red"
-	if "Zn" in index:
-		c = "orange"
-	if "Co" in index:
-		c = "brown"
-	if "Cu" in index:
-		c = "blue"
-	if "Ti" in index:
-		c = "cyan"
-	if "Al" in index:
-		c = "green"
+	# c = "black"
+	colors = dict()
+	ratios = []
 
+	state_subs = 0
+	cdicts = dict({"Ga":"purple", "Mo":"red", "Zn":"orange", 
+		"Co":"brown", "Cu":"blue", "Ti":"cyan", "Al":"yellow"})
+	index = index.replace("CuAlZnTi_", "")
+	if "mix" in index:
+		for element, color in cdicts.items():
+			if element in index:
+				colors[color] = get_ratio(index=index, element=element)
+	else:
+		for element, color in cdicts.items():
+			if element in index:
+				colors[color] = "full"
+	if len(colors.keys()) == 4:
+		# c = "yellow"
+		print ("Herem: ", index)
+		print ("Colors: ", colors)
 	#normalize item number values to colormap
 	# norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
 
 	#colormap possible values = viridis, jet, spectral
 	# rgba_color = cm.jet(norm(400),bytes=True) 
-	return c
+	return colors
 
 def get_marker_112(index):
 	m = "|"
@@ -395,6 +469,7 @@ def process_name(input_name, main_dir):
 	# name = [k.replace("Mo", "").replace("Ti", "").replace("Al", "") for k in name]
 	# name = [k.replace("Cu", "").replace("Ga", "").replace("Zn", "") for k in name]
 	return name
+
 
 def scatter_plot_3(x, y, color_array=None, xvlines=None, yhlines=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
@@ -569,9 +644,125 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	release_mem(fig=fig)
 
 
+def scatter_plot_5(x, y, list_cdict=None, xvlines=None, yhlines=None, 
+	sigma=None, mode='scatter', lbl=None, name=None, 
+	s=100, alphas=0.8, title=None,
+	x_label='x', y_label='y', 
+	save_file=None, interpolate=False, color='blue', 
+	preset_ax=None, linestyle='-.', marker='o'):
+
+
+	fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+	grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+	main_ax = fig.add_subplot(grid[1:, :-1])
+	y_hist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
+	x_hist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
+	
+	sns.set_style(style='white') 
+
+	
+	main_ax = sns.kdeplot(x, y,
+			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+			 cmap='Oranges',
+			 shade=True, shade_lowest=False,
+			 fontsize=10, ax=main_ax, linewidths=1,
+			 # vertical=True
+			 )
+
+	for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
+		if len(_cdict.keys()) == 1:
+			print ("this color:", _cdict.keys())
+			main_ax.scatter(_x, _y, s=s, 
+				marker=_m, c=list(_cdict.keys())[0], 
+				alpha=_a, edgecolor="black")
+		else:
+			plt_half_filled(ax=main_ax, x=_x, y=_y, 
+				cdict=_cdict, alpha=_a
+				)
+
+	for xvline in xvlines:
+	  main_ax.axvline(x=xvline, linestyle='-.', color='black')
+	for yhline in yhlines:
+	  main_ax.axhline(y=yhline, linestyle='-.', color='black')
+
+	main_ax.set_xlabel(x_label, **axis_font)
+	main_ax.set_ylabel(y_label, **axis_font)
+	if name is not None:
+		for i in range(len(x)):
+			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+
+	# # x-axis histogram
+	sns.distplot(x, bins=100, ax=x_hist, hist=False,
+		kde_kws={"color": "grey", "lw": 1},
+		# shade=True,
+		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+		vertical=False, norm_hist=True)
+	l1 = x_hist.lines[0]
+	x1 = l1.get_xydata()[:,0]
+	y1 = l1.get_xydata()[:,1]
+	x_hist.fill_between(x1, y1, color="orange", alpha=0.3)
+
+	# # y-axis histogram
+	sns.distplot(y, bins=100, ax=y_hist, hist=False,
+		kde_kws={"color": "grey", "lw": 1},
+		# shade=True,
+		# hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+		vertical=True, norm_hist=True)
+	l1 = y_hist.lines[0]
+	x1 = l1.get_xydata()[:,0]
+	y1 = l1.get_xydata()[:,1]
+	y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
+
+
+	plt.setp(x_hist.get_xticklabels(), visible=False)
+	plt.setp(y_hist.get_yticklabels(), visible=False)
+	plt.tight_layout(pad=1.1)
+
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
+
+def show_one_rst(y, y_pred, ax, y_star_ax, ninst_ax, pos_x, color):
+	error = np.abs(y - y_pred)
+	mean = np.mean(error)
+	y_min = np.min(y)
+	bplot = ax.boxplot(x=error, vert=True, #notch=True, 
+		# sym='rs', # whiskerprops={'linewidth':2},
+		positions=[pos_x], patch_artist=True,
+		widths=0.1, meanline=True, #flierprops=flierprops,
+		showfliers=True, showbox=True, showmeans=True)
+	ax.text(pos_x, mean, round(mean, 2),
+		horizontalalignment='center', size=14, 
+		color=color, weight='semibold')
+
+	# # midle axis
+	bplot = y_star_ax.boxplot(x=y, vert=True, #notch=True, 
+			# sym='rs', # whiskerprops={'linewidth':2},
+			positions=[pos_x], patch_artist=True,
+			widths=0.1, meanline=True, #flierprops=flierprops,
+			showfliers=True, showbox=True, showmeans=True
+			)
+	y_star_ax.text(pos_x, y_min, round(y_min, 2),
+		horizontalalignment='center', size=14, 
+		color=color, weight='semibold')
+
+
+	ninst_ax.scatter([pos_x], [len(y)], s=100, marker="+", 
+		c=color, alpha=1.0, edgecolor="black")
+
+	# y_star_ax.scatter([pos_x], [y_min], s=100, marker="+", 
+	# 	c=color, alpha=1.0, edgecolor="black")
+
+	patch = bplot['boxes'][0]
+	patch.set_facecolor(color)
+	
+	return ax, y_star_ax, mean, y_min
+
+
 def plot_hist(x, ax, x_label, y_label, 
 	save_at=None, label=None, nbins=50):
-
 	if save_at is not None:
 		fig = plt.figure(figsize=(16, 16))
 
@@ -603,6 +794,145 @@ def plot_hist(x, ax, x_label, y_label,
 		plt.savefig(save_at)
 		print ("Save file at:", "{0}".format(save_at))
 		release_mem(fig)
+
+
+def ax_surf(xi, yi, zi, label, mode="2D"):
+	fig = plt.figure(figsize=(10, 8))
+
+	if mode == "2D":
+		ax = fig.add_subplot(1, 1, 1)
+		cs = ax.contourf(xi,yi,zi, levels=20, cmap="Greys")
+		cbar = fig.colorbar(cs, label="acq_val") 
+
+	if mode == "3D":
+		ax = Axes3D(fig)
+		surf = ax.plot_surface(xi,yi,zi, alpha=0.5, cmap="jet", # cmap=cm.hot, #color="orange", 
+			shade=False, rcount=500, ccount=500, 
+			linewidth=0.1, linestyle="-", antialiased=False)
+		# surf = ax.plot_trisurf(xi, yi, zi, alpha=0.2, cmap="jet", 
+		# 	linewidth=0.1, vmin=min(zi.ravel()), vmax=max(zi.ravel()))
+
+		surf._facecolors2d = surf._facecolors3d
+		surf._edgecolors2d = surf._edgecolors3d
+		ax.set_axis_off()
+		ax.view_init(64, -147) # 60, 60, 37, -150
+		ax_setting_3d(ax=ax)
+		fig.patch.set_visible(False)
+
+	if mode == "3D_patch":
+		ax = fig.add_subplot(1, 1, 1, projection='3d')
+		print (xi.shape, yi.shape, zi.shape)
+		xi_rv, yi_rv, zi_rv = xi.ravel(), yi.ravel(), zi.ravel()
+
+		vmin, vmax = max(zi_rv)/2, max(zi_rv)# min(zi_rv), max(zi_rv)
+		norm = plt.Normalize(vmin, vmax)
+
+		n_points = 10
+		for _xi, _yi, _zi in zip(xi, yi, zi):
+			# line = art3d.Line3D(*zip((_xi, _yi, 0), (_xi, _yi, _zi)),
+			#  marker="o", markersize=1.0, markevery=(1, 1), linewidth=0.5, 
+			#  linestyle="-.", color="black", alpha=0.2 )
+			# ax.add_line(line)
+
+			x = np.array([_xi]*n_points)
+			y = np.array([_yi]*n_points)
+			z = np.linspace(0, _zi, n_points)
+
+			points = np.array([x, y, z]).transpose().reshape(-1,1,3)
+			print (points.shape)
+			segs = np.concatenate([points[:-1],points[1:]],axis=1)
+
+			lc = Line3DCollection(segs, cmap=plt.cm.hsv, norm=norm, alpha=0.2)
+			lc.set_array(z)
+			ax.add_collection(lc)
+
+
+		# ax.set_axis_off()
+		ax.view_init(-114, 33) # 60, 60
+		ax_setting_3d(ax=ax)
+		fig.patch.set_visible(False)
+
+	plt.tight_layout(pad=1.1)
+	# plt.legend(loc="upper left", prop={'size': 16})
+	# ax.set_xlabel(x_lbl, **axis_font)
+	# ax.set_ylabel(y_lbl, **axis_font)
+	# ax.set_zlabel(z_lbl, **axis_font, rotation=90)
+
+	# plt.show()
+
+	return ax
+
+
+def plt_half_filled(ax, x, y, cdict, alpha):
+	rot = 30
+	_sorted_cdict = {k: v for k, v in sorted(cdict.items(), key=lambda item: item[1])}
+	# small_color, small_ratio = _sorted_cdict[0]
+	# big_color, big_ratio = _sorted_cdict[1]
+
+	# try:
+	small_color, big_color = list(_sorted_cdict.keys())
+	small_ratio, big_ratio = list(_sorted_cdict.values())
+	# except Exception as e:
+	# 	print (_sorted_cdict)
+	
+
+	small_angle = 360 * small_ratio / (small_ratio + big_ratio)
+	# print (small_ratio, big_ratio)
+	# print (small_color, big_color)
+	# if z is None:
+	HalfA = mpl.patches.Wedge((x, y), 0.01, alpha=alpha, 
+		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
+		edgecolor="black")
+	HalfB = mpl.patches.Wedge((x, y), 0.01, alpha=alpha,
+		theta1=small_angle-rot,theta2=360-rot, color=big_color,
+		edgecolor="black")
+	# else:
+	# 	HalfA = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha, 
+	# 		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
+	# 		edgecolor="black")
+	# 	HalfB = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha,
+	# 		theta1=small_angle-rot,theta2=360-rot, color=big_color,
+	# 		edgecolor="black")
+	ax.add_artist(HalfA)
+	ax.add_artist(HalfB)
+
+
+def test_half_filled():
+	# mport matplotlib.pyplot as plt
+	# import matplotlib as mpl
+
+	# plt.figure(1)
+
+
+	# ax=plt.gca()
+	# rot = 30
+
+	# # 1:1 180:180, 1:2 120:240, 2:1 240:120
+	# ratio = 120 # 120, 180, 240
+	# # for i in x:
+	# i = 0
+	# HalfA = mpl.patches.Wedge((i, i), 5,
+	# 	theta1=0-rot,theta2=ratio-rot, color='r')
+	# HalfB = mpl.patches.Wedge((i, i), 5,
+	# 	theta1=ratio-rot,theta2=360-rot, color='b')
+	# # rot=rot+360/len(x)
+
+	# ax.add_artist(HalfA)
+	# ax.add_artist(HalfB)
+
+	# ax.set_xlim((-10, 10))
+	# ax.set_ylim((-10, 10))
+	# plt.savefig("test_half_filled.pdf")
+	index =  "mix/Sm-Fe10-Al1-Ga1"
+	# colors = get_color_112(index) 
+	r = get_ratio(index=index, element="Ga")
+
+	print (r)
+
+if __name__ == "__main__":
+	test_half_filled()
+
+
 
 
 

@@ -192,7 +192,7 @@ def generate_one_curve(X, y,
 	sampler = sampler(X_train, y_train, seed)
 
 	results = {}
-	data_sizes = []
+	data_sizes = [] 
 	accuracy = []
 	selected_inds = list(range(seed_batch))
 	cv_train_model = []

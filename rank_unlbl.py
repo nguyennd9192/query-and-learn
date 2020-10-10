@@ -1,6 +1,6 @@
 
 
-import sys, pickle, functools
+import sys, pickle, functools, json, copy
 import numpy as np 
 from params import *
 from absl import app
@@ -28,8 +28,7 @@ from deformation import read_deformation
 from query2vasp import get_qrindex
 from sklearn.metrics import r2_score, mean_absolute_error, accuracy_score, precision_recall_fscore_support
 
-__localdir__ = "/Volumes/Nguyen_6TB/work/SmFe12_screening"
-__ALdir__ = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+
 
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 									 **kwargs):
@@ -72,234 +71,12 @@ def process_dimensional_reduction(unlbl_X):
 		X_trans, _ = processing.mds(**config_mds)
 
 	if is_isomap:
-
 		config_isomap = dict({"n_neighbors":5, "n_components":2, "eigen_solver":'auto', "tol":0, 
 				"max_iter":None, "path_method":'auto', "neighbors_algorithm":'auto', "n_jobs":None,
 				"metric":"l1"})
 		processing.similarity_matrix = unlbl_X
 		X_trans, a, b = processing.iso_map(**config_isomap)
 	return X_trans
-
-def rank_unlbl_data(ith_trial):
-	active_p = 1.0
-	batch_size = 10
-	batch_outstand = 10
-	batch_rand = 10
-	unlbl_job = "mix" # mix, mix_2-24
-
-	result_dir = get_savedir()
-	filename = get_savefile()
-
-	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
-	all_results = load_pickle(result_file)
-
-	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
-	X_trval_csv, y_trval_csv, index_trval_csv, X_test_csv, y_test_csv, test_idx_csv = get_data_from_flags()
-
-	# # # round data
-	# round1 = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/with_standard_ene/mix/rand1___ofm1_no_d.csv"
-	# round1_df = pd.read_csv(round1, index_col=0)
-
-	# # read load unlbl data
-	
-	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, N_unlbl, uniform_sampler, sampler, saveat, csv_save_dir = load_unlbl_data(unlbl_job=unlbl_job)
-	# # save video at
-	height, width = 800, 1200
-
-	out = cv.VideoWriter(saveat, cv.VideoWriter_fourcc(*'MP4V'),30.0,(width,height))
-
-	init_axis = False
-
-	X_trans = process_dimensional_reduction(unlbl_X)
-	
-	x = X_trans[:, 0]
-	y = X_trans[:, 1]	
-
-	# x = unlbl_X[:, 0]
-	# y = unlbl_X[:, 1]
-	
-	for result_key, result_dict in all_results.items():
-		# # "k" of all_results store all setting params 
-		if result_key == "tuple_keys":
-			continue
-		else:
-			result_key_to_text = result_dict
-		exp_params = read_exp_params(result_key)
-
-		m, c = exp_params["m"], exp_params["c"]
-		accuracies = np.array(result_dict["accuracy"])
-		acc_cv_train = np.array(result_dict["cv_train_model"])
-
-		models = [k.estimator.get_params() for k in result_dict["save_model"]]
-		GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
-
-		shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
-
-		estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
-		print(dir(estimator))
-		# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
-		estimator.fit(X_trval_csv, y_trval_csv)
-
-		unlbl_y_pred = estimator.predict(unlbl_X)
-		select_batch_inputs = {"model": estimator, "labeled": None, 
-				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True,
-				"y_star":min(y_trval_csv)}
-		n_sample = min(batch_size, N_unlbl)
-
-		# while(len(selected_inds) <= N_unlbl)
-		selected_inds = []
-		# # 1. update by D_{Q}
-		new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
-															 list(selected_inds), **select_batch_inputs)
-		selected_inds.extend(new_batch)
-
-		# # 2. select by D_{o/s}
-		argsort_y_pred = np.argsort(unlbl_y_pred)
-		outstand_idx = [k for k in argsort_y_pred if k not in selected_inds]
-		outstand_list = outstand_idx[:batch_outstand]
-		max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
-
-		selected_inds.extend(outstand_list)
-
-		# # 3. select by D_{rand}
-		the_rest = list(set(range(N_unlbl)) - set(selected_inds))
-		random_list = random.sample(the_rest, batch_rand)
-		selected_inds.extend(random_list)
-
-		print(unlbl_index[new_batch])
-		print(acq_val[new_batch])
-		print(min(acq_val), max(acq_val))
-
-
-		# # AL points ~ smallest min margin ~ biggest apparent points
-		acq_val[np.isinf(acq_val)] = np.max(acq_val)
-		scaler = MinMaxScaler()
-		size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
-		# size_points *= 100
-		# size_points = 130 - size_points
-		# print (min(size_points), max(size_points))
-
-		# # name, color, marker for plot
-		name = [k.replace(unlbl_file, "") for k in unlbl_index]
-		family = []
-		for idx in unlbl_index:
-			if "Sm-Fe9" in idx:
-				family.append("1-9-3")
-			elif "Sm-Fe10" in idx:
-				family.append("1-10-2")
-
-		color_array = np.array([get_color_112(k) for k in name])
-		marker_array = np.array([get_marker_112(k) for k in family])
-		alphas = np.array([0.5] * len(acq_val))
-		alphas[selected_inds] = 1.0 
-
-		fig = plt.figure(figsize=(width/100, height/100)) 
-		gs = gridspec.GridSpec(nrows=2,ncols=3,figure=fig, width_ratios=[1, 1, 1]
-			) 
-		canvas = FigureCanvas(fig)
-		scatter_plot_3(x=x, y=y, xvlines=None, yhlines=None, s=size_points, alpha=0.2, 
-				sigma=None, mode='scatter',	name=None,  
-				x_label='Dim 1', y_label="Dim 2", save_file=saveat.replace(".mp4", ".pdf"), 
-				interpolate=False, color_array=color_array, 
-				preset_ax=None, linestyle='-.', marker=marker_array)
-
-		lim_margin = np.min(acq_val[new_batch])
-
-		# # tSNE map
-		ax1 = plt.subplot(gs[0, 0])
-		ax_scatter(ax=ax1, x=x, y=y, marker=marker_array, color=color_array,
-			 x_label="tSNE axis 1", y_label="tSNE axis 2",
-			 alphas=alphas)
-		ax_setting()
-
-		# # recommended points 
-		ax2 = plt.subplot(gs[0, 1])
-		# ax_scatter(ax=ax4,x=min_margin[new_batch],y=np.arange(len(new_batch)),
-		# 	marker=marker_array[new_batch],color=color_array[new_batch],
-		# 	name=unlbl_index[new_batch])
-		ax2.barh(new_batch, acq_val[new_batch], color="black")
-		names = [get_basename(k).replace(".ofm1_no_d", "") for k in unlbl_index[new_batch]]
-		ax2.set_xlabel("Variance (exploration)", **axis_font)
-		ax2.set_ylabel("Selected structures", **axis_font)
-		for ith, index in enumerate(new_batch):
-			ax2.text(0.2, index+1, names[ith])
-		ax_setting()
-
-		# # histogram of acq_val
-		ax3 = plt.subplot(gs[1,0])
-		plot_hist(x=acq_val, x_label=sampler.name, y_label="Probability density", 
-			save_at=None, label=None, nbins=50, ax=ax3)
-		ax3.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
-			label="variance threshold", color="red", linestyle="-.")
-		ax3.legend()
-
-		# # acq_val 
-		ax4 = plt.subplot(gs[1,1])
-		pos = np.arange(len(sampler.name))
-		print (unlbl_y_pred)
-		ax_scatter(ax=ax4,x=acq_val ,y=unlbl_y_pred,
-			marker=marker_array,color=color_array,
-			x_label=sampler.name, y_label="Predicted value (exploitation)",
-			alphas=alphas)
-		# ax4.set_xlim((min(acq_val), max(acq_val)))
-		# # get min of criteria to select new structures
-		ax4.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
-			label="variance threshold", color="red", linestyle="-.")
-		ax4.axhline(y=max_y_pred_selected, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
-			label="o/s threshold", color="black", linestyle="-.")
-		ax4.legend()
-		# print("min pred: ", min(unlbl_y_pred), "max pred: ", max(unlbl_y_pred))
-	
-		ax5 = plt.subplot(gs[1,2])
-		ax_scatter(ax=ax5, x=acq_val ,y=-unlbl_y_pred,
-			marker=marker_array,color=color_array,
-			x_label=sampler.name, y_label=r"\frac{-ypred}{\sigma}",
-			alphas=alphas)
-		ax5.axvline(x=lim_margin, #ymin=0.0, ymax=0.25, # np.max(unlbl_y_pred) 
-			label="variance threshold", color="red", linestyle="-.")
-		# ax5.set_xlim((min(sampler.name), max(sampler.name)))
-		ax5.legend()
-
-		# # add text config
-		text = params2text(exp_params=exp_params, result_key_to_text=result_key_to_text)
-		side_text = plt.figtext(0.75, 0.60, text, bbox=dict(facecolor='white'))
-		fig.tight_layout()
-
-		canvas.draw()
-		rgba_render = np.array(canvas.renderer.buffer_rgba())
-		final_frame = np.delete(rgba_render.reshape(-1,4),3,1)
-		# print("shape before:", final_frame.shape)
-		final_frame = final_frame.reshape(final_frame.shape[0],final_frame.shape[1],-1)
-		final_frame = final_frame.reshape(height, width,-1)
-		# print("shape after:", final_frame.shape)
-		out.write(final_frame)
-		# # save for last frame
-		plt.savefig(saveat.replace(".mp4", "_full.pdf"))
-		plt.close()
-
-		break
-			# if frameNo == 15:
-			# 	break
-			# break
-			# if True:
-			# 	ax5 = plt.subplot(gs[0,2])
-	out.release()
-	cv.destroyAllWindows()
-	print("Save at:", saveat)
-	# scatter_plot_4(x=x, y=y, 
-	# 		# xvlines=[xlb, xub], yhlines=[ylb, yub], 
-	# 		xvlines=None, yhlines=None, 
-	# 		s=80, alpha=0.2, 
-	# 		# title=title,
-	# 		sigma=None, mode='scatter', 
-	# 		name=None,  # all_local_idxes
-	# 		x_label='Dim 1', y_label="Dim 2", 
-	# 		save_file=saveat.replace(".pdf", "mix.pdf"),
-	# 		interpolate=False, color_array=color_array, 
-	# 		preset_ax=None, linestyle='-.', marker=marker_array)
-
-
-	return unlbl_X, unlbl_index
 
 
 def load_unlbl_data(unlbl_job, result_file):
@@ -308,7 +85,7 @@ def load_unlbl_data(unlbl_job, result_file):
 	# round1_df = pd.read_csv(round1, index_col=0)
 
 	# # read load unlbl data
-	unlbl_file = __ALdir__+"/data/SmFe12/unlabeled_data/"+unlbl_job 
+	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
 	data = load_pickle(unlbl_file+".pkl")
 	unlbl_X = data["data"]
 	unlbl_y = data["target"]
@@ -320,7 +97,7 @@ def load_unlbl_data(unlbl_job, result_file):
 
 def id_qr_to_database(id_qr, db_results):
 	# id_qr = arg[0]
-	feature_dir = __localdir__ + "/input/feature/"
+	feature_dir = localdir + "/input/feature/"
 	id_qr_cvt = id_qr.replace(feature_dir, "")
 	id_qr_cvt = id_qr_cvt.replace("ofm1_no_d/", "").replace(".ofm1_no_d", "")
 	id_qr_cvt = id_qr_cvt.replace("/", '-_-')
@@ -356,8 +133,12 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index):
 		this_df = pd.read_csv(qf, index_col=0)
 		dq, os, rnd = get_qrindex(df=this_df)
 
+		print ("Start dq")
+		print (dq)
 		dq_cvt = map(functools.partial(id_qr_to_database, db_results=db_results), dq)
+		print ("Start os")
 		os_cvt = map(functools.partial(id_qr_to_database, db_results=db_results), os)
+		print ("Start rnd")
 		rnd_cvt = map(functools.partial(id_qr_to_database, db_results=db_results), rnd)
 
 		# dqs = merge_two_dicts(dqs, dq_cvt)
@@ -379,25 +160,47 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index):
 		# # last column as predicted variable
 		# # data in the format of: [id_qr, id_qr_cvt, target]
 		valid_id = [i for i, val in enumerate(_y) if val != None] 
-		_y = [float(k) for k in _y[valid_id]] 
-		_idx = data[valid_id, 0]
+		_y = np.array([float(k) for k in _y[valid_id]]) 
+		_idx = np.array(data[valid_id, 0])
 
-		_X = unlbl_X[[np.where(unlbl_index==k)[0][0] for k in _idx], :]
+		_X = np.array(unlbl_X[[np.where(unlbl_index==k)[0][0] for k in _idx], :])
 		valid_Xyid.append((_X, _y, _idx))
 	
 	return valid_Xyid
 
-def plot_and_query(FLAGS, all_results,
-	X_trval_csv, y_trval_csv, index_trval_csv, unlbl_X, unlbl_index,
-	sampler, uniform_sampler, active_p, is_save_query, csv_save_dir):
 
-	tsne_file = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/X_trval_tsne_fit.pkl"
-	is_load_pre_trained = False
-	if is_load_pre_trained:
-		X_all_trans = load_pickle(tsne_file)
+def est_alpha_updated(X_train, y_train, X_test, y_test, selected_inds):
+	if selected_inds is not None:
+		_x_train = np.concatenate((X_train, X_test[selected_inds]), axis=0)
+		_y_train = np.concatenate((y_train, y_test[selected_inds]), axis=0)
+		return _x_train, _y_train
 	else:
+		return X_train, y_train
+
+
+
+def plot_and_query(FLAGS, all_results,
+	selected_inds,
+	X_trval_csv, y_trval_csv, index_trval_csv, 
+	unlbl_file, unlbl_X, unlbl_y, unlbl_index,
+	sampler, uniform_sampler, is_save_query, csv_save_dir, tsne_file):
+	active_p = 1.0
+	batch_size = 10
+	batch_outstand = 10
+	batch_rand = 10
+	plt_mode = "2D" # 3D, 2D, 3D_patch
+	# is_load_pre_trained = False
+
+	selected_inds_copy = copy.copy(selected_inds)
+	# if is_load_pre_trained:
+	try:
+		X_all_trans = load_pickle(tsne_file)
+		print ("Success in reading")
+
+	except Exception as e:
 		X_all = np.concatenate((X_trval_csv, unlbl_X))
 		X_all_trans = process_dimensional_reduction(unlbl_X=X_all)
+		makedirs(tsne_file)
 		pickle.dump(X_all_trans, gfile.GFile(tsne_file, 'w'))
 
 	# x_trval = X_all_trans[:n_trval, 0]
@@ -439,48 +242,55 @@ def plot_and_query(FLAGS, all_results,
 
 		shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
 
-		estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
-		print(dir(estimator))
+		# estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
 		# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
-		estimator.fit(X_trval_csv, y_trval_csv)
+		# estimator.fit(X_trval_csv, y_trval_csv)
+
+		_x_train, _y_train = est_alpha_updated(
+			X_train=X_trval_csv, y_train=y_trval_csv, 
+			X_test=unlbl_X, y_test=unlbl_y, 
+			selected_inds=selected_inds_copy)
+		
+		estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, FLAGS.is_search_params, n_shuffle=10000)
+		estimator.fit(_x_train, _y_train)
 
 		unlbl_y_pred = estimator.predict(unlbl_X)
 		query_data["unlbl_y_pred"] = unlbl_y_pred
 
 		select_batch_inputs = {"model": estimator, "labeled": None, 
 				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True,
-				"y_star": min(y_trval_csv)}
-		n_sample = min(batch_size, unlbl_X.shape[0])
+				"y_star": min(_y_train)}
+		N_unlbl = unlbl_X.shape[0]
+		n_sample = min(batch_size, N_unlbl)
+			
 
-		# while(len(selected_inds) <= N_unlbl)
-		selected_inds = []
 		# # 1. update by D_{Q}
 		new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
-											list(selected_inds), **select_batch_inputs)
-		selected_inds.extend(new_batch)
+											list(selected_inds_copy), **select_batch_inputs)
+		selected_inds_copy.extend(new_batch)
 		if is_save_query:
 			query2update_DQ = np.array([None] * len(unlbl_index))
 			query2update_DQ[new_batch] = "query2update_DQ"
 			query_data["query2update_DQ"] = query2update_DQ
-			query_data["variance"] = acq_val
+			query_data["acq_val"] = acq_val
 
 
 		# # 2. select by D_{o/s}
 		argsort_y_pred = np.argsort(unlbl_y_pred)
-		outstand_idx = [k for k in argsort_y_pred if k not in selected_inds]
+		outstand_idx = [k for k in argsort_y_pred if k not in selected_inds_copy]
 		outstand_list = outstand_idx[:batch_outstand]
 		lim_outstand_list = max(unlbl_y_pred[outstand_list])
 
-		if is_save_nquery:
+		if is_save_query:
 			query_outstanding = np.array([None] * len(unlbl_index))
 			query_outstanding[outstand_list] = "query_outstanding"
 			query_data["query_outstanding"] = query_outstanding
 
-		selected_inds.extend(outstand_list)
+		selected_inds_copy.extend(outstand_list)
 		max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
 		# # 3. select by D_{rand}
-		the_rest = list(set(range(N_unlbl)) - set(selected_inds))
+		the_rest = list(set(range(N_unlbl)) - set(selected_inds_copy))
 		random_list = random.sample(the_rest, batch_rand)
 
 		if is_save_query:
@@ -489,10 +299,12 @@ def plot_and_query(FLAGS, all_results,
 			query_data["query_random"] = query_random
 			query_df = pd.DataFrame().from_dict(query_data)
 			makedirs(csv_saveat)
+			pickle.dump(estimator, gfile.GFile(csv_saveat.replace(".csv", ".pkl"), 'w'))
+
 			query_df.to_csv(csv_saveat)
 			print("Save query data at:", csv_saveat)
 
-		selected_inds.extend(random_list)
+		selected_inds_copy.extend(random_list)
 
 		# # AL points ~ smallest min margin ~ biggest apparent points
 		if FLAGS.sampling_method == "margin":
@@ -505,105 +317,77 @@ def plot_and_query(FLAGS, all_results,
 		name = [k.replace(unlbl_file, "") for k in plot_index]
 		family = [get_family(k) for k in plot_index]
 
-		color_array = np.array([get_color_112(k) for k in name])
+		list_cdict = np.array([get_color_112(k) for k in name])
 		marker_array = np.array([get_marker_112(k) for k in family])
-		alphas = np.array([0.1] * len(plot_index))
-		alphas[selected_inds] = 1.0 
+		alphas = np.array([0.3] * len(plot_index))
+		alphas[selected_inds_copy] = 1.0 
 		alphas[len(unlbl_index):] = 1.0
 
-		fig = plt.figure(figsize=(10, 8)) 
-		ax = fig.add_subplot(1, 1, 1)
 
 		lim_acq_val = min(acq_val[new_batch])
 
 		z =  np.concatenate((unlbl_y_pred, y_trval_csv)) # unlbl_y_pred, min_margin
-		xi = np.arange(min(x), max(x), (max(x) - min(x))/200)
-		yi = np.arange(min(y), max(y), (max(y) - min(x))/200)
-		xi, yi = np.meshgrid(xi,yi)
+		x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
+		y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
+		xi, yi = np.meshgrid(x1,y1)
 		# interpolate
 		zi = griddata((x,y),z,(xi,yi),method='nearest')
-		cs = ax.contourf(xi,yi,zi, levels=20, cmap="jet")
-		cbar = fig.colorbar(cs, label="unlbl_y_pred")
-		
+		if plt_mode == "3D_patch":
+			xi, yi, zi = x, y, z
+		ax = ax_surf(xi=xi, yi=yi, zi=zi, label="pred_val", mode=plt_mode)
+
 		# # tSNE map
-		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, color=color_array,
+		csv_save_dir += "/"+plt_mode
+		save_figat = csv_save_dir+"/cmap_unlbl_rank_unlbl_y_pred.pdf"
+		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
 			 x_label="tSNE axis 1", y_label="tSNE axis 2",
-			 alphas=alphas)
-		fig.patch.set_visible(False)
-		ax.axis('off')
-		plt.tight_layout(pad=1.1)
-		plt.savefig(saveat)
-		plt.close()
-
-
-		# # acp_val_map
-		fig = plt.figure(figsize=(10, 8)) 
-		ax = fig.add_subplot(1, 1, 1)
-
+			 alphas=alphas, save_at=save_figat, plt_mode=plt_mode)
+		# # acp_val map
 		lim_acq_val = min(acq_val[new_batch])
-
 		z =  np.concatenate((acq_val, [0]*len(y_trval_csv))) # unlbl_y_pred, min_margin
-		xi = np.arange(min(x), max(x), (max(x) - min(x))/200)
-		yi = np.arange(min(y), max(y), (max(y) - min(x))/200)
-		xi, yi = np.meshgrid(xi,yi)
+		x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
+		y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
+		xi, yi = np.meshgrid(x1,y1)
 		# interpolate
 		zi = griddata((x,y),z,(xi,yi),method='nearest')
-		cs = ax.contourf(xi,yi,zi, levels=20, cmap="jet")
-		cbar = fig.colorbar(cs, label="acq_val")
-		
+		if plt_mode == "3D_patch":
+			xi, yi, zi = x, y, z
+
+		ax = ax_surf(xi=xi, yi=yi, zi=zi, 
+			label="acp_val", mode=plt_mode)
+		# plt.show()
+
 		# # tSNE map
-		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, color=color_array,
+		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
 			 x_label="tSNE axis 1", y_label="tSNE axis 2",
-			 alphas=alphas)
-		fig.patch.set_visible(False)
-		ax.axis('off')
-		plt.tight_layout(pad=1.1)
-		plt.savefig(saveat.replace("unlbl_y_pred", "acq_val"))
-		plt.close()
-
-		# # plot traininig validation points only
-		#  for idx in unlbl_index:
-		# 	if "Sm-Fe9" in idx:
-		# 		family.append("1-9-3")
-		# 	elif "Sm-Fe10" in idx:
-		# 		family.append("1-10-2")
-		# color_trval = np.array([get_color_112(k) for k in index_trval_csv])
-		# marker_trval = np.array([get_marker_112(k) for k in family])
-
-		# ax_scatter(ax=ax, x=x_trval, y=x_trval, marker=marker_trval, color=color_trval,
-		# 	 x_label="tSNE axis 1", y_label="tSNE axis 2",
-		# 	 alphas=alphas)
-		# index_trval_csv
-
-		scatter_plot_4(x=acq_val, y=unlbl_y_pred, color_array=color_array, 
-			xvlines=[lim_acq_val], yhlines=[lim_outstand_list], 
+			 alphas=alphas, plt_mode=plt_mode,
+			 save_at=save_figat.replace("unlbl_y_pred", "acq_val"))
+		try:
+			scatter_plot_5(x=acq_val, y=unlbl_y_pred, list_cdict=list_cdict, 
+				xvlines=[lim_acq_val], yhlines=[lim_outstand_list], 
 				sigma=None, mode='scatter', lbl=None, name=None, 
 				s=80, alphas=alphas, title=None,
 				x_label=sampler.name, y_label='unlbl_y_pred', 
-				save_file=saveat.replace(".pdf", "_2.pdf"),
-				interpolate=False, color='blue', 
+				save_file=save_figat.replace(".pdf", "_2.pdf"),
+				interpolate=False, 
 				preset_ax=None, linestyle='-.', marker=marker_array)
-		# ax_setting()
-		# plt.colorbar()
-		# plt.title()
-		# for spine in plt.gca().spines.values():
-		# 	spine.set_visible(False)
-		# ax.tick_params(top='off', bottom='off', left='off', right='off', 
-		# 		labelleft='off', labelbottom='off')
+		except Exception as e:
+			pass
 
 		break
+	return _x_train, _y_train, estimator
+
 
 def evaluation_map(FLAGS, all_results,
-	X_trval_csv, y_trval_csv, index_trval_csv, 
+	X_train, y_train, index_trval_csv, 
 	all_query,
-	sampler, uniform_sampler, active_p, save_at):
+	sampler, uniform_sampler, save_at, eval_data_file,
+	estimator):
 	"""
-	"
 	# # to create an error map of samples in each query batch
-	"
 	"""
 	DQ, OS, RND = all_query 
-
+	all_query_name = ["DQ", "OS", "RND"]
 	for result_key, result_dict in all_results.items():
 		# # "k" of all_results store all setting params 
 		if result_key == "tuple_keys":
@@ -621,10 +405,9 @@ def evaluation_map(FLAGS, all_results,
 		models = [k.estimator.get_params() for k in result_dict["save_model"]]
 		GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
 
-		shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
+		# shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
 
-		estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
-		print(dir(estimator))
+		# estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
 		# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
 		
 		# fig, ax =plt.subplots(figsize=(8, 8))
@@ -639,41 +422,53 @@ def evaluation_map(FLAGS, all_results,
 				  linestyle='none', markeredgecolor='k')
 		dx = 0.2
 		ndx = 0
-		for dt, color in zip(all_query, color_codes):
-			X_qr, y_qr, idx_qr = dt
-			estimator.fit(X_trval_csv, y_trval_csv)
+		plot_data = dict()
+		for dt, dtname in zip(all_query, all_query_name):
+			X_qr, y_qr, idx_qr = dt	
+			color = color_codes[dtname]
+			if X_qr.shape[0] != 0:
+				print ("X_qr.shpae", X_qr.shape)		
+				estimator.fit(X_train, y_train)
 
-			unlbl_y_pred = estimator.predict(X_qr)
-			# r2_score, mean_absolute_error
-			# acc = estimator.score(qr_X, qr_y)
-			mae = mean_absolute_error(y_qr, unlbl_y_pred)
-			r2 = r2_score(y_qr, unlbl_y_pred)
+				y_qr_pred = estimator.predict(X_qr)
+				pos_x = 1.0 + ndx*dx
 
-			error = np.abs(y_qr - unlbl_y_pred)
-			mean = np.mean(error)
+				ax, y_star_ax, mean, y_min = show_one_rst(
+					y=y_qr, y_pred=y_qr_pred, ax=ax, y_star_ax=y_star_ax, 
+					ninst_ax=ninst_ax, pos_x=pos_x, color=color)
 
-			y_min = np.min(y_qr)
-			pos_x = 1.0 + ndx*dx
-			bplot = ax.boxplot(x=error, vert=True, #notch=True, 
-				# sym='rs',
-				positions=[pos_x],
-				# whiskerprops={'linewidth':2},
-				patch_artist=True,
-				widths=0.1, meanline=True, #flierprops=flierprops,
-				showfliers=True, 
-				showbox=True, showmeans=True
-				)
-			y_star_ax.scatter([pos_x], [y_min], s=100, marker="+", 
-				c=color, alpha=1.0, edgecolor="black")
-			patch = bplot['boxes'][0]
-			patch.set_facecolor(color)
-			
-			ax.text(pos_x, mean, round(mean, 2),
-				horizontalalignment='center', size=14, 
-				color='black', weight='semibold')
+				# r2_score, mean_absolute_error
+				# acc = estimator.score(qr_X, qr_y)
+				mae = mean_absolute_error(y_qr, y_qr_pred)
+				r2 = r2_score(y_qr, y_qr_pred)
+				plot_data[dtname] = dict()
+				plot_data[dtname]["idx_qr"] = idx_qr
+				plot_data[dtname]["y_qr"] = y_qr
+				plot_data[dtname]["y_qr_pred"] = y_qr_pred
+
+				error = np.abs(y_qr - y_qr_pred)
+				mean = np.mean(error)
+				y_min = np.min(y_qr)
+				bplot = ax.boxplot(x=error, vert=True, #notch=True, 
+					# sym='rs',
+					positions=[pos_x],
+					# whiskerprops={'linewidth':2},
+					patch_artist=True,
+					widths=0.1, meanline=True, #flierprops=flierprops,
+					showfliers=True, 
+					showbox=True, showmeans=True
+					)
+				y_star_ax.scatter([pos_x], [y_min], s=100, marker="+", 
+					c=color, alpha=1.0, edgecolor="black")
+				patch = bplot['boxes'][0]
+				patch.set_facecolor(color)
+				
+				ax.text(pos_x, mean, round(mean, 2),
+					horizontalalignment='center', size=14, 
+					color=color, weight='semibold')
+				print (r2, mae, y_min)		
+				print ("=============")
 			ndx += 1
-			print (r2, mae, y_min)		
-			print ("=============")
 
 		ax.set_yscale('log')
 		ax.set_xlabel(r"Query index", **axis_font) 
@@ -688,23 +483,22 @@ def evaluation_map(FLAGS, all_results,
 		plt.tight_layout(pad=1.1)
 		makedirs(save_at)
 		plt.savefig(save_at, transparent=False)
-		print ("Save at:", save_at)
+		print ("Save at: ", save_at)
 
+		makedirs(eval_data_file)
+		print (plot_data)
+		# with open(eval_data_file,'w') as handler:
+		# 	# pickle.dump(plot_data, handler)
+		pickle.dump(plot_data, gfile.GFile(eval_data_file, 'w'))
+		print ("Save at:", eval_data_file)
 		break	
 
+
 def map_unlbl_data(ith_trial):
-	active_p = 1.0
-	batch_size = 10
-	batch_outstand = 10
-	batch_rand = 10
 	current_tsne_map = True
-	is_save_query = False
+	is_save_query = True
 
-
-
-	unlbl_job = "mix" # mix, mix_2-24
-	database_dir = __localdir__ + "/result/standard/"
-	result_dropbox_dir = __ALdir__ + "/results"
+	unlbl_job = "mix" # mix, "mix_2-24"
 
 	result_dir = get_savedir()
 	filename = get_savefile()
@@ -718,22 +512,31 @@ def map_unlbl_data(ith_trial):
 	# deformations = read_deformation(qr_indexes=index_trval_csv)
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job,  result_file=result_file)
-	# saveat = savedir+"/cmap_unlbl_rank_unlbl_y_pred.pdf"
-	# csv_save_dir = unlbl_dir+"/query_{}".format(next_query_idx)
 
-	for next_query_idx in [2, 3]:
+	selected_inds = []
+	database_results = ["mix/query_1.csv", 
+			"mix/supp_2.csv", "mix/supp_3.csv", "mix/supp_4.csv",  
+			"mix/supp_5.csv", "mix/supp_6.csv", "mix/supp_7.csv",
+						"mix_2-24/query_1.csv"]
+	database_results = [database_dir+"/"+k for k in database_results]
+	for next_query_idx in range(1, 20): # 1, 2, 3, 4, 5, 6, 7, 8
+		if next_query_idx == 1:
+			curr_lbl_num_id = None
 		queried_idxes = range(1, next_query_idx)
 		# # read load queried data
 		# # queried_idxes is None mean all we investigate at initial step
-		if next_query_idx != 0:
+		if next_query_idx != 1:
+		# if True:
 			# qr_dir = csv_save_dir.replace(result_dropbox_dir, __ALdir__+"input/origin_struct/queries/")
 			# # vasp run results
-			database_results = [database_dir+"query_{}.csv".format(k) for k in queried_idxes]
-			# # queried files
+
+			# queried files
 			queried_files = [unlbl_dir + "/query_{}".format(k) + "/m0.1_c0.1.csv" for k in queried_idxes]
+			# queried_files = [unlbl_dir + "/query_{}".format(next_query_idx) + "/m0.1_c0.1.csv"]
 
 			# # get calculated  
 			# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
+			# print ("queried_files", queried_files)
 			valid_Xyid = get_queried_data(queried_files=queried_files, 
 				database_results=database_results, unlbl_X=unlbl_X, unlbl_index=unlbl_index)
 			# # alocate representation, label and id of labeled data
@@ -742,46 +545,99 @@ def map_unlbl_data(ith_trial):
 			rnd_X, rnd_y, rnd_idx = valid_Xyid[2]
 
 			all_query = [[dq_X, dq_y, dq_idx], [os_X, os_y, os_idx], [rnd_X, rnd_y, rnd_idx]]
-			print (dq_X.shape)
+			# print ("DQ, OS, RND shape")
+			assert dq_X.shape[0] == dq_y.shape[0]
+			assert os_X.shape[0] == os_X.shape[0]
+			assert rnd_X.shape[0] == rnd_X.shape[0]
+
+			# print ("Querying ith:", next_query_idx, dq_X.shape, dq_y.shape, dq_idx.shape)
+			# print ("Querying ith:", next_query_idx, os_X.shape, os_X.shape, os_X.shape)
+			# print ("Querying ith:", next_query_idx, rnd_X.shape, rnd_X.shape, rnd_X.shape)
+			print  ("next_query_idx: ", next_query_idx)
+			print ("===================")
 
 			# # remove all labeled data of X, y, id to update sampler
 			all_lbl_id = np.concatenate((dq_idx, os_idx, rnd_idx)).ravel()
-			labeled_num_id = [np.where(unlbl_index==k)[0][0] for k in all_lbl_id]
-			print (all_lbl_id)
-			print (labeled_num_id) 
-			print (len(labeled_num_id))
-			unlbl_index = np.delete(unlbl_index, labeled_num_id)
-			unlbl_X = np.delete(unlbl_X, labeled_num_id)
-			unlbl_y = np.delete(unlbl_y, labeled_num_id)
+			all_unlbl_y = np.concatenate((dq_y, os_y, rnd_y)).ravel()
+			all_unlbl_X = np.concatenate((dq_X, os_X, rnd_X), axis=0)
 
+			selected_inds = [np.where(unlbl_index==k)[0][0] for k in all_lbl_id]
 
-		N_unlbl = unlbl_X.shape[0]
+			# unlbl_index = np.delete(unlbl_index, curr_lbl_num_id)
+			# unlbl_X = np.delete(unlbl_X, curr_lbl_num_id, axis=0)
+			# unlbl_y = np.delete(unlbl_y, curr_lbl_num_id, axis=0)
+			unlbl_y[selected_inds] = all_unlbl_y
+
+			# print ("unlbl_X shape in: ", next_query_idx, "queried: ", unlbl_X.shape)
+			# print ("selected_inds: ", next_query_idx, "queried: ", len(selected_inds))
 
 		# # prepare sampler
 		uniform_sampler = AL_MAPPING["uniform"](unlbl_X, unlbl_y, FLAGS.seed)
 		sampler = get_AL_sampler(FLAGS.sampling_method)
 		sampler = sampler(unlbl_X, unlbl_y, FLAGS.seed)
 
+		ith_query_storage = unlbl_dir+"/query_{}".format(next_query_idx)
+
 		# # tsne
 		if current_tsne_map:
 			"""
 			plot current state of hypothetical structures + querying 
 			"""
-			csv_save_dir = unlbl_dir + "/query_{}".format(next_query_idx)
-			plot_and_query(FLAGS, all_results,
-				X_trval_csv, y_trval_csv, index_trval_csv, unlbl_X, unlbl_index,
-				sampler, uniform_sampler, active_p, is_save_query, csv_save_dir)
-		# if next_query_idx != 0:
-		if False:
-			save_at = unlbl_dir + "/query_performance.pdf"
-			"""
-			# # to create an error map of samples in each query batch
-			"""
-			evaluation_map(FLAGS, all_results,
-				X_trval_csv, y_trval_csv, index_trval_csv, 
-				all_query,
-				sampler, uniform_sampler, active_p, save_at, csv_save_dir)
-		break
+			tsne_file = result_dropbox_dir+"/dim_reduc/"+unlbl_job+".pkl"
+
+			print ("Intended save at:", ith_query_storage)
+			_x_train, _y_train, estimator = plot_and_query(FLAGS=FLAGS, all_results=all_results,
+				selected_inds=selected_inds,
+				X_trval_csv=X_trval_csv, y_trval_csv=y_trval_csv, 
+				index_trval_csv=index_trval_csv,
+				unlbl_file=unlbl_file, unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+				sampler=sampler, uniform_sampler=uniform_sampler, 
+				is_save_query=is_save_query, csv_save_dir=ith_query_storage, tsne_file=tsne_file)
+
+
+			save_at = unlbl_dir+"/query_{}".format(next_query_idx)+"/query_performance.pdf"
+			eval_data_file = ith_query_storage+"/eval_query_{}.pkl".format(next_query_idx) 
+		
+		"""
+		# # It's time to create an error map of samples in each query batch
+		"""
+		# # 1. update training data by the selected_inds
+
+		print ("X before shape:", X_trval_csv.shape)
+		# _x_train, _y_train = est_alpha_updated(
+		# 	X_train=X_trval_csv, y_train=y_trval_csv, 
+		# 	X_test=unlbl_X, y_test=unlbl_y, 
+		# 	selected_inds=selected_inds)
+
+		# print ("X update shape:", _x_train.shape)
+		# print ("Total selected_inds:", len(selected_inds))
+
+		# # 2. put this_queried_files to database for querying results
+		this_queried_files = [unlbl_dir+"/query_{}".format(next_query_idx)+"/m0.1_c0.1.csv"]
+		# # get calculated  
+		# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
+		valid_Xyid = get_queried_data(queried_files=this_queried_files, 
+			database_results=database_results, 
+			unlbl_X=unlbl_X, unlbl_index=unlbl_index)
+		# # alocate representation, label and id of labeled data
+
+		this_dq_X, this_dq_y, this_dq_idx = valid_Xyid[0]
+		this_os_X, this_os_y, this_os_idx = valid_Xyid[1]
+		this_rnd_X, this_rnd_y, this_rnd_idx = valid_Xyid[2]
+		this_query = [[this_dq_X, this_dq_y, this_dq_idx], 
+					[this_os_X, this_os_y, this_os_idx], 
+					[this_rnd_X, this_rnd_y, this_rnd_idx]]
+		print (this_dq_X.shape)
+
+		# if this_dq_X.shape[0] != 0 and this_os_X.shape[0] != 0 and this_rnd_X.shape[0] != 0:
+		evaluation_map(FLAGS=FLAGS, all_results=all_results,
+				X_train=_x_train, y_train=_y_train, 
+				index_trval_csv=index_trval_csv, 
+				all_query=this_query, sampler=sampler, 
+				uniform_sampler=uniform_sampler,
+				save_at=save_at, eval_data_file=eval_data_file,
+				estimator=estimator)
+		# break
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
@@ -789,3 +645,4 @@ if __name__ == "__main__":
 	# rank_unlbl_data(ith_trial="000") # 014 for u_gp
 
 	map_unlbl_data(ith_trial="000")
+

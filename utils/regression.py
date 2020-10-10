@@ -161,7 +161,7 @@ class RegressionFactory(object):
 
   @staticmethod
   def gaussian_process_cv_with_noise(X, y_obs, cv=10, n_random=10):
-    n_steps = 5
+    n_steps = 3
     rbf_length_lb = -4
     rbf_length_ub = 1
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
@@ -185,13 +185,13 @@ class RegressionFactory(object):
 
     # best_gpr = GridSearchCV(gp,cv=3,param_grid=param_grid,n_jobs=2)
     param_grid = {"alpha": alphas,
-          "kernel": [RegressionFactory.gp_kernel(c, l, n)  # noise terms
-                for c in consts 
+          "kernel": [RegressionFactory.gp_kernel(1.0, l, n)  # c noise terms
+                # for c in consts 
                 for l in rbf_lengths for n in noises]}
     # if cv == -1:
     #   cv = 20 # # len(y_obs) - 5
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
-                cv=cv,n_jobs=4) # # scoring
+                cv=cv,n_jobs=1) # # scoring
     GridSearch.fit(X, y_obs)
     best_gpr = GridSearch.best_estimator_
     print("best_gpr params:", best_gpr.get_params())
