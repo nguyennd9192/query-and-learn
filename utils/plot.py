@@ -401,7 +401,7 @@ def get_color_112(index):
 				colors[color] = "full"
 	if len(colors.keys()) == 4:
 		# c = "yellow"
-		print ("Herem: ", index)
+		print ("Here: ", index)
 		print ("Colors: ", colors)
 	#normalize item number values to colormap
 	# norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
@@ -724,7 +724,15 @@ def scatter_plot_5(x, y, list_cdict=None, xvlines=None, yhlines=None,
 	release_mem(fig=fig)
 
 
-def show_one_rst(y, y_pred, ax, y_star_ax, ninst_ax, pos_x, color):
+def show_one_rst(y, y_pred, ax, y_star_ax, ninst_ax, pos_x, color, is_shown_tails=True):
+	
+	y_star_ax.grid(which='both', linestyle='-.')
+	y_star_ax.grid(which='minor', alpha=0.2)
+	ax.grid(which='both', linestyle='-.')
+	ax.grid(which='minor', alpha=0.2)
+	ninst_ax.grid(which='both', linestyle='-.')
+	ninst_ax.grid(which='minor', alpha=0.2)
+
 	error = np.abs(y - y_pred)
 	mean = np.mean(error)
 	y_min = np.min(y)
@@ -732,32 +740,33 @@ def show_one_rst(y, y_pred, ax, y_star_ax, ninst_ax, pos_x, color):
 		# sym='rs', # whiskerprops={'linewidth':2},
 		positions=[pos_x], patch_artist=True,
 		widths=0.1, meanline=True, #flierprops=flierprops,
-		showfliers=True, showbox=True, showmeans=True)
-	ax.text(pos_x, mean, round(mean, 2),
-		horizontalalignment='center', size=14, 
-		color=color, weight='semibold')
-
-	# # midle axis
-	bplot = y_star_ax.boxplot(x=y, vert=True, #notch=True, 
-			# sym='rs', # whiskerprops={'linewidth':2},
-			positions=[pos_x], patch_artist=True,
-			widths=0.1, meanline=True, #flierprops=flierprops,
-			showfliers=True, showbox=True, showmeans=True
-			)
-	y_star_ax.text(pos_x, y_min, round(y_min, 2),
-		horizontalalignment='center', size=14, 
-		color=color, weight='semibold')
-
-
-	ninst_ax.scatter([pos_x], [len(y)], s=100, marker="+", 
-		c=color, alpha=1.0, edgecolor="black")
-
-	# y_star_ax.scatter([pos_x], [y_min], s=100, marker="+", 
-	# 	c=color, alpha=1.0, edgecolor="black")
-
+		showfliers=False, showbox=True, showmeans=False)
+	# ax.text(pos_x, mean, round(mean, 2),
+	# 	horizontalalignment='center', size=14, 
+	# 	color=color, weight='semibold')
 	patch = bplot['boxes'][0]
 	patch.set_facecolor(color)
-	
+
+	# # midle axis
+	if is_shown_tails:
+		y_star_ax.scatter([pos_x], [y_min], s=100, marker="+", 
+			c=color, alpha=1.0, edgecolor="black")
+
+		# bplot = y_star_ax.boxplot(x=y, vert=True, #notch=True, 
+		# 		# sym='rs', # whiskerprops={'linewidth':2},
+		# 		positions=[pos_x], patch_artist=True,
+		# 		widths=0.1, meanline=True, #flierprops=flierprops,
+		# 		showfliers=True, showbox=True, showmeans=True
+		# 		)
+		# y_star_ax.text(pos_x, y_min, round(y_min, 2),
+		# 	horizontalalignment='center', size=14, 
+		# 	color=color, weight='semibold')
+		# patch = bplot['boxes'][0]
+		# patch.set_facecolor(color)
+
+		ninst_ax.scatter([pos_x], [len(y)], s=100, marker="+", 
+			c=color, alpha=1.0, edgecolor="black")
+
 	return ax, y_star_ax, mean, y_min
 
 
@@ -902,8 +911,6 @@ def test_half_filled():
 	# import matplotlib as mpl
 
 	# plt.figure(1)
-
-
 	# ax=plt.gca()
 	# rot = 30
 

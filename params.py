@@ -6,12 +6,17 @@ from absl import flags
 localdir = "/Volumes/Nguyen_6TB/work/SmFe12_screening"
 ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
 database_dir = localdir + "/result/standard"
+coarse_db_dir = localdir + "/result/coarse_relax"
+fine_db_dir = localdir + "/result/fine_relax"
+
 result_dropbox_dir = ALdir + "/results"
-color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue"})
+color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue", "DQ_to_RND":"orange"})
+pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
-
+# python rank_unlbl.py
 flags.DEFINE_string("dataset", "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d", "Dataset name") 
-flags.DEFINE_string("sampling_method", "margin", # uniform, exploitation, margin, expected_improvement
+flags.DEFINE_string("sampling_method", "margin", 
+                  # uniform, exploitation, margin, expected_improvement
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
 flags.DEFINE_boolean(
@@ -49,7 +54,7 @@ flags.DEFINE_string("confusions", "0.1",
 flags.DEFINE_string("active_sampling_percentage", "0.1 0.3 0.5 0.7 0.9",
                     "Mixture weights on active sampling.")
 flags.DEFINE_string(
-    "score_method", "u_gp", # # logistic, kernel_svm, e_krr, u_gp
+    "score_method", "u_gp", # # e_krr, u_gp
     "Method to use to calculate accuracy.")  
 flags.DEFINE_string(
     "select_method", "None",

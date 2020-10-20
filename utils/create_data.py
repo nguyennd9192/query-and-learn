@@ -487,7 +487,7 @@ def main(argv):
       get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
     if is_prepare_unlbl_data:
       get_unlbl_data(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
-        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix_2-24" # mix_2-24, mix
+        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix" # mix_2-24, mix
         # input_dir+"SmFe12/unlabeled_data"
         )
       

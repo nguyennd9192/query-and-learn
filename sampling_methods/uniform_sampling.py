@@ -16,13 +16,13 @@
 
 Samples in batches.
 """
-
+ 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-
+import random
 from sampling_methods.sampling_def import SamplingMethod
 
 
@@ -48,9 +48,10 @@ class UniformSampling(SamplingMethod):
     """
 
     # This is uniform given the remaining pool but biased wrt the entire pool.
-    sample = [i for i in range(self.X.shape[0]) if i not in already_selected]
-    n_sample = len(sample)
-    p = np.array([1/n_sample for i in range(n_sample)])
+    the_rest = [i for i in range(self.X.shape[0]) if i not in already_selected]
+    random_list = random.sample(the_rest, N)
+    n_sample = self.X.shape[0]
+    p = np.array([1/n_sample]*n_sample)
 
-    return sample[0:N], p
+    return random_list, p
 

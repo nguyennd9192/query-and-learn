@@ -161,7 +161,7 @@ class RegressionFactory(object):
 
   @staticmethod
   def gaussian_process_cv_with_noise(X, y_obs, cv=10, n_random=10):
-    n_steps = 3
+    n_steps = 5
     rbf_length_lb = -4
     rbf_length_ub = 1
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
