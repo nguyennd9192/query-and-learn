@@ -20,7 +20,7 @@ def show_performance(ith_trial):
 	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
 	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
 
-	qids = range(1, 30)
+	qids = range(1, 35)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	fig = plt.figure(figsize=(10, 8))

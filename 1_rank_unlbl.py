@@ -540,13 +540,14 @@ def map_unlbl_data(ith_trial):
 	database_jobs = [
 		"mix/query_1.csv", 	"mix/supp_2.csv", "mix/supp_3.csv", "mix/supp_4.csv",  
 		"mix/supp_5.csv", "mix/supp_6.csv", "mix/supp_7.csv", "mix/supp_8.csv",
+		"mix/supp_9.csv", "mix/supp_10.csv",
 						# "mix_2-24/query_1.csv"
 						]
 	database_results = [database_dir+"/"+k for k in database_jobs]
 	fine_db_rst = [fine_db_dir+"/"+k for k in database_jobs]
 	coarse_db_rst = [coarse_db_dir+"/"+k for k in database_jobs]
 
-	for next_query_idx in range(17, 51): 
+	for next_query_idx in range(1, 51): 
 		if next_query_idx == 1:
 			curr_lbl_num_id = None
 		queried_idxes = range(1, next_query_idx)

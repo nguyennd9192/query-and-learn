@@ -22,26 +22,6 @@ def merge_df():
 	df_merged.to_csv(saveat)
 	print ("Save at: ", saveat)
 
-def vasp_viz_reorder_dir():
-	vasp_tasks = ["coarse_relax", "fine_relax", "standard"]
-
-	result_dir = "/media/nguyen/work/SmFe12_screening/result"
-	jobs = ["NdFeB_187_norelax_results"] # NdFeB_187_norelax_results, NdFeB_0716reproduce
-	for current_job in jobs:
-		subs_dirs = glob.glob('{0}/{1}/*'.format(result_dir, current_job))
-		for subs_dir in subs_dirs:
-			basename = get_basename(subs_dir)
-			for task in vasp_tasks:
-				fromfld = subs_dir+"/"+task
-				basename_revise = basename.replace("+", "___").replace("*","-")
-				tofld = result_dir+"/"+task+"/"+current_job+"/"+basename_revise
-				print "from fld", fromfld
-				print "to fld", tofld
-				makedirs(tofld)
-				if os.path.exists(fromfld):
-					shutil.move(fromfld, tofld)
-				# break
-
 
 
 if __name__ == "__main__":
