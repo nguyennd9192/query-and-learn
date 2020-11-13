@@ -28,11 +28,7 @@ def pickup(struct_list, savedir):
 
 		# convert_list.append(cvt)
 
-def get_qrindex(df):
-	update_DQ_str = df.loc[df["query2update_DQ"]=="query2update_DQ", "unlbl_index"].to_list()
-	outstand_str = df.loc[df["query_outstanding"]=="query_outstanding", "unlbl_index"].to_list()
-	random_str = df.loc[df["query_random"]=="query_random", "unlbl_index"].to_list()
-	return update_DQ_str, outstand_str, random_str
+
 
 
 def query2vasp():

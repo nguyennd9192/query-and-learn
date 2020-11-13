@@ -33,7 +33,7 @@ from sklearn.svm import SVC
 
 from tensorflow.io import gfile
 
-
+from utils.general_lib import load_pickle
 from utils.kernel_block_solver import BlockKernelSolver
 from utils.small_cnn import SmallCNN
 from utils.allconv import AllConv
@@ -92,12 +92,6 @@ def flatten_X(X):
   if len(shape) > 2:
     flat_X = np.reshape(X, (shape[0], np.product(shape[1:])))
   return flat_X
-
-def load_pickle(filename):
-  if not gfile.exists(filename):
-    raise NameError("ERROR: the following data not available \n" + filename)
-  data = pickle.load(gfile.GFile(filename, "rb"))
-  return data
 
 def get_mldata(data_dir, name):
   """Loads data from data_dir.
@@ -207,7 +201,7 @@ def flip_label(y, percent_random):
   return y
 
 
-def get_model(method, seed=13, is_search_params=True, n_shuffle=10000):
+def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel=None):
   """Construct sklearn model using either logistic regression or linear svm.
 
   Wraps grid search on regularization parameter over either logistic regression
@@ -228,8 +222,14 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000):
   # # for my building u_gp vs e_krr
   if method=="u_gp":
     model = UncertainGaussianProcess(random_state=1, cv=5, n_times=3,
-              search_param=is_search_params, verbose=False)
+              search_param=is_search_params, verbose=False, mt_kernel=None) 
     return model
+
+  if method=="u_gp_mt" and mt_kernel is not None:
+    model = UncertainGaussianProcess(random_state=1, cv=5, n_times=3,
+              search_param=is_search_params, verbose=False, mt_kernel=mt_kernel) 
+    return model
+
   if method=="e_krr":
     model = UncertainEnsembleRegression(random_state=1, 
         n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,

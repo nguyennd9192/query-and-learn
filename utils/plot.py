@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.collections import LineCollection
 
 import matplotlib as mpl
-
+from utils.general_lib import get_basename
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
 size_text = 10
@@ -736,10 +736,11 @@ def show_one_rst(y, y_pred, ax, y_star_ax, ninst_ax, pos_x, color, is_shown_tail
 	error = np.abs(y - y_pred)
 	mean = np.mean(error)
 	y_min = np.min(y)
+	flierprops = dict(markerfacecolor='k', marker='.')
 	bplot = ax.boxplot(x=error, vert=True, #notch=True, 
 		# sym='rs', # whiskerprops={'linewidth':2},
 		positions=[pos_x], patch_artist=True,
-		widths=0.1, meanline=True, #flierprops=flierprops,
+		widths=0.1, meanline=True, flierprops=flierprops,
 		showfliers=False, showbox=True, showmeans=False)
 	# ax.text(pos_x, mean, round(mean, 2),
 	# 	horizontalalignment='center', size=14, 
@@ -872,28 +873,69 @@ def ax_surf(xi, yi, zi, label, mode="2D"):
 	return ax
 
 
-def plt_half_filled(ax, x, y, cdict, alpha):
-	rot = 30
-	_sorted_cdict = {k: v for k, v in sorted(cdict.items(), key=lambda item: item[1])}
-	# small_color, small_ratio = _sorted_cdict[0]
-	# big_color, big_ratio = _sorted_cdict[1]
+# def plt_half_filled(ax, x, y, cdict, alpha):
+# 	rot = 30
+# 	_sorted_cdict = {k: v for k, v in sorted(cdict.items(), key=lambda item: item[1])}
+# 	# small_color, small_ratio = _sorted_cdict[0]
+# 	# big_color, big_ratio = _sorted_cdict[1]
 
-	# try:
-	small_color, big_color = list(_sorted_cdict.keys())
-	small_ratio, big_ratio = list(_sorted_cdict.values())
-	# except Exception as e:
-	# 	print (_sorted_cdict)
+# 	# try:
+# 	small_color, big_color = list(_sorted_cdict.keys())
+# 	small_ratio, big_ratio = list(_sorted_cdict.values())
+# 	# except Exception as e:
+# 	# 	print (_sorted_cdict)
 	
 
-	small_angle = 360 * small_ratio / (small_ratio + big_ratio)
+# 	small_angle = 360 * small_ratio / (small_ratio + big_ratio)
+# 	# print (small_ratio, big_ratio)
+# 	# print (small_color, big_color)
+# 	# if z is None:
+# 	HalfA = mpl.patches.Wedge((x, y), 0.01, alpha=alpha, 
+# 		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
+# 		edgecolor="black")
+# 	HalfB = mpl.patches.Wedge((x, y), 0.01, alpha=alpha,
+# 		theta1=small_angle-rot,theta2=360-rot, color=big_color,
+# 		edgecolor="black")
+# 	# else:
+# 	# 	HalfA = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha, 
+# 	# 		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
+# 	# 		edgecolor="black")
+# 	# 	HalfB = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha,
+# 	# 		theta1=small_angle-rot,theta2=360-rot, color=big_color,
+# 	# 		edgecolor="black")
+# 	ax.add_artist(HalfA)
+# 	ax.add_artist(HalfB)
+
+
+def plt_half_filled(ax, x, y, cdict, alpha):
+
+	# small_ratio, big_ratio = sorted(cdict.values())
+	# small_color, big_color = sorted(cdict, key=cdict.get)
+	color1, color2 = sorted(cdict.keys())
+	ratio1, ratio2 = cdict[color1], cdict[color2]
+	
+
+	angle1 = 360 * ratio1 / (ratio1 + ratio2)
+	
+	if angle1 == 180:
+		# # for 1-1 composition, e.g. Al1-Ti1
+		rot = 90
+	elif angle1 < 180:
+		rot = 30
+	else:
+		rot = 150
+
+
 	# print (small_ratio, big_ratio)
 	# print (small_color, big_color)
 	# if z is None:
 	HalfA = mpl.patches.Wedge((x, y), 0.01, alpha=alpha, 
-		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
+		theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
+		lw=1.5,
 		edgecolor="black")
-	HalfB = mpl.patches.Wedge((x, y), 0.01, alpha=alpha,
-		theta1=small_angle-rot,theta2=360-rot, color=big_color,
+	HalfB = mpl.patches.Wedge((x, y), 0.02, alpha=alpha,
+		theta1=angle1-rot,theta2=360-rot, facecolor=color2,
+		lw=1.5,
 		edgecolor="black")
 	# else:
 	# 	HalfA = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha, 
@@ -904,7 +946,6 @@ def plt_half_filled(ax, x, y, cdict, alpha):
 	# 		edgecolor="black")
 	ax.add_artist(HalfA)
 	ax.add_artist(HalfB)
-
 
 def test_half_filled():
 	# mport matplotlib.pyplot as plt
@@ -935,6 +976,26 @@ def test_half_filled():
 	r = get_ratio(index=index, element="Ga")
 
 	print (r)
+
+def plot_heatmap(matrix, vmin, vmax, save_file, cmap):
+	if vmax is None:
+		vmax = np.max(matrix)
+	if vmin is None:
+		vmin = np.min(matrix)
+	fig = plt.figure(figsize=(10, 8))
+
+	ax = fig.add_subplot(1, 1, 1)
+	ax = sns.heatmap(matrix, cmap=cmap, 
+			xticklabels=True,
+			yticklabels=True,
+			vmax=vmax, vmin=vmin)
+
+	makedirs(save_file)
+	plt.title(get_basename(save_file))
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
 
 if __name__ == "__main__":
 	test_half_filled()

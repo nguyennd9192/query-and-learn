@@ -16,7 +16,8 @@ class RegressionFactory(object):
     
   @staticmethod
   def get_regression(method, kernel='rbf', alpha=1, gamma=1, 
-      search_param=False, X=None, y=None, cv=3, n_times=3):
+      search_param=False, X=None, y=None, cv=3, n_times=3,
+      mt_kernel=None):
     method = method.strip().lower()
     if method == "kr":
         if search_param:
@@ -43,7 +44,7 @@ class RegressionFactory(object):
     elif method == "gp":
         if search_param:
           best_gpr, md_selection = RegressionFactory.gaussian_process_cv_with_noise(
-              X=X, y_obs=y, cv=cv, n_random=n_times)
+              X=X, y_obs=y, cv=cv, n_random=n_times, mt_kernel=mt_kernel)
         else:          
           default_kernel = RegressionFactory.gp_kernel(c=1.0, l=100, n=100)
           best_gpr = GaussianProcessRegressor(alpha=0.01, kernel=default_kernel)
@@ -160,7 +161,7 @@ class RegressionFactory(object):
     return tmp
 
   @staticmethod
-  def gaussian_process_cv_with_noise(X, y_obs, cv=10, n_random=10):
+  def gaussian_process_cv_with_noise(X, y_obs, cv=10, n_random=10, mt_kernel=None):
     n_steps = 5
     rbf_length_lb = -4
     rbf_length_ub = 1
@@ -184,11 +185,17 @@ class RegressionFactory(object):
     # }
 
     # best_gpr = GridSearchCV(gp,cv=3,param_grid=param_grid,n_jobs=2)
-    param_grid = {"alpha": alphas,
-          "kernel": [RegressionFactory.gp_kernel(1.0, l, n)  # c noise terms
+    if mt_kernel is None:
+      # # we perform grid search with both kernel length and noise
+      param_grid = {"alpha": alphas,
+          "kernel": [RegressionFactory.gp_kernel(1.0, l, n) 
                 # for c in consts 
                 for l in rbf_lengths for n in noises]}
-    # if cv == -1:
+    else:
+      param_grid = {"alpha": alphas,
+          "kernel": [RegressionFactory.gp_kernel(1.0, l, mt_kernel)
+                for l in rbf_lengths]}
+    # if cv == -1: 
     #   cv = 20 # # len(y_obs) - 5
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
                 cv=cv,n_jobs=1) # # scoring

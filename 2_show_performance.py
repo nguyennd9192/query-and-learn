@@ -20,7 +20,7 @@ def show_performance(ith_trial):
 	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
 	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
 
-	qids = range(1, 35)
+	qids = range(1, 26)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	fig = plt.figure(figsize=(10, 8))
@@ -62,13 +62,16 @@ def show_performance(ith_trial):
 		y = mean_vals[dt]
 		ax.plot(x, y, color=color_codes[dt], alpha=0.8, linestyle="-.")
 
+	ax.set_ylim(0.0001, 1.01)
+	y_star_ax.set_ylim(-1.6, 0.0)
+
 	ax.set_yscale('log')
 	# ax.set_xlabel(r"Query index", **axis_font) 
 	ax.set_ylabel(r"|y_obs - y_pred|", **axis_font)
 	y_star_ax.set_ylabel(r"min(y_os)", **axis_font)
 	ninst_ax.set_ylabel(r"n_qr", **axis_font)
 	plt.xticks(qids, qids)
-
+	ax.set_title(FLAGS.score_method + " and " + FLAGS.sampling_method)
 	ax.tick_params(axis='y', labelsize=12)
 	# y_star_ax.set_yscale('log')
 
@@ -83,4 +86,6 @@ def show_performance(ith_trial):
 	print ("save_at: ", save_at)
 if __name__ == "__main__":
 	FLAGS(sys.argv)
-	show_performance(ith_trial="000")
+	for sm in ["uniform", "exploitation", "margin", "expected_improvement"]:
+		FLAGS.sampling_method = sm
+		show_performance(ith_trial="000")

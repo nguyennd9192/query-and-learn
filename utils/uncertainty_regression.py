@@ -166,9 +166,9 @@ class UncertainEnsembleRegression(object):
 
 class UncertainGaussianProcess(object):
   def __init__(self, 
-        random_state=1,
+        random_state=1, 
         cv=3, n_times=3, search_param=False,
-        verbose=False, ):
+        verbose=False, mt_kernel=None):
 
     self.search_param = search_param
     self.kernel = 'rbf'
@@ -177,6 +177,7 @@ class UncertainGaussianProcess(object):
     self.n_times = n_times
     self.estimator = None
     self.random_state = random_state
+    self.mt_kernel = mt_kernel
 
 
   def fit(self, X_train, y_train, sample_weight=None):
@@ -194,7 +195,7 @@ class UncertainGaussianProcess(object):
       estimator, GridSearchCV = RegressionFactory.get_regression(method="gp", 
           kernel='rbf', alpha=None, gamma=None, 
           search_param=self.search_param, X=X_train, y=y_train,  
-          cv=self.cv, n_times=self.n_times)
+          cv=self.cv, n_times=self.n_times, mt_kernel=self.mt_kernel)
       self.estimator = estimator
       self.GridSearchCV = GridSearchCV
     self.estimator.fit(X_train, y_train)
