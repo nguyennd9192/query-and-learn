@@ -195,7 +195,7 @@ class UncertainGaussianProcess(object):
       estimator, GridSearchCV = RegressionFactory.get_regression(method="gp", 
           kernel='rbf', alpha=None, gamma=None, 
           search_param=self.search_param, X=X_train, y=y_train,  
-          cv=self.cv, n_times=self.n_times, mt_kernel=self.mt_kernel)
+          cv=self.cv, n_times=self.n_times, mt_kernel=self.mt_kernel) # mt_kernel=self.mt_kernel
       self.estimator = estimator
       self.GridSearchCV = GridSearchCV
     self.estimator.fit(X_train, y_train)

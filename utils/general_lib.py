@@ -69,7 +69,6 @@ def load_unlbl_data(unlbl_job, result_file):
 	unlbl_X = data["data"]
 	unlbl_y = data["target"]
 	unlbl_index = data["index"]
-
 	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
 	return unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir
 
@@ -175,7 +174,6 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
 	return valid_Xyid
 
 
-
 def get_all_unlb_y(database_results, unlbl_X, unlbl_index,
 			coarse_db_rst, fine_db_rst):
 	"""
@@ -228,3 +226,51 @@ def get_all_unlb_y(database_results, unlbl_X, unlbl_index,
 	valid_Xyid = (_X, _y, _idx)
 
 	return valid_Xyid
+
+
+def vasp_lbl2mix(unlbl_file, database_results, coarse_db_rst, fine_db_rst):
+	"""
+	database_results: *.csv of all vasp calculated data, normally in the standard step
+	queried_files: all queried files
+	unlbl_X: original ublbl data, before any querying
+	unlbl_index: original index of ublbl data, before any querying
+	"""
+	unlbl_df = pd.read_csv(unlbl_file, index_col=0)
+	unlbl_index = unlbl_df.index.to_list()
+
+	frames = [pd.read_csv(k, index_col=0) for k in database_results]
+	db_results = pd.concat(frames)
+	index_reduce = [get_basename(k) for k in db_results.index]
+	db_results["index_reduce"] = index_reduce
+	db_results.set_index('index_reduce', inplace=True)
+
+	# # coarse, fine db
+	crs_frames = [pd.read_csv(k, index_col=0) for k in coarse_db_rst]
+	crs_db_results = pd.concat(crs_frames)
+	crs_db_results = crs_db_results.dropna()
+	index_reduce = [get_basename(k) for k in crs_db_results.index]
+	crs_db_results["index_reduce"] = index_reduce
+	crs_db_results.set_index('index_reduce', inplace=True)
+
+	fine_frames = [pd.read_csv(k, index_col=0) for k in fine_db_rst]
+	fine_db_results = pd.concat(fine_frames)
+	fine_db_results = fine_db_results.dropna()
+	index_reduce = [get_basename(k) for k in fine_db_results.index]
+	fine_db_results["index_reduce"] = index_reduce
+	fine_db_results.set_index('index_reduce', inplace=True)
+
+	y_index_cvt = map(functools.partial(id_qr_to_database, db_results=db_results,
+		crs_db_results=crs_db_results, fine_db_results=fine_db_results), unlbl_index)
+	y_index_cvt = np.array(list(y_index_cvt))
+	print (y_index_cvt)
+	unlbl_df["y_obs"] = None
+	for a in y_index_cvt:
+		id_qr, id_qr_cvt, target_y = a[0], a[1], a[2]
+		if target_y != None:
+			unlbl_df.loc[id_qr, "y_obs"] = target_y
+
+	unlbl_df.to_csv(unlbl_file.replace(".csv","_with_lbl.csv",))
+	
+
+
+

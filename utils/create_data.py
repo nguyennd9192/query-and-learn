@@ -205,11 +205,13 @@ def get_unlbl_data(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
   feature = np.array([file.__getattribute__('feature') for file in data])
   feature_names = np.array(data[0].__getattribute__('feature_name'))
 
-  tmp_df = pd.DataFrame(feature, columns=feature_names)
+  tmp_df = pd.DataFrame(feature, columns=feature_names, index=all_unlbl)
+  tmp_df.to_csv(unlbl_data_dir+'.csv')
+  print("Save at:", unlbl_data_dir)
   X = tmp_df[pv].values
 
   unlbl_data = Dataset(X=X, y=np.array([None]*X.shape[0]), index=all_unlbl)
-  dump_data(unlbl_data, unlbl_data_dir+'.pkl')
+  # dump_data(unlbl_data, unlbl_data_dir+'.pkl')
   print (X.shape)
 
 def get_wikipedia_talk_data():
@@ -488,7 +490,6 @@ def main(argv):
     if is_prepare_unlbl_data:
       get_unlbl_data(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
         unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix" # mix_2-24, mix
-        # input_dir+"SmFe12/unlabeled_data"
         )
       
 

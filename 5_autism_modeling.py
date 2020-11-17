@@ -7,17 +7,22 @@ import matplotlib.pyplot as plt
 from utils.general_lib import *
 import numpy as np
 from sklearn.metrics import r2_score, mean_absolute_error
+import joypy
+import pandas as pd
+from scipy.stats import norm
+from sklearn.neighbors import KernelDensity
+from matplotlib.collections import PolyCollection
 
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
 
 
-
-def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index):
+def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index, estimator_update_by):
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
 	if qid == 1:
 		selected_inds = []
+		selected_inds_to_estimator = []
 		all_query = None
 	else:
 		queried_idxes = range(1, qid)
@@ -46,6 +51,20 @@ def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index):
 		selected_inds = [np.where(unlbl_index==k)[0][0] for k in all_lbl_id]
 		unlbl_y[selected_inds] = all_unlbl_y
 
+		if estimator_update_by is not None:
+			tmp = []
+			if "DQ" in estimator_update_by:
+				tmp.append(dq_idx)
+			if "OS" in estimator_update_by:
+				tmp.append(os_idx)
+			if "RND" in estimator_update_by:
+				tmp.append(rnd_idx)
+			dt2estimator = np.concatenate(tmp).ravel()
+			selected_inds_to_estimator = [np.where(unlbl_index==k)[0][0] for k in dt2estimator]
+		else:
+			selected_inds_to_estimator = copy.copy(selected_inds)
+
+
 
 	# # this qid data
 	this_qid_file = [unlbl_dir + "/query_{}".format(qid) + "/m0.1_c0.1.csv"]
@@ -54,7 +73,28 @@ def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index):
 		unlbl_X=unlbl_X, unlbl_index=unlbl_index,
 		coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst)
 
-	return unlbl_y, selected_inds, all_query, this_qid_Xy
+	return unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy
+
+
+def generate_verts(df_data, err_cols):
+	verts = []
+	for ind_time, col in enumerate(err_cols):
+		X = df_data[col].values
+		X = X[~np.isnan(X)]
+
+		if np.max(X)==np.min(X):
+			X_plot = X
+		else:
+			X_plot = np.arange(np.min(X), np.max(X), (np.max(X)-np.min(X)) / 200.0)
+		parameters = norm.fit(X)
+		kde = KernelDensity(kernel='gaussian', bandwidth=0.05).fit(X.reshape(-1,1))
+		log_dens = kde.score_samples(X_plot.reshape(-1,1))
+		ys = np.exp(log_dens)
+		ys[0], ys[-1] = 0.0, 0.0
+		verts.append(list(zip(X_plot, ys)))
+	return verts
+
+
 
 def show_trace(ith_trial):
 	unlbl_job = "mix" # mix, "mix_2-24"
@@ -63,7 +103,8 @@ def show_trace(ith_trial):
 	filename = get_savefile()
 	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
 	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
-	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
+	# unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
+
 
 	# # load label and un_label
 	X_trval, y_trval, index_trval, X_test, y_test, test_idx = get_data_from_flags()
@@ -71,9 +112,20 @@ def show_trace(ith_trial):
 	all_results = load_pickle(result_file)
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job, result_file=result_file)
+	
+	estimator_update_by = ["DQ"]
 
+	if FLAGS.score_method == "u_gp_mt":
+		mt_kernel = 0.001# 0.001, 1.0
+		fix_update_coeff = 1
+		unlbl_dir += "_mt{}".format(mt_kernel)
+	
+	elif FLAGS.score_method == "u_gp":
+		if len(estimator_update_by) < 3:
+			for k in estimator_update_by:
+				unlbl_dir += k
 
-	qids = range(1, 11)
+	qids = range(1, 21)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	est_files = [unlbl_dir+"/query_{0}/pre_trained_est.pkl".format(qid) for qid in qids]
@@ -96,16 +148,19 @@ def show_trace(ith_trial):
 	all_error = []
 	fig = plt.figure(figsize=(10, 8))
 	ax = fig.add_subplot(1, 1, 1)
+	tmp_df = pd.DataFrame(columns=["error", "qid"])
+
 	for qid, eval_file, est_file in zip(qids, eval_files, est_files):
 		# # get all_query, selected_inds and update unlbl_y
-		unlbl_y, selected_inds, all_query, this_qid_Xy = load_Xy_query(
+		unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy = load_Xy_query(
 			unlbl_dir=unlbl_dir, unlbl_job=unlbl_job, qid=qid, 
-			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index)
+			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+			estimator_update_by=estimator_update_by)
 
 		_x_train, _y_train = est_alpha_updated(
 				X_train=X_trval, y_train=y_trval, 
 				X_test=unlbl_X, y_test=unlbl_y, 
-				selected_inds=selected_inds)
+				selected_inds=selected_inds_to_estimator)
 		dq_X, dq_y, dq_idx = this_qid_Xy[0]
 		os_X, os_y, os_idx = this_qid_Xy[1]
 		rnd_X, rnd_y, rnd_idx = this_qid_Xy[2]
@@ -141,17 +196,29 @@ def show_trace(ith_trial):
 		# # to plot
 
 		bplot = ax.boxplot(x=error, vert=True, #notch=True, 
-			# sym='rs', # whiskerprops={'linewidth':2},
+			sym='ro', # whiskerprops={'linewidth':2},
 			positions=[qid], patch_artist=True,
 			widths=0.1, meanline=True, flierprops=flierprops,
-			showfliers=False, showbox=True, showmeans=False)
+			showfliers=True, showbox=True, showmeans=False,
+			autorange=True, bootstrap=5000)
 		ax.text(qid, mae, round(mae, 2),
 			horizontalalignment='center', size=14, 
 			color="red", weight='semibold')
 		patch = bplot['boxes'][0]
 		patch.set_facecolor(color)
+
+
+
+		indexes = ["{0}_{1}".format(k, qid) for k in unlbl_idx_filter]
+		for i in range(len(indexes)):
+			tmp_df.loc[indexes[i], "error"] = np.log(error[i])
+			tmp_df.loc[indexes[i], "qid"] = qid
+
+
+
 		# # end plot
 		var = estimator.predict_proba(X_test)
+		print ("len(X_test): ", len(X_test))
 
 		var_rst_df.loc[idx_test, "var_{}".format(qid)] = var
 		error_rst_df.loc[idx_test, "err_{}".format(qid)] = y_test - y_pred
@@ -164,41 +231,101 @@ def show_trace(ith_trial):
 		print ("var:", var)
 		print ("=======")
 		
-		ax.set_yscale('log')
 		ax.grid(which='both', linestyle='-.')
 		ax.grid(which='minor', alpha=0.2)
-
-
 		plt.title(get_basename(save_fig))
+		# ax.set_yscale('log')
+
 		plt.savefig(save_fig, transparent=False)
-		print ("Save at: ", save_fig)
+
 
 	var_rst_df.fillna(0, inplace=True)
 	error_rst_df.fillna(0, inplace=True)
+
+	print (tmp_df)
+	# ax = joypy.joyplot(tmp_df, by="qid", column="error")
+	# ax.grid(which='both', linestyle='-.')
+	# ax.grid(which='minor', alpha=0.2)
+	# plt.title(get_basename(save_fig))
+	# plt.savefig(save_fig.replace(".pdf","_joy.pdf"), transparent=False)
 
 	plot_heatmap(matrix=var_rst_df.values, vmin=None, vmax=None, save_file=var_save_at.replace(".csv", ".pdf"), cmap="jet")
 	plot_heatmap(matrix=error_rst_df.values, vmin=-0.5, vmax=0.5, save_file=error_save_at.replace(".csv", ".pdf"), cmap="bwr")
 
 
 
+def error_dist(ith_trial):
+	unlbl_job = "mix" # mix, "mix_2-24"
 
-	# for p, error in enumerate(all_error):
-	# 	bplot = ax.boxplot(x=error, vert=True, #notch=True, 
-	# 		# sym='rs', # whiskerprops={'linewidth':2},
-	# 		positions=[p], patch_artist=True,
-	# 		widths=0.1, meanline=True, flierprops=flierprops,
-	# 		showfliers=False, showbox=True, showmeans=False)
-	# 	# ax.text(pos_x, mean, round(mean, 2),
-	# 	# 	horizontalalignment='center', size=14, 
-	# 	# 	color=color, weight='semibold')
-	# 	patch = bplot['boxes'][0]
-	# 	patch.set_facecolor("blue")
-	# 	# for dt, dict_values in data.items():
-	# 	# 	idx_qr, y_qr, y_qr_pred = dict_values["idx_qr"], dict_values["y_qr"], dict_values["y_qr_pred"]
+	result_dir = get_savedir()
+	filename = get_savefile()
+	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
+	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
+
+	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
+		unlbl_job=unlbl_job, result_file=result_file)
+	if FLAGS.score_method == "u_gp_mt":
+		mt_kernel = 0.001# 0.001, 1.0
+		fix_update_coeff = 1
+		unlbl_dir += "_mt{}".format(mt_kernel)
+	elif FLAGS.score_method == "u_gp":
+		extension = "DQ"
+		unlbl_dir += extension
+	
+	error_save_at = unlbl_dir + "/autism/error.csv"
+	var_save_at = unlbl_dir + "/autism/var.csv"
+	save_fig = unlbl_dir + "/autism/error_dist.pdf"
+
+	qids = range(1, 10)
+	err_cols = ["err_{}".format(qid) for qid in qids]
+
+	error_rst_df = pd.read_csv(error_save_at, index_col=0)
+	var_rst_df = pd.read_csv(var_save_at, index_col=0)
+
+	verts = generate_verts(error_rst_df, err_cols)
+
+	fig = plt.figure(figsize=(10, 8))
+	ax = fig.add_subplot(1, 1, 1, projection='3d')
+	poly = PolyCollection(verts, cmap="Reds")
+	poly.set_alpha(0.4)
+
+	ax.add_collection3d(poly, zs=qids, zdir='y')
+	ax.set_yticklabels([""]+err_cols, verticalalignment='baseline',
+		horizontalalignment='left', rotation=320)
+	ax.set_xlim3d(0.001, 1.5)
+	ax.set_xlabel("error")
+	ax.set_ylim3d(-0.5, len(err_cols) + 0.05)
+	ax.set_ylabel("Query times")
+	ax.set_zlim3d(0, 20)
+	ax.grid(False)
+	ax.w_xaxis.pane.fill = False
+	ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+	ax.w_yaxis.pane.fill = False
+	ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+	ax.view_init(30, 320)
+	ax.zaxis.set_visible(False)
+	ax.set_title("error distribution")
+	plt.savefig(save_fig, transparent=False)
+	plt.show()
+	print("Save at:", save_fig)
 
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
-	for sm in [ "margin" ]: # "uniform", "exploitation", "expected_improvement",
+	is_label_mix = False
+	for sm in ["margin"]: # "uniform",  "exploitation", "expected_improvement", "margin"
 		FLAGS.sampling_method = sm
-		show_trace(ith_trial="000")
+		# show_trace(ith_trial="000")
+		error_dist(ith_trial="000")
+
+	# # to label the "mix" job
+	if is_label_mix:
+		unlbl_csv = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/unlabeled_data/mix.csv"
+		vasp_lbl2mix(unlbl_file=unlbl_csv, 
+			database_results=database_results, 
+			coarse_db_rst=coarse_db_rst, 
+			fine_db_rst=fine_db_rst)
+
+
+
+

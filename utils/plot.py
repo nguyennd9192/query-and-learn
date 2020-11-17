@@ -18,45 +18,6 @@ alpha_point = 0.8
 size_point = 100
 
 
-# color_mix =dict({	[Sm-Fe10-Al1-Co1	Sm-Fe10-Ti1-Cu1	Sm-Fe9-Al2-Co1	Sm-Fe9-Cu2-Ga1	Sm-Fe9-Ti2-Ga1
-# Sm-Fe10-Al1-Cu1	Sm-Fe10-Ti1-Ga1	Sm-Fe9-Al2-Cu1	Sm-Fe9-Cu2-Mo1	Sm-Fe9-Ti2-Mo1
-# Sm-Fe10-Al1-Ga1	Sm-Fe10-Ti1-Mo1	Sm-Fe9-Al2-Ga1	Sm-Fe9-Mo1-Ga2	Sm-Fe9-Ti2-Zn1
-# Sm-Fe10-Al1-Mo1	Sm-Fe10-Ti1-Zn1	Sm-Fe9-Al2-Mo1	Sm-Fe9-Mo2-Ga1	Sm-Fe9-Zn1-Co2
-# Sm-Fe10-Al1-Zn1	Sm-Fe10-Zn1-Co1	Sm-Fe9-Al2-Zn1	Sm-Fe9-Ti1-Al2	Sm-Fe9-Zn1-Cu2
-# Sm-Fe10-Co1-Cu1	Sm-Fe10-Zn1-Cu1	Sm-Fe9-Co1-Cu2	Sm-Fe9-Ti1-Co2	Sm-Fe9-Zn1-Ga2
-# Sm-Fe10-Co1-Ga1	Sm-Fe10-Zn1-Ga1	Sm-Fe9-Co1-Ga2	Sm-Fe9-Ti1-Cu2	Sm-Fe9-Zn1-Mo2
-# Sm-Fe10-Co1-Mo1	Sm-Fe10-Zn1-Mo1	Sm-Fe9-Co1-Mo2	Sm-Fe9-Ti1-Ga2	Sm-Fe9-Zn2-Co1
-# Sm-Fe10-Cu1-Ga1	Sm-Fe9-Al1-Co2	Sm-Fe9-Co2-Cu1	Sm-Fe9-Ti1-Mo2	Sm-Fe9-Zn2-Cu1
-# Sm-Fe10-Cu1-Mo1	Sm-Fe9-Al1-Cu2	Sm-Fe9-Co2-Ga1	Sm-Fe9-Ti1-Zn2	Sm-Fe9-Zn2-Ga1
-# Sm-Fe10-Mo1-Ga1	Sm-Fe9-Al1-Ga2	Sm-Fe9-Co2-Mo1	Sm-Fe9-Ti2-Al1	Sm-Fe9-Zn2-Mo1
-# Sm-Fe10-Ti1-Al1	Sm-Fe9-Al1-Mo2	Sm-Fe9-Cu1-Ga2	Sm-Fe9-Ti2-Co1
-# Sm-Fe10-Ti1-Co1	Sm-Fe9-Al1-Zn2	Sm-Fe9-Cu1-Mo2	Sm-Fe9-Ti2-Cu1
-
-
-# Sm2-Fe21-Al2-Co1	Sm2-Fe21-Ga2-Mo1	Sm2-Fe22-Al1-Co1
-# Sm2-Fe21-Al2-Cu1	Sm2-Fe21-Ga2-Ti1	Sm2-Fe22-Al1-Cu1
-# Sm2-Fe21-Al2-Ga1	Sm2-Fe21-Ga2-Zn1	Sm2-Fe22-Al1-Ga1
-# Sm2-Fe21-Al2-Mo1	Sm2-Fe21-Mo2-Al1	Sm2-Fe22-Al1-Mo1
-# Sm2-Fe21-Al2-Ti1	Sm2-Fe21-Mo2-Co1	Sm2-Fe22-Al1-Zn1
-# Sm2-Fe21-Al2-Zn1	Sm2-Fe21-Mo2-Cu1	Sm2-Fe22-Co1-Cu1
-# Sm2-Fe21-Co2-Al1	Sm2-Fe21-Mo2-Ga1	Sm2-Fe22-Co1-Ga1
-# Sm2-Fe21-Co2-Cu1	Sm2-Fe21-Mo2-Ti1	Sm2-Fe22-Co1-Mo1
-# Sm2-Fe21-Co2-Ga1	Sm2-Fe21-Mo2-Zn1	Sm2-Fe22-Cu1-Ga1
-# Sm2-Fe21-Co2-Mo1	Sm2-Fe21-Ti2-Al1	Sm2-Fe22-Cu1-Mo1
-# Sm2-Fe21-Co2-Ti1	Sm2-Fe21-Ti2-Co1	Sm2-Fe22-Mo1-Ga1
-# Sm2-Fe21-Co2-Zn1	Sm2-Fe21-Ti2-Cu1	Sm2-Fe22-Ti1-Al1
-# Sm2-Fe21-Cu2-Al1	Sm2-Fe21-Ti2-Ga1	Sm2-Fe22-Ti1-Co1
-# Sm2-Fe21-Cu2-Co1	Sm2-Fe21-Ti2-Mo1	Sm2-Fe22-Ti1-Cu1
-# Sm2-Fe21-Cu2-Ga1	Sm2-Fe21-Ti2-Zn1	Sm2-Fe22-Ti1-Ga1
-# Sm2-Fe21-Cu2-Mo1	Sm2-Fe21-Zn2-Al1	Sm2-Fe22-Ti1-Mo1
-# Sm2-Fe21-Cu2-Ti1	Sm2-Fe21-Zn2-Co1	Sm2-Fe22-Ti1-Zn1
-# Sm2-Fe21-Cu2-Zn1	Sm2-Fe21-Zn2-Cu1	Sm2-Fe22-Zn1-Co1
-# Sm2-Fe21-Ga2-Al1	Sm2-Fe21-Zn2-Ga1	Sm2-Fe22-Zn1-Cu1
-# Sm2-Fe21-Ga2-Co1	Sm2-Fe21-Zn2-Mo1	Sm2-Fe22-Zn1-Ga1
-# Sm2-Fe21-Ga2-Cu1	Sm2-Fe21-Zn2-Ti1	Sm2-Fe22-Zn1-Mo1]})
-
-
-
 def release_mem(fig):
 	fig.clf()
 	plt.close()

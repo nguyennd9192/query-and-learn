@@ -78,7 +78,8 @@ def process_dimensional_reduction(unlbl_X):
 
 
 def plot_and_query(FLAGS, all_results,
-		selected_inds, estimator, X_trval_csv, y_trval_csv, index_trval_csv, 
+		selected_inds, selected_inds_to_estimator,
+		estimator, X_trval_csv, y_trval_csv, index_trval_csv, 
 		unlbl_file, unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
 		is_save_query, csv_save_dir, tsne_file):
 	active_p = 1.0
@@ -147,7 +148,7 @@ def plot_and_query(FLAGS, all_results,
 		_x_train, _y_train = est_alpha_updated(
 			X_train=X_trval_csv, y_train=y_trval_csv, 
 			X_test=unlbl_X, y_test=unlbl_y, 
-			selected_inds=selected_inds)
+			selected_inds=selected_inds_to_estimator) # # in the past: selected_inds (update by all database)
 		
 		estimator.fit(_x_train, _y_train)
 
@@ -422,7 +423,20 @@ def map_unlbl_data(ith_trial):
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job,  result_file=result_file)
 
+	if FLAGS.score_method == "u_gp_mt":
+		mt_kernel = 1.0 # 1.0, 0.001
+		fix_update_coeff = 1
+		unlbl_dir += "_mt{}".format(mt_kernel)
+
+	# # to mark whether update estimator by DQ only or DQ vs RND
+	# # "" is update all
+	estimator_update_by = ["DQ"]
+	if len(estimator_update_by) < 3:
+		for k in estimator_update_by:
+			unlbl_dir += k
+
 	selected_inds = []
+	selected_inds_to_estimator = []
 	last_feedback = None
 
 	for next_query_idx in range(1, 50):  # 51
@@ -470,6 +484,16 @@ def map_unlbl_data(ith_trial):
 
 			selected_inds = [np.where(unlbl_index==k)[0][0] for k in all_lbl_id]
 
+			tmp = []
+			if "DQ" in estimator_update_by:
+				tmp.append(dq_idx)
+			if "OS" in estimator_update_by:
+				tmp.append(os_idx)
+			if "RND" in estimator_update_by:
+				tmp.append(rnd_idx)
+			dt2estimator = np.concatenate(tmp).ravel()
+			selected_inds_to_estimator = [np.where(unlbl_index==k)[0][0] for k in dt2estimator]
+
 			# unlbl_index = np.delete(unlbl_index, curr_lbl_num_id)
 			# unlbl_X = np.delete(unlbl_X, curr_lbl_num_id, axis=0)
 			# unlbl_y = np.delete(unlbl_y, curr_lbl_num_id, axis=0)
@@ -487,20 +511,24 @@ def map_unlbl_data(ith_trial):
 		est_file = ith_query_storage + "/pre_trained_est.pkl"
 		
 		# # load previous update info of mt_kernel
-		if next_query_idx > 1:
-			kernel_cfg_file = unlbl_dir+"/query_{}".format(next_query_idx-1) + "/kernel_cfg.txt"
-			update_coeff = np.loadtxt(kernel_cfg_file)
-		else:
-			update_coeff = 1.0
-
-
 		if is_load_estimator:
 			estimator = load_pickle(est_file)
+		elif FLAGS.score_method == "u_gp_mt":	
+			if next_query_idx == 1:
+				update_coeff = 1.0
+			else:
+				kernel_cfg_file = unlbl_dir+"/query_{}".format(next_query_idx-1) + "/kernel_cfg.txt"
+				update_coeff = np.loadtxt(kernel_cfg_file)				
+			estimator = utils.get_model(
+				FLAGS.score_method, FLAGS.seed, 
+				FLAGS.is_search_params, n_shuffle=10000,
+				mt_kernel=mt_kernel * update_coeff)
 		else:
 			estimator = utils.get_model(
 				FLAGS.score_method, FLAGS.seed, 
 				FLAGS.is_search_params, n_shuffle=10000,
-				mt_kernel=0.1 * update_coeff)
+				mt_kernel=None)
+			
 		# # tsne
 		if current_tsne_map:
 			"""
@@ -509,7 +537,9 @@ def map_unlbl_data(ith_trial):
 			tsne_file = result_dropbox_dir+"/dim_reduc/"+unlbl_job+".pkl"
 
 			_x_train, _y_train, estimator = plot_and_query(FLAGS=FLAGS, all_results=all_results,
-				selected_inds=selected_inds, estimator=estimator,
+				selected_inds=selected_inds, 
+				selected_inds_to_estimator=selected_inds_to_estimator,
+				estimator=estimator,
 				X_trval_csv=X_trval_csv, y_trval_csv=y_trval_csv, 
 				index_trval_csv=index_trval_csv,
 				unlbl_file=unlbl_file, unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
@@ -561,12 +591,14 @@ def map_unlbl_data(ith_trial):
 				uniform_sampler=uniform_sampler,
 				save_at=save_at, eval_data_file=eval_data_file,
 				estimator=estimator)
-		if last_feedback is not None:
-			update_coeff = last_feedback / float(feedback_val)
-
-		last_feedback = copy.copy(feedback_val)
-		tmp = unlbl_dir+"/query_{}".format(next_query_idx) + "/kernel_cfg.txt"
-		np.savetxt(tmp, [update_coeff])
+		if FLAGS.score_method == "u_gp_mt":
+			if last_feedback is not None:
+				# update_coeff = last_feedback / float(feedback_val)
+				update_coeff = fix_update_coeff
+	 
+			last_feedback = copy.copy(feedback_val)
+			tmp = unlbl_dir+"/query_{}".format(next_query_idx) + "/kernel_cfg.txt"
+			np.savetxt(tmp, [update_coeff])
 		# break
 
 if __name__ == "__main__":
