@@ -12,6 +12,7 @@ import pandas as pd
 from scipy.stats import norm
 from sklearn.neighbors import KernelDensity
 from matplotlib.collections import PolyCollection
+import matplotlib.gridspec as grid_spec
 
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
@@ -76,23 +77,88 @@ def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index, esti
 	return unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy
 
 
-def generate_verts(df_data, err_cols):
+def generate_verts(df_data, err_cols, save_fig):
 	verts = []
+	ax_objs = []
+
+	n_panels = len(err_cols)
+	gs = grid_spec.GridSpec(n_panels,1)
+	fig = plt.figure(figsize=(16,9))
+
+	dz = range(n_panels)
+	cnorm = plt.Normalize()
+	colors = plt.cm.jet(cnorm(dz))
+	
+	error_min = np.min(df_data.min().values)
+	error_max = np.max(df_data.max().values) * 1.08
+	print (error_min)
+
 	for ind_time, col in enumerate(err_cols):
 		X = df_data[col].values
+		# X = np.abs(X[~np.isnan(X)])
 		X = X[~np.isnan(X)]
 
 		if np.max(X)==np.min(X):
 			X_plot = X
 		else:
-			X_plot = np.arange(np.min(X), np.max(X), (np.max(X)-np.min(X)) / 200.0)
+			# X_plot = np.arange(np.min(X), np.max(X), (np.max(X)-np.min(X)) / 200.0)
+			X_plot = np.arange(error_min, error_max, (error_max-error_min) / 200.0)
+		
+
 		parameters = norm.fit(X)
-		kde = KernelDensity(kernel='gaussian', bandwidth=0.05).fit(X.reshape(-1,1))
+		kde = KernelDensity(kernel='gaussian', bandwidth=0.01).fit(X.reshape(-1,1))
 		log_dens = kde.score_samples(X_plot.reshape(-1,1))
+		
 		ys = np.exp(log_dens)
 		ys[0], ys[-1] = 0.0, 0.0
-		verts.append(list(zip(X_plot, ys)))
-	return verts
+		# verts.append(list(zip(X_plot, ys)))
+
+		# creating new axes object
+		ax_objs.append(fig.add_subplot(gs[n_panels - (ind_time+1):n_panels -ind_time, 0:]))
+		# ax_objs.append(fig.add_subplot(gs[ind_time:ind_time+1, 0:]))
+
+		# plotting the distribution
+		ax_objs[-1].plot(X_plot, ys,color="black",lw=1)
+		ax_objs[-1].fill_between(X_plot, ys, 
+			alpha=0.6, color=colors[ind_time])
+
+
+		# setting uniform x and y lims
+		# ax_objs[-1].set_xlim(0,1.7)
+		# ax_objs[-1].set_ylim(0,5)
+		# ax_objs[-1].set_xscale('log')
+
+
+		# make background transparent
+		rect = ax_objs[-1].patch
+		rect.set_alpha(0)
+
+		# remove borders, axis ticks, and labels
+		ax_objs[-1].set_yticklabels([])
+
+		if ind_time == 0: # len(err_cols)-1
+			ax_objs[-1].set_xlabel("Mean Absolute Error", fontsize=16,fontweight="bold")
+		else:
+			ax_objs[-1].set_xticklabels([])
+
+		spines = ["top","right","left","bottom"]
+		for s in spines:
+			ax_objs[-1].spines[s].set_visible(False)
+			ax_objs[-1].xaxis.set_ticks_position('none') 
+
+		adj_country = col.replace("_"," ")
+		# ax_objs[-1].text(-0.02,0,col,fontweight="bold",fontsize=14,ha="right")
+		ax_objs[-1].text(error_min*1.03,0,col,fontweight="bold",fontsize=14,ha="right")
+
+	gs.update(hspace=-0.6)
+
+	fig.text(0.07,0.9,"Distribution of error in predicting whole screening space",fontsize=20)
+
+	plt.tight_layout()
+	# ax.set_title("error distribution")
+	plt.savefig(save_fig, transparent=False)
+	print("Save at:", save_fig)
+
 
 
 
@@ -113,10 +179,12 @@ def show_trace(ith_trial):
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job, result_file=result_file)
 	
-	estimator_update_by = ["DQ"]
+	# estimator_update_by = ["DQ"]
+	estimator_update_by = None
+
 
 	if FLAGS.score_method == "u_gp_mt":
-		mt_kernel = 0.001# 0.001, 1.0
+		mt_kernel = 1.0 # 0.001, 1.0
 		fix_update_coeff = 1
 		unlbl_dir += "_mt{}".format(mt_kernel)
 	
@@ -125,7 +193,7 @@ def show_trace(ith_trial):
 			for k in estimator_update_by:
 				unlbl_dir += k
 
-	qids = range(1, 21)
+	qids = range(1, 50)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	est_files = [unlbl_dir+"/query_{0}/pre_trained_est.pkl".format(qid) for qid in qids]
@@ -256,6 +324,8 @@ def show_trace(ith_trial):
 
 def error_dist(ith_trial):
 	unlbl_job = "mix" # mix, "mix_2-24"
+	# estimator_update_by = ["DQ"]
+	estimator_update_by = None
 
 	result_dir = get_savedir()
 	filename = get_savefile()
@@ -268,46 +338,50 @@ def error_dist(ith_trial):
 		mt_kernel = 0.001# 0.001, 1.0
 		fix_update_coeff = 1
 		unlbl_dir += "_mt{}".format(mt_kernel)
-	elif FLAGS.score_method == "u_gp":
-		extension = "DQ"
-		unlbl_dir += extension
+	elif FLAGS.score_method == "u_gp" and estimator_update_by is not None:
+		if len(estimator_update_by) < 3:
+			for k in estimator_update_by:
+				unlbl_dir += k
 	
 	error_save_at = unlbl_dir + "/autism/error.csv"
 	var_save_at = unlbl_dir + "/autism/var.csv"
 	save_fig = unlbl_dir + "/autism/error_dist.pdf"
 
-	qids = range(1, 10)
+
+	qids = range(1, 50)
 	err_cols = ["err_{}".format(qid) for qid in qids]
 
 	error_rst_df = pd.read_csv(error_save_at, index_col=0)
 	var_rst_df = pd.read_csv(var_save_at, index_col=0)
 
-	verts = generate_verts(error_rst_df, err_cols)
 
-	fig = plt.figure(figsize=(10, 8))
-	ax = fig.add_subplot(1, 1, 1, projection='3d')
-	poly = PolyCollection(verts, cmap="Reds")
-	poly.set_alpha(0.4)
+	generate_verts(error_rst_df, err_cols, save_fig)
 
-	ax.add_collection3d(poly, zs=qids, zdir='y')
-	ax.set_yticklabels([""]+err_cols, verticalalignment='baseline',
-		horizontalalignment='left', rotation=320)
-	ax.set_xlim3d(0.001, 1.5)
-	ax.set_xlabel("error")
-	ax.set_ylim3d(-0.5, len(err_cols) + 0.05)
-	ax.set_ylabel("Query times")
-	ax.set_zlim3d(0, 20)
-	ax.grid(False)
-	ax.w_xaxis.pane.fill = False
-	ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-	ax.w_yaxis.pane.fill = False
-	ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-	ax.view_init(30, 320)
-	ax.zaxis.set_visible(False)
-	ax.set_title("error distribution")
-	plt.savefig(save_fig, transparent=False)
-	plt.show()
-	print("Save at:", save_fig)
+	# fig = plt.figure(figsize=(10, 8))
+	# ax = fig.add_subplot(1, 1, 1, projection='3d')
+	# poly = PolyCollection(verts, facecolors="red", edgecolors="black")
+	# poly.set_alpha(0.4)
+	# ax.add_collection3d(poly, zs=qids, zdir='y')
+	# # ax.set_yticklabels([""]+err_cols, verticalalignment='baseline',
+	# # 	horizontalalignment='left') # , rotation=320
+	# ax.set_xlim3d(0.001, 1.5)
+	# ax.set_xlabel("error")
+	# # ax.set_xscale('log')
+
+	# ax.set_ylim3d(-0.5, len(err_cols) + 0.05)
+	# ax.set_ylabel("Query times")
+	# ax.set_zlim3d(0, 10)
+	# ax.grid(False)
+	# ax.w_xaxis.pane.fill = False
+	# ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+	# ax.w_yaxis.pane.fill = False
+	# ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+	# ax.view_init(30, 320)
+	# ax.zaxis.set_visible(False)
+	# ax.set_title("error distribution")
+	# plt.savefig(save_fig, transparent=False)
+	# # plt.show()
+	# print("Save at:", save_fig)
 
 
 if __name__ == "__main__":
@@ -315,7 +389,7 @@ if __name__ == "__main__":
 	is_label_mix = False
 	for sm in ["margin"]: # "uniform",  "exploitation", "expected_improvement", "margin"
 		FLAGS.sampling_method = sm
-		# show_trace(ith_trial="000")
+		show_trace(ith_trial="000")
 		error_dist(ith_trial="000")
 
 	# # to label the "mix" job
