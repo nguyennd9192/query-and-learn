@@ -22,8 +22,8 @@ from sklearn.metrics import r2_score, mean_absolute_error
 
 from torch.nn.init import kaiming_uniform_
 from torch.nn.init import xavier_uniform_
-
-
+import random, copy
+from sklearn.preprocessing import MinMaxScaler
 
 # dataset definition
 class CSVDataset(Dataset):
@@ -51,7 +51,7 @@ class CSVDataset(Dataset):
 
 
 class MixtureOfExperts(object):
-	def __init__(self,	random_state=1, cv=3, n_times=3, 
+	def __init__(self, random_state=1, cv=3, n_times=3, 
 		search_param=False,
 		verbose=False, kwargs=None):
 
@@ -153,79 +153,210 @@ def enable_dropout(m):
 			each_module.train()
 	return m
 
-# train the model
-def train_model(train_dl, model):
-	# define the optimization
-	criterion = MSELoss()
-	optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
-	# enumerate epochs
-	for epoch in range(100):
-		# enumerate mini batches
-		for i, (inputs, targets) in enumerate(train_dl):
-			# clear the gradients
-			optimizer.zero_grad()
-			# compute the model output
-			yhat = model(inputs.float())
 
-			# calculate loss
-			yhat = torch.reshape(yhat, targets.shape)
-
-			loss = criterion(yhat, targets.float())
-			# credit assignment
-			loss.backward()
-			# update model weights
-			optimizer.step()
  
-# evaluate the model
-def evaluate_model(test_dl, model):
-	predictions, actuals = list(), list()
-	for i, (inputs, targets) in enumerate(test_dl):
-		# evaluate the model on the test set
-		yhat = model(inputs)
-		# retrieve numpy array
-		yhat = yhat.detach().numpy()
-		actual = targets.numpy()
-		actual = actual.reshape((len(actual), 1))
-		# round to class values
-		yhat = yhat.round()
-		# store
-		predictions.append(yhat)
-		actuals.append(actual)
-	predictions, actuals = vstack(predictions), vstack(actuals)
-	print ("predictions.shape:", predictions.shape)
-	error = mean_absolute_error(predictions, actuals)
-	# calculate accuracy
-	# acc = accuracy_score(actuals, predictions)
-	return error, predictions, actuals
 
-def uncertainties(p):
-	aleatoric = np.mean(p*(1-p), axis=0)
-	epistemic = np.mean(p**2, axis=0) - np.mean(p, axis=0)**2
-	return aleatoric, epistemic
+class NN_estimator():
+	def __init__(self, random_state=1, cv=3, n_times=3, 
+		search_param=False,
+		n_inputs=85, 
+		verbose=False, NN_kwargs=None):
 
-#----------------------------PREDICT-------------------------------------------
-def predict_proba(model, test_dl, T):
-	# enable_dropout(model)
-	preds = []
-	# predict stochastic dropout model T times
-	for t in range(T):
-		model = enable_dropout(model) # STILL NOT WORKING WITH DROPOUT AT TEST-TIME
-		error, pred, actuals = evaluate_model(test_dl, model)
-		preds.append(pred) # P( c = 0 | image)
+		estimator = MLP(n_inputs=NN_kwargs["n_inputs"])
+		self.estimator = estimator
+		self.NN_kwargs = NN_kwargs
+
+		# calculate split
+		# train, test = dataset.get_splits(n_test=0.33)
+
+
+	def fit(self, X_train, y_train):
+		# train the model
+		# define the optimization
+		train = CSVDataset(X_train.astype(float), y_train.astype(float))
+		train_dl = DataLoader(train, 
+				batch_size=self.NN_kwargs["batch_size"], shuffle=True)
+
+		model = copy.copy(self.estimator)
+		criterion = MSELoss()
+		optimizer = SGD(model.parameters(), 
+			lr=self.NN_kwargs["lr"], momentum=self.NN_kwargs["momentum"])
+		# enumerate epochs
+		for epoch in range(self.NN_kwargs["n_epoches"]):
+			# enumerate mini batches
+			for i, (inputs, targets) in enumerate(train_dl):
+				# clear the gradients
+				optimizer.zero_grad()
+				# compute the model output
+				yhat = model(inputs.float())
+
+				# calculate loss
+				yhat = torch.reshape(yhat, targets.shape)
+
+				loss = criterion(yhat, targets.float())
+				# credit assignment
+				loss.backward()
+				# update model weights
+				optimizer.step()
+		self.estimator = copy.copy(model)
+
+
+	# evaluate the model
+	def evaluate_model(self, test_dl, model):
+		predictions, actuals = list(), list()
+		for i, (inputs, targets) in enumerate(test_dl):
+			# evaluate the model on the test set
+			yhat = model(inputs)
+			# retrieve numpy array
+			yhat = yhat.detach().numpy()
+			actual = targets.numpy()
+			actual = actual.reshape((len(actual), 1))
+			# round to class values
+			yhat = yhat.round()
+			# store
+			predictions.append(yhat)
+			actuals.append(actual)
+		predictions, actuals = vstack(predictions).ravel(), vstack(actuals).ravel()
+		# print ("predictions.shape:", predictions.shape)
+		error = mean_absolute_error(predictions, actuals)
+		# calculate accuracy
+		# acc = accuracy_score(actuals, predictions)
+		return error, predictions, actuals
+
+
+	def predict(self, X_test):
+		test = CSVDataset(X_test.astype(float), np.array([0.0]*X_test.shape[0]))
+		test_dl = DataLoader(test, batch_size=32, shuffle=True)
+
+		model = copy.copy(self.estimator)
+		predictions = list()
+		# print ("Here")
+		for i, (inputs, targets) in enumerate(test_dl):
+			# evaluate the model on the test set
+			yhat = model(inputs.float())
+			# retrieve numpy array
+			yhat = yhat.detach().numpy().ravel()
+			# print  ("Batch", i, yhat)
+
+			# round to class values
+			# yhat = yhat.round()
+			# store
+			predictions.append(yhat)
+		return np.concatenate(predictions)
+
+	def predict_proba(self, X_test):
+		T = 10 
+		# enable_dropout(model)
+		all_preds = []
+		all_errors = []
+
+		# predict stochastic dropout model T times
+		# model = self.estimator
+		self.estimator.is_drop = True
+
+	
+		for t in range(T):
+			# model = enable_dropout(model) # STILL NOT WORKING WITH DROPOUT AT TEST-TIME
+			preds = self.predict(X_test)
+			# errors = np.abs(preds - actuals)
+
+			all_preds.append(preds) 
+			# print (preds)
+			# all_errors.append(errors)
+		   
+		# mean prediction
+		var = np.var(all_preds, axis=0) # 
+		mean = np.mean(all_preds, axis=0)
+
+		var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
+
+		return mean, var_norm.ravel()
+
+	def score(self, X_val, y_val):
+		y_pred = self.predict(X_val, get_variance=False)    
+		val_acc = metrics.r2_score(y_val, y_pred)
+		return val_acc
+
+# def train_model(train_dl, model):
+# 	# define the optimization
+# 	criterion = MSELoss()
+# 	optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
+# 	# enumerate epochs
+# 	for epoch in range(10):
+# 		# enumerate mini batches
+# 		for i, (inputs, targets) in enumerate(train_dl):
+# 			# clear the gradients
+# 			optimizer.zero_grad()
+# 			# compute the model output
+# 			yhat = model(inputs.float())
+
+# 			# calculate loss
+# 			yhat = torch.reshape(yhat, targets.shape)
+
+# 			loss = criterion(yhat, targets.float())
+# 			# credit assignment
+# 			loss.backward()
+# 			# update model weights
+# 			optimizer.step()
+
+# # evaluate the model
+# def evaluate_model(test_dl, model):
+# 	predictions, actuals = list(), list()
+# 	for i, (inputs, targets) in enumerate(test_dl):
+# 		# evaluate the model on the test set
+# 		yhat = model(inputs)
+# 		# retrieve numpy array
+# 		yhat = yhat.detach().numpy()
+# 		actual = targets.numpy()
+# 		actual = actual.reshape((len(actual), 1))
+# 		# round to class values
+# 		yhat = yhat.round()
+# 		# store
+# 		predictions.append(yhat)
+# 		actuals.append(actual)
+# 	predictions, actuals = vstack(predictions).ravel(), vstack(actuals).ravel()
+# 	# print ("predictions.shape:", predictions.shape)
+# 	error = mean_absolute_error(predictions, actuals)
+# 	# calculate accuracy
+# 	# acc = accuracy_score(actuals, predictions)
+# 	return error, predictions, actuals
+
+# def uncertainties(p):
+# 	aleatoric = np.mean(p*(1-p), axis=0)
+# 	epistemic = np.mean(p**2, axis=0) - np.mean(p, axis=0)**2
+# 	return aleatoric, epistemic
+
+
+# def predict_proba(model, test_dl, T):
+# 	# enable_dropout(model)
+# 	all_preds = []
+# 	all_errors = []
+
+# 	# predict stochastic dropout model T times
+# 	model.is_drop = True
+# 	test_dl = DataLoader(test, batch_size=10, shuffle=False)
+
+# 	for t in range(T):
+# 		# model = enable_dropout(model) # STILL NOT WORKING WITH DROPOUT AT TEST-TIME
+# 		mae, preds, actuals = evaluate_model(test_dl, model)
+# 		errors = np.abs(preds - actuals)
+
+# 		# all_preds.append(pred) 
+# 		all_errors.append(errors)
 	   
-	# mean prediction
-	var = np.var(preds)
-	p_hat_lists = [preds]
-	epistemic, aleatoric = uncertainties(np.array(p_hat_lists))
+# 	# mean prediction
+# 	var = np.var(all_errors, axis=0)
+# 	print (all_errors)
+# 	# p_hat_lists = [preds]
+# 	# epistemic, aleatoric = uncertainties(np.array(p_hat_lists))
+# 	# print (epistemic, aleatoric)
+# 	# estimate uncertainties (eq. 4 )
+# 	# eq.4 in https://openreview.net/pdf?id=Sk_P2Q9sG
+# 	# see https://github.com/ykwon0407/UQ_BNN/issues/1
+# 	# p_hat_lists = 
+# 	# epistemic, aleatoric = uncertainties(np.array(p_hat_lists[label]))
 
-	print (epistemic, aleatoric)
-	# estimate uncertainties (eq. 4 )
-	# eq.4 in https://openreview.net/pdf?id=Sk_P2Q9sG
-	# see https://github.com/ykwon0407/UQ_BNN/issues/1
-	# p_hat_lists = 
-	# epistemic, aleatoric = uncertainties(np.array(p_hat_lists[label]))
-
-	return var
+# 	return var
 
 
 # model definition
@@ -252,23 +383,47 @@ class MLP(Module):
 		self.hidden3 = Linear(8, 4)
 		xavier_uniform_(self.hidden3.weight)
 		self.act3 = Linear(4, 1)
+		self.is_drop = False
+
  
 	# forward propagate input
 	def forward(self, X):
 		# input to first hidden layer
-		X = self.hidden1(X.float())
-		X = self.act1(X)
-		# X = self.dropout1(X)
+		if self.is_drop:
+			X = self.hidden1(X.float())
+			X = self.act1(X)
 
-		 # second hidden layer
-		X = self.hidden2(X)
-		X = self.act2(X)
-		# X = self.dropout2(X)
+			self.dropout1 = Dropout(random.uniform(0.5, 1))
+			X = self.dropout1(X)
 
-		# third hidden layer and output
-		X = self.hidden3(X)
-		X = self.act3(X)
-		return X
+			 # second hidden layer
+			X = self.hidden2(X)
+			X = self.act2(X)
+			self.dropout2 = Dropout(random.uniform(0.5, 1))
+			X = self.dropout2(X)
+
+			# third hidden layer and output
+			X = self.hidden3(X)
+			X = self.act3(X)
+			self.is_drop = False
+
+			return X
+		else:
+			X = self.hidden1(X.float())
+			X = self.act1(X)
+
+			# second hidden layer
+			X = self.hidden2(X)
+			X = self.act2(X)
+
+			# third hidden layer and output
+			X = self.hidden3(X)
+			X = self.act3(X)
+			self.is_drop = False
+
+			return X
+
+
 
 
 

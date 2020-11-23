@@ -51,34 +51,46 @@ def test_ensemble(X, y):
 
 
 def test_MoE(X, y):
-	# X_train, y_train, X_test, y_test = get_train_test(X, y)
+	X_train, y_train, X_test, y_test = get_train_test(X, y)
 
 	# load the dataset
-	dataset = CSVDataset(X.astype(float), y.astype(float))
-	# calculate split
-	train, test = dataset.get_splits(n_test=0.33)
-	# print ("train_dl.shape:", train.shape)
-	# print ("test_dl.shape:", test.shape)
+	# dataset = CSVDataset(X.astype(float), y.astype(float))
+	# # calculate split
+	# train, test = dataset.get_splits(n_test=0.33)
+	# # print ("train_dl.shape:", train.shape)
+	# # print ("test_dl.shape:", test.shape)
 
 
-	train_dl = DataLoader(train, batch_size=32, shuffle=True)
-	test_dl = DataLoader(test, batch_size=10, shuffle=False)
-	# load model
-	# kwargs = dict({"dim":X_train.shape[1], "num_experts":3, "hidden_dim":"default"})
-	# model = MixtureOfExperts(kwargs=kwargs)
+	# train_dl = DataLoader(train, batch_size=32, shuffle=True)
+	# test_dl = DataLoader(test, batch_size=10, shuffle=False)
+	# # load model
+	# # kwargs = dict({"dim":X_train.shape[1], "num_experts":3, "hidden_dim":"default"})
+	# # model = MixtureOfExperts(kwargs=kwargs)
 
 
-	model = MLP(n_inputs=85)
-	# train the model
-	train_model(train_dl, model)
-	# evaluate the model
-	error, pred, actuals = evaluate_model(test_dl, model)
-	print('Accuracy: ', error)
+	# model = MLP(n_inputs=85)
+	# # train the model
+	# train_model(train_dl, model)
+	# # evaluate the model
+	# # error, pred, actuals = evaluate_model(test_dl, model)
+	# # print('Accuracy: ', error)
 
-	var = predict_proba(model=model, test_dl=test_dl, T=10)
+	# var = predict_proba(model=model, test_dl=test_dl, T=10)
+	NN_kwargs = dict({"n_inputs":85, "n_epoches":10,
+		"batch_size":10, "lr": 0.01, "momentum":0.9})
+
+	model = NN_estimator(random_state=1, cv=3, n_times=3, 
+		search_param=False,
+		verbose=False, NN_kwargs=NN_kwargs)
+
+	model.fit(X_train, y_train)
+	print('X_test.shape: ', X_test.shape)
+
+	y_pred, var = model.predict_proba(X_test)
+	print('y_pred: ', len(y_pred))
+	mae = mean_absolute_error(y_pred, y_test)
+	print('mae: ', mae)
 	print('var: ', var)
-
-	# moe.fit(X_train, y_train)
 
 	# y_pred = moe.predict(X_test, get_variance=False)
 	# r2 = r2_score(y_pred, y_test)
