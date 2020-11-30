@@ -35,6 +35,13 @@ def merge_two_dicts(x, y):
 		z.update(y)
 		return z
 
+def filter_array(x, y):
+	nan_x = np.isnan(x)
+	nan_y = np.isnan(y)
+	nan_id = nan_x + nan_y
+	return x[~nan_id], y[~nan_id]
+
+
 def load_pickle(filename):
 	if not gfile.exists(filename):
 		raise NameError("ERROR: the following data not available \n" + filename)
@@ -216,7 +223,7 @@ def get_all_unlb_y(database_results, unlbl_X, unlbl_index,
 	_y =  data_cvt[:, -1] 
 	# # last column as predicted variable
 	# # data in the format of: [id_qr, id_qr_cvt, target]
-	valid_id = [i for i, val in enumerate(_y) if val != None] 
+	valid_id = [i for i, val in enumerate(_y) if val is not None and val is not np.nan] 
 	_y = np.array([float(k) for k in _y[valid_id]]) 
 
 	# # _idx is index in queried file, unlbl_X

@@ -266,7 +266,7 @@ def generate_one_curve(X, y,
 		assert len(new_batch) == n_sample
 		# print (selected_inds)
 		assert len(list(set(selected_inds))) == len(selected_inds)
-
+ 
 	# Check that the returned indice are correct and will allow mapping to
 	# training set from original data
 	assert all(y_noise[indices[selected_inds]] == y_train[selected_inds])

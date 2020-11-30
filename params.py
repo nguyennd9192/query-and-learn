@@ -60,7 +60,7 @@ flags.DEFINE_float(
 flags.DEFINE_float(
     "batch_size", 0.05,
     ("Can be float or integer.  Float indicates batch size as a percentage "
-     "of training data size.") # # number of updated data points to the model
+     "of mlkrning data size.") # # number of updated data points to the model
 )
 flags.DEFINE_integer("trials", 1,
                      "Number of curves to create using different seeds")
@@ -71,7 +71,7 @@ flags.DEFINE_string("confusions", "0.1",
 flags.DEFINE_string("active_sampling_percentage", "0.1 0.3 0.5 0.7 0.9",
                     "Mixture weights on active sampling.")
 flags.DEFINE_string(
-    "score_method", "full_connected", # # e_krr, u_gp, u_gp_mt, full_connected
+    "score_method", "mlkr", # # e_krr, u_gp, u_gp_mt, mlkr, fully_connected, moe, LeNet
     "Method to use to calculate accuracy.")  
 flags.DEFINE_string(
     "select_method", "None",

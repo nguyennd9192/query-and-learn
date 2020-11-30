@@ -180,7 +180,7 @@ def show_trace(ith_trial):
 		unlbl_job=unlbl_job, result_file=result_file)
 	
 	# estimator_update_by = ["DQ"]
-	estimator_update_by = None
+	estimator_update_by = ["DQ", "RND", "OS"]
 
 
 	if FLAGS.score_method == "u_gp_mt":
@@ -193,7 +193,7 @@ def show_trace(ith_trial):
 			for k in estimator_update_by:
 				unlbl_dir += k
 
-	qids = range(1, 50)
+	qids = range(1, 38)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	est_files = [unlbl_dir+"/query_{0}/pre_trained_est.pkl".format(qid) for qid in qids]
@@ -256,55 +256,65 @@ def show_trace(ith_trial):
 		idx_test = copy.copy(unlbl_idx_filter)
 
 		y_pred = estimator.predict(X_test)
-		r2 = r2_score(y_test, y_pred)
-		mae = mean_absolute_error(y_test, y_pred)
-		error = np.abs(y_test-y_pred)
-		all_error.append( error )
+		print ("y_test", y_test, "y_pred", y_pred)
 
-		# # to plot
+		y_test, y_pred = filter_array(y_test, y_pred)
+		print ("len(y_test)", y_test.shape, y_pred.shape)
 
-		bplot = ax.boxplot(x=error, vert=True, #notch=True, 
-			sym='ro', # whiskerprops={'linewidth':2},
-			positions=[qid], patch_artist=True,
-			widths=0.1, meanline=True, flierprops=flierprops,
-			showfliers=True, showbox=True, showmeans=False,
-			autorange=True, bootstrap=5000)
-		ax.text(qid, mae, round(mae, 2),
-			horizontalalignment='center', size=14, 
-			color="red", weight='semibold')
-		patch = bplot['boxes'][0]
-		patch.set_facecolor(color)
+		try:
+
+			assert y_test.shape == y_pred.shape
+			r2 = r2_score(y_test, y_pred)
+			mae = mean_absolute_error(y_test, y_pred)
+			error = np.abs(y_test-y_pred)
+			all_error.append( error )
+
+			# # to plot
+
+			bplot = ax.boxplot(x=error, vert=True, #notch=True, 
+				sym='ro', # whiskerprops={'linewidth':2},
+				positions=[qid], patch_artist=True,
+				widths=0.1, meanline=True, flierprops=flierprops,
+				showfliers=True, showbox=True, showmeans=False,
+				autorange=True, bootstrap=5000)
+			ax.text(qid, mae, round(mae, 2),
+				horizontalalignment='center', size=14, 
+				color="red", weight='semibold')
+			patch = bplot['boxes'][0]
+			patch.set_facecolor(color)
 
 
 
-		indexes = ["{0}_{1}".format(k, qid) for k in unlbl_idx_filter]
-		for i in range(len(indexes)):
-			tmp_df.loc[indexes[i], "error"] = np.log(error[i])
-			tmp_df.loc[indexes[i], "qid"] = qid
+			indexes = ["{0}_{1}".format(k, qid) for k in unlbl_idx_filter]
+			for i in range(len(indexes)):
+				tmp_df.loc[indexes[i], "error"] = np.log(error[i])
+				tmp_df.loc[indexes[i], "qid"] = qid
 
 
 
-		# # end plot
-		var = estimator.predict_proba(X_test)
-		print ("len(X_test): ", len(X_test))
+			# # end plot
+			var = estimator.predict_proba(X_test)
+			print ("len(X_test): ", len(X_test))
 
-		var_rst_df.loc[idx_test, "var_{}".format(qid)] = var
-		error_rst_df.loc[idx_test, "err_{}".format(qid)] = y_test - y_pred
+			var_rst_df.loc[idx_test, "var_{}".format(qid)] = var
+			error_rst_df.loc[idx_test, "err_{}".format(qid)] = y_test - y_pred
 
-		var_rst_df.to_csv(var_save_at)
-		error_rst_df.to_csv(error_save_at)
+			var_rst_df.to_csv(var_save_at)
+			error_rst_df.to_csv(error_save_at)
 
-		print ("n test:", len(y_test))
-		print ("r2:", round(r2, 3), "mae:",  round(mae, 3))
-		print ("var:", var)
-		print ("=======")
-		
-		ax.grid(which='both', linestyle='-.')
-		ax.grid(which='minor', alpha=0.2)
-		plt.title(get_basename(save_fig))
-		# ax.set_yscale('log')
-
-		plt.savefig(save_fig, transparent=False)
+			print ("n test:", len(y_test))
+			print ("r2:", round(r2, 3), "mae:",  round(mae, 3))
+			print ("var:", var)
+			print ("=======")
+			
+			ax.grid(which='both', linestyle='-.')
+			ax.grid(which='minor', alpha=0.2)
+			plt.title(get_basename(save_fig))
+			# ax.set_yscale('log')
+	
+			plt.savefig(save_fig, transparent=False)
+		except Exception as e:
+			pass
 
 
 	var_rst_df.fillna(0, inplace=True)
@@ -335,7 +345,7 @@ def error_dist(ith_trial):
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job, result_file=result_file)
 	if FLAGS.score_method == "u_gp_mt":
-		mt_kernel = 0.001# 0.001, 1.0
+		mt_kernel = 0.001 # 0.001, 1.0
 		fix_update_coeff = 1
 		unlbl_dir += "_mt{}".format(mt_kernel)
 	elif FLAGS.score_method == "u_gp" and estimator_update_by is not None:
@@ -347,13 +357,12 @@ def error_dist(ith_trial):
 	var_save_at = unlbl_dir + "/autism/var.csv"
 	save_fig = unlbl_dir + "/autism/error_dist.pdf"
 
-
-	qids = range(1, 50)
-	err_cols = ["err_{}".format(qid) for qid in qids]
-
 	error_rst_df = pd.read_csv(error_save_at, index_col=0)
 	var_rst_df = pd.read_csv(var_save_at, index_col=0)
 
+	error_rst_df = error_rst_df.dropna(axis="columns", how="all")
+	var_rst_df = var_rst_df.dropna(axis="columns", how="all")
+	err_cols = error_rst_df.columns
 
 	generate_verts(error_rst_df, err_cols, save_fig)
 

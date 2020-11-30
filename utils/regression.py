@@ -12,6 +12,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 
+
 class RegressionFactory(object): 
     
   @staticmethod
@@ -51,8 +52,26 @@ class RegressionFactory(object):
           md_selection = None
         best_gpr.fit(X, y)
         print("best_gpr params:", best_gpr.get_params())
+    # elif method == "mlkr":
+    #     if search_param:
+    #         best_mlkr, md_selection = RegressionFactory.mlkr_cv_with_noise(
+    #             X=X, y_obs=y, cv=cv, n_random=n_times)
+    #     else:          
+          
+    #         # best_mlkr = mkl.ITML_Supervised()
+    #         # best_mlkr = mkl.SDML_Supervised(sparsity_param=0.1, balance_param=0.0015,
+    #         #           prior='covariance')
 
-        return best_gpr, md_selection
+    #         # best_mlkr = mkl.LMNN(k=3, learn_rate=0.1) # 
+    #         best_mlkr = mkl.LFDA(n_components=2, 
+    #           k=50, embedding_type="plain") # weighted, orthonormalized
+
+    #         # best_mlkr = mkl.MLKR(n_components=2, init="auto")
+    #         print ("best_mlkr")
+    #         md_selection = None
+    #     best_mlkr.fit(X, y)
+
+        return best_mlkr, md_selection
 
   @staticmethod
   def CV_predict(model, X, y, n_folds=3, n_times=3, is_gp=False):
@@ -204,7 +223,29 @@ class RegressionFactory(object):
     print("best_gpr params:", best_gpr.get_params())
     print("cv_results_:", GridSearch.cv_results_)
 
-    return best_gpr, GridSearch
+  def mlkr_cv_with_noise(X, y_obs, cv=10, n_random=10):
+
+    inits = ["auto", "pca", "identity", "random"]
+
+    ncp_lb = 1
+    ncp_ub = 10
+    n_components = range(ncp_lb, ncp_ub)
+
+    param_grid = {"n_components": n_components,
+        "init": inits}
+    # if cv == -1: 
+    #   cv = 20 # # len(y_obs) - 5
+    model = mkl.MLKR()
+    GridSearch = GridSearchCV(model,param_grid=param_grid,
+                cv=cv,n_jobs=1, scoring="neg_mean_absolute_error")
+    GridSearch.fit(X, y_obs)
+    best_model = GridSearch.best_estimator_
+    print("best_gpr params:", best_gpr.get_params())
+    print("cv_results_:", GridSearch.cv_results_)
+
+    return best_model, GridSearch
+
+
 
 
 def CV_predict_score(model, X, y, n_folds=3, n_times=3, score_type='r2'):
@@ -250,26 +291,5 @@ def CV_predict_score(model, X, y, n_folds=3, n_times=3, score_type='r2'):
 
         return  return_result
 
-# class Regression(object):
-#     def __init__(self):
-#         pass
-    
-#     def fit(self, X, y):
-#         self.__estimator.fit(X, y)
-
-#     def predict(self, y):
-#         self.__estimator.predict(y)
-
-# class KernelRidgeRegression(Regression):
-
-#     def __init__(self, kernel='rbf', alpha=1, gamma=1):
-#         self.__kernel = kernel
-#         self.__alpha = alpha
-#         self.__gamma = gamma
-#         self.__estimator = KernelRidge(
-#             kernel = regression_configuration.kernel,
-#             alpha = data_configuration.best_alpha, 
-#             gamma = data_configuration.best_gamma
-#         )
 
     

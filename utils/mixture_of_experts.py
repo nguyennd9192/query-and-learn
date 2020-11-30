@@ -25,6 +25,10 @@ from torch.nn.init import xavier_uniform_
 import random, copy
 from sklearn.preprocessing import MinMaxScaler
 
+
+from smt.applications import MOE
+from smt.problems import LpNorm
+
 # dataset definition
 class CSVDataset(Dataset):
 	# load the dataset
@@ -50,101 +54,6 @@ class CSVDataset(Dataset):
 		return random_split(self, [train_size, test_size])
 
 
-class MixtureOfExperts(object):
-	def __init__(self, random_state=1, cv=3, n_times=3, 
-		search_param=False,
-		verbose=False, kwargs=None):
-
-		self.search_param = search_param
-		self.kernel = 'rbf'
-		self.verbose = verbose
-		self.cv = cv
-		self.n_times = n_times
-
-		if kwargs["hidden_dim"] == "default":
-			hidden_dim = kwargs["num_experts"] * 4
-		else:
-			hidden_dim = kwargs["hidden_dim"]
-
-		self.layer = Linear(n_inputs, 1)
-		self.activation = Sigmoid()
-		moe = MoE(
-				dim = kwargs["dim"],
-				num_experts = kwargs["num_experts"],               # increase the experts (# parameters) of your model without increasing computation
-				hidden_dim = hidden_dim,           # size of hidden dimension in each expert, defaults to 4 * dimension
-				activation = nn.LeakyReLU,      # use your preferred activation, will default to GELU
-				second_policy_train = 'random', # in top_2 gating, policy for whether to use a second-place expert
-				second_policy_eval = 'random',  # all (always) | none (never) | threshold (if gate value > the given threshold) | random (if gate value > threshold * random_uniform(0, 1))
-				second_threshold_train = 0.2,
-				second_threshold_eval = 0.2,
-				capacity_factor_train = 1.25,   # experts have fixed capacity per batch. we need some extra capacity in case gating is not perfectly balanced.
-				capacity_factor_eval = 2.,      # capacity_factor_* should be set to a value >=1
-				loss_coef = 1e-2                # multiplier on the auxiliary expert balancing auxiliary loss
-			)
-		self.estimator = moe
-		self.random_state = random_state
-
-
-	def fit(self, X_train, y_train):
-		# # in fit function
-		# # just return estimator with best param with X_train, y_train
-		np.random.seed(self.random_state)
-		n_features = X_train.shape[1]
-
-		X = self.layer(X)
-		X = self.activation(X)
-
-		criterion = MSELoss()
-		optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
-		# inputs = np.array([4, X_train]) # [X_train, y_train]
-
-		out, aux_loss = self.estimator(inputs)
-		# print (out)
-		# print (aux_loss)
-		# self.estimator.fit(X_train, y_train)
-		return X
-
-
-	def predict(self, X_val, get_variance=False):
-		y_val_pred, y_val_pred_std = self.estimator.predict(X_val, return_std=True, return_cov=False)
-		if get_variance:
-		  return y_val_pred, y_val_pred_std
-		else:
-		  return y_val_pred
-
-	def score(self, X_val, y_val):
-		y_pred = self.predict(X_val, get_variance=False)    
-		val_acc = metrics.r2_score(y_val, y_pred)
-		return val_acc
-
-	def predict_proba(self, X, is_norm=True):
-		# # large variance -> probability to be observed small -> sorting descending take first
-		# # small variance -> probability to be observed large 
-		y_val_preds, y_val_pred_std = self.predict(X, get_variance=True)
-
-		# # normalize variance to 0-1
-		var_norm = MinMaxScaler().fit_transform(X=y_val_pred_std.reshape(-1, 1))
-		# var_norm = y_val_pred_std.reshape(-1, 1)
-		# prob = 1 / var_norm
-		if is_norm:
-		  return var_norm.ravel()
-		else:
-		  return y_val_pred_std.reshape(-1, 1)
-
-
-	def best_score_(self):
-		# # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
-		# # GridSearchCV.best_score_ returns cv score of best parameter
-		# # this UncertainGaussianProcess.best_score_returns cv score of given params
-		if self.GridSearchCV is None:
-		  r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, self.X_train, self.y_train, 
-					n_folds=3, n_times=3, score_type='r2')
-		  result = r2
-		else:
-		  result = self.GridSearchCV.best_score_
-		return result
-
-
 
 def enable_dropout(m):
 	for each_module in m.modules():
@@ -157,13 +66,10 @@ def enable_dropout(m):
  
 
 class NN_estimator():
-	def __init__(self, random_state=1, cv=3, n_times=3, 
-		search_param=False,
-		n_inputs=85, 
+	def __init__(self, 
 		verbose=False, NN_kwargs=None):
 
-		estimator = MLP(n_inputs=NN_kwargs["n_inputs"])
-		self.estimator = estimator
+		self.estimator = None
 		self.NN_kwargs = NN_kwargs
 
 		# calculate split
@@ -175,7 +81,20 @@ class NN_estimator():
 		# define the optimization
 		train = CSVDataset(X_train.astype(float), y_train.astype(float))
 		train_dl = DataLoader(train, 
-				batch_size=self.NN_kwargs["batch_size"], shuffle=True)
+				batch_size=3, shuffle=True)
+		
+		if self.estimator == None:
+			if self.NN_kwargs["method"] == "fully_connected":
+				estimator = MLP(n_inputs=X_train.shape[1])
+			elif self.NN_kwargs["method"] == "moe":
+				estimator = MixtureOfExperts(
+					n_inputs=X_train.shape[1], kwargs=self.NN_kwargs)
+			elif self.NN_kwargs["method"] == "LeNet":
+				estimator = LeNet(
+					n_inputs=X_train.shape[1], kwargs=self.NN_kwargs)
+
+
+			self.estimator = estimator
 
 		model = copy.copy(self.estimator)
 		criterion = MSELoss()
@@ -223,8 +142,7 @@ class NN_estimator():
 		# acc = accuracy_score(actuals, predictions)
 		return error, predictions, actuals
 
-
-	def predict(self, X_test):
+	def predict(self, X_test, get_variance=False):
 		test = CSVDataset(X_test.astype(float), np.array([0.0]*X_test.shape[0]))
 		test_dl = DataLoader(test, batch_size=32, shuffle=True)
 
@@ -254,7 +172,6 @@ class NN_estimator():
 		# model = self.estimator
 		self.estimator.is_drop = True
 
-	
 		for t in range(T):
 			# model = enable_dropout(model) # STILL NOT WORKING WITH DROPOUT AT TEST-TIME
 			preds = self.predict(X_test)
@@ -270,93 +187,22 @@ class NN_estimator():
 
 		var_norm = MinMaxScaler().fit_transform(X=var.reshape(-1, 1))
 
-		return mean, var_norm.ravel()
+		return var_norm.ravel()
 
 	def score(self, X_val, y_val):
 		y_pred = self.predict(X_val, get_variance=False)    
-		val_acc = metrics.r2_score(y_val, y_pred)
+		val_acc = r2_score(y_val, y_pred)
 		return val_acc
 
-# def train_model(train_dl, model):
-# 	# define the optimization
-# 	criterion = MSELoss()
-# 	optimizer = SGD(model.parameters(), lr=0.01, momentum=0.9)
-# 	# enumerate epochs
-# 	for epoch in range(10):
-# 		# enumerate mini batches
-# 		for i, (inputs, targets) in enumerate(train_dl):
-# 			# clear the gradients
-# 			optimizer.zero_grad()
-# 			# compute the model output
-# 			yhat = model(inputs.float())
+	def best_score_(self):
+		# # has not implemented yet
+		return None
 
-# 			# calculate loss
-# 			yhat = torch.reshape(yhat, targets.shape)
-
-# 			loss = criterion(yhat, targets.float())
-# 			# credit assignment
-# 			loss.backward()
-# 			# update model weights
-# 			optimizer.step()
-
-# # evaluate the model
-# def evaluate_model(test_dl, model):
-# 	predictions, actuals = list(), list()
-# 	for i, (inputs, targets) in enumerate(test_dl):
-# 		# evaluate the model on the test set
-# 		yhat = model(inputs)
-# 		# retrieve numpy array
-# 		yhat = yhat.detach().numpy()
-# 		actual = targets.numpy()
-# 		actual = actual.reshape((len(actual), 1))
-# 		# round to class values
-# 		yhat = yhat.round()
-# 		# store
-# 		predictions.append(yhat)
-# 		actuals.append(actual)
-# 	predictions, actuals = vstack(predictions).ravel(), vstack(actuals).ravel()
-# 	# print ("predictions.shape:", predictions.shape)
-# 	error = mean_absolute_error(predictions, actuals)
-# 	# calculate accuracy
-# 	# acc = accuracy_score(actuals, predictions)
-# 	return error, predictions, actuals
-
-# def uncertainties(p):
-# 	aleatoric = np.mean(p*(1-p), axis=0)
-# 	epistemic = np.mean(p**2, axis=0) - np.mean(p, axis=0)**2
-# 	return aleatoric, epistemic
+	def get_params(self):
+		# # has not implemented yet
+		return self.NN_kwargs
 
 
-# def predict_proba(model, test_dl, T):
-# 	# enable_dropout(model)
-# 	all_preds = []
-# 	all_errors = []
-
-# 	# predict stochastic dropout model T times
-# 	model.is_drop = True
-# 	test_dl = DataLoader(test, batch_size=10, shuffle=False)
-
-# 	for t in range(T):
-# 		# model = enable_dropout(model) # STILL NOT WORKING WITH DROPOUT AT TEST-TIME
-# 		mae, preds, actuals = evaluate_model(test_dl, model)
-# 		errors = np.abs(preds - actuals)
-
-# 		# all_preds.append(pred) 
-# 		all_errors.append(errors)
-	   
-# 	# mean prediction
-# 	var = np.var(all_errors, axis=0)
-# 	print (all_errors)
-# 	# p_hat_lists = [preds]
-# 	# epistemic, aleatoric = uncertainties(np.array(p_hat_lists))
-# 	# print (epistemic, aleatoric)
-# 	# estimate uncertainties (eq. 4 )
-# 	# eq.4 in https://openreview.net/pdf?id=Sk_P2Q9sG
-# 	# see https://github.com/ykwon0407/UQ_BNN/issues/1
-# 	# p_hat_lists = 
-# 	# epistemic, aleatoric = uncertainties(np.array(p_hat_lists[label]))
-
-# 	return var
 
 
 # model definition
@@ -424,6 +270,175 @@ class MLP(Module):
 			return X
 
 
+class Flatten(nn.Module):
+	def __init__(self):
+		super(Flatten, self).__init__()
+
+	def forward(self, x):
+		x = x.view(x.size(0), -1)
+		return x
+
+
+class LeNet(nn.Module):
+	def __init__(self, n_inputs, kwargs, droprate=0.5):
+		super(LeNet, self).__init__()
+		self.model = nn.Sequential()
+		self.model.add_module('conv1', nn.Conv1d(n_inputs, 20, kernel_size=5, padding=2))
+		self.model.add_module('dropout1', nn.Dropout(p=droprate))
+		self.model.add_module('maxpool1', nn.MaxPool1d(20, stride=2))
+		# self.model.add_module('conv2', nn.Conv1d(20, 50, kernel_size=5, padding=2))
+		# self.model.add_module('dropout2', nn.Dropout(p=droprate))
+		# self.model.add_module('maxpool2', nn.MaxPool1d(2, stride=2))
+		# self.model.add_module('flatten', Flatten())
+		# self.model.add_module('dense3', nn.Linear(50*7*7, 500))
+		# self.model.add_module('relu3', nn.ReLU())
+		# self.model.add_module('dropout3', nn.Dropout(p=droprate))
+		self.model.add_module('final', nn.Linear(50, 1))
+		
+	def forward(self, x):
+		return self.model(x)
+
+
+
+class MixtureOfExperts(Module):
+	def __init__(self,	n_inputs=1, kwargs=None):
+		super(MixtureOfExperts, self).__init__()
+
+		self.kwargs = kwargs
+		if self.kwargs["hidden_dim"] == "default":
+			self.hidden_dim = kwargs["num_experts"] * 4
+		else:
+			self.hidden_dim = kwargs["hidden_dim"]
+
+		self.linear1 = Linear(n_inputs, n_inputs)
+		self.activation = Sigmoid()
+		
+		self.moe2 = MoE(
+				dim = n_inputs,
+				num_experts = self.kwargs["num_experts"],               # increase the experts (# parameters) of your model without increasing computation
+				hidden_dim = self.hidden_dim,           # size of hidden dimension in each expert, defaults to 4 * dimension
+				activation = nn.LeakyReLU,      # use your preferred activation, will default to GELU
+				second_policy_train = 'random', # in top_2 gating, policy for whether to use a second-place expert
+				second_policy_eval = 'random',  # all (always) | none (never) | threshold (if gate value > the given threshold) | random (if gate value > threshold * random_uniform(0, 1))
+				second_threshold_train = 0.2,
+				second_threshold_eval = 0.2,
+				capacity_factor_train = 1.25,   # experts have fixed capacity per batch. we need some extra capacity in case gating is not perfectly balanced.
+				capacity_factor_eval = 2.,      # capacity_factor_* should be set to a value >=1
+				loss_coef = 1e-2                # multiplier on the auxiliary expert balancing auxiliary loss
+			)
+		
+		# third hidden layer and output
+		self.hidden3 = Linear(n_inputs, 4)
+		xavier_uniform_(self.hidden3.weight)
+		self.act3 = Linear(4, 1)
+
+		self.is_drop = False
+
+
+	def forward(self, X):
+		# input to first hidden layer
+		if self.is_drop:
+			X = self.linear1(X.float())
+
+			self.dropout1 = Dropout(random.uniform(0.5, 1))
+			X = self.dropout1(X)
+
+			X, loss = self.moe2(X)
+			self.dropout2 = Dropout(random.uniform(0.5, 1))
+			X = self.dropout2(X)
+
+			# third hidden layer and output
+			X = self.hidden3(X)
+			X = self.act3(X)
+			return X
+		else:
+			X = self.linear1(X.float())
+
+			X, loss = self.moe2(X)
+
+			# third hidden layer and output
+			X = self.hidden3(X)
+			X = self.act3(X)
+			return X
+	
+class MixtureOfExperts_mpt(object):
+	def __init__(self, 
+		random_state=1, cv=3, n_times=3, 
+		search_param=False, verbose=False):
+
+		self.search_param = search_param
+		self.kernel = 'rbf'
+		self.verbose = verbose
+		self.cv = cv
+		self.n_times = n_times
+		self.estimator = None
+		self.random_state = random_state
+
+
+	def fit(self, X_train, y_train, sample_weight=None):
+		# # in fit function
+		# # just return estimator with best param with X_train, y_train
+		np.random.seed(self.random_state)
+		n_features = X_train.shape[1]
+
+		self.X_train = X_train
+		self.y_train = y_train
+
+		if self.estimator is None: # # for not always search parameters:
+		# if self.estimator is None or self.search_param: # # either self.estimator is None or search_param is True-> require search
+			moe = MOE(smooth_recombination=True, n_clusters=2)
+			moe.experts.remove("RMTC")
+			print (moe.experts)
+			moe.set_training_values(X_train, y_train)
+			moe.train()
+
+			self.prob = LpNorm(ndim=X_train.shape[1])
+
+		 
+			self.estimator = moe
+
+		return self.estimator
+
+	def predict(self, X_val, get_variance=False):
+		y_val_pred = self.estimator.predict_values(X_val)
+		y_val_pred_std = self.prob(xe)
+
+		if get_variance:
+		  return y_val_pred, y_val_pred_std
+		else:
+		  return y_val_pred
+
+	def score(self, X_val, y_val):
+		y_pred = self.predict(X_val, get_variance=False)    
+		val_acc = metrics.r2_score(y_val, y_pred)
+		return val_acc
+
+	def predict_proba(self, X, is_norm=True):
+		# # large variance -> probability to be observed small -> sorting descending take first
+		# # small variance -> probability to be observed large 
+		y_val_preds, y_val_pred_std = self.predict(X, get_variance=True)
+
+		# # normalize variance to 0-1
+		var_norm = MinMaxScaler().fit_transform(X=y_val_pred_std.reshape(-1, 1))
+		# var_norm = y_val_pred_std.reshape(-1, 1)
+		# prob = 1 / var_norm
+		if is_norm:
+		  return var_norm.ravel()
+		else:
+		  return y_val_pred_std.reshape(-1, 1)
+
+
+	def best_score_(self):
+		# # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
+		# # GridSearchCV.best_score_ returns cv score of best parameter
+		# # this UncertainGaussianProcess.best_score_returns cv score of given params
+		if self.GridSearchCV is None:
+		  r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, self.X_train, self.y_train, 
+					n_folds=3, n_times=3, score_type='r2')
+		  result = r2
+		else:
+		  result = self.GridSearchCV.best_score_
+		return result
 
 
 

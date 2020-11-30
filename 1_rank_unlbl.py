@@ -430,7 +430,7 @@ def map_unlbl_data(ith_trial):
 
 	# # to mark whether update estimator by DQ only or DQ vs RND
 	# # "" is update all
-	estimator_update_by = ["DQ"]
+	estimator_update_by = ["DQ", "RND", "OS"]
 	if len(estimator_update_by) < 3:
 		for k in estimator_update_by:
 			unlbl_dir += k
@@ -439,7 +439,7 @@ def map_unlbl_data(ith_trial):
 	selected_inds_to_estimator = []
 	last_feedback = None
 
-	for next_query_idx in range(1, 50):  # 51
+	for next_query_idx in range(1, 100):  # 51
 		if next_query_idx == 1:
 			curr_lbl_num_id = None
 		queried_idxes = range(1, next_query_idx)

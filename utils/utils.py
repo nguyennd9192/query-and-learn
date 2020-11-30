@@ -37,7 +37,9 @@ from utils.general_lib import load_pickle
 from utils.kernel_block_solver import BlockKernelSolver
 from utils.small_cnn import SmallCNN
 from utils.allconv import AllConv
-from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression
+from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression, UncertainMetricLearningRegression
+from utils.mixture_of_experts import NN_estimator
+
 class Logger(object):
   """Logging object to write to file and stdout."""
 
@@ -97,7 +99,7 @@ def get_mldata(data_dir, name):
   """Loads data from data_dir.
 
   Looks for the file in data_dir.
-  Assumes that data is in pickle format with dictionary fields data and target.
+  Assumes that data is in pickle format with dictionarmoeields data and target.
 
 
   Args:
@@ -220,6 +222,8 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
   # TODO(lishal): for kernel methods, currently using default value for gamma
   # but should probably tune.
   # # for my building u_gp vs e_krr
+
+  nn_libs = ["fully_connected", "moe", "LeNet"]
   if method=="u_gp":
     model = UncertainGaussianProcess(random_state=1, cv=5, n_times=3,
               search_param=is_search_params, verbose=False, mt_kernel=None) 
@@ -235,6 +239,27 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
         n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
         cv=5, n_times=3, score_method="kr", search_param=is_search_params, # # GaussianProcess
         verbose=False)
+    return model
+
+  if method=="mlkr":
+    model = UncertainMetricLearningRegression(random_state=1, 
+        cv=3, n_times=3, search_param=False,
+        verbose=False)
+    return model
+
+
+  if method in nn_libs:
+    NN_kwargs = dict({"method":method, "n_inputs":85, "n_epoches":10,
+      "batch_size":10, "lr": 0.01, "momentum":0.9})
+
+    if method=="moe":
+      NN_kwargs["num_experts"] = 5
+      NN_kwargs["hidden_dim"] = 15
+
+
+    model = NN_estimator(random_state=1, cv=3, n_times=3, 
+      search_param=False,
+      verbose=False, NN_kwargs=NN_kwargs)
     return model
     
 
