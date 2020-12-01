@@ -569,10 +569,12 @@ def map_unlbl_data(ith_trial):
 			np.savetxt(tmp, [update_coeff])
 		# break
 
+
+
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 
 	# rank_unlbl_data(ith_trial="000") # 014 for u_gp
 
-	map_unlbl_data(ith_trial="000")
+	map_unlbl_data()
 
