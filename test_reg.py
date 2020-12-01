@@ -87,8 +87,9 @@ def test_MoE(X, y):
 
 def test_mlkr(X, y):
 	X_train, y_train, X_test, y_test = get_train_test(X, y)
-	model = UncertainMetricLearningRegression(random_state=1, cv=10, n_times=3,
-				search_param=False, verbose=False)
+	model = UncertainMetricLearningRegression(
+		random_state=1, cv=10, n_times=10,
+		search_param=False, verbose=False)
 
 	# y_train_lbl = np.array(list(map(str, np.around(y_train,1))))
 
@@ -122,7 +123,7 @@ def test_mlkr(X, y):
 	for a, b, c in zip(xtest_embedded, ytest_embedded, y_test):
 		plt.text(a, b, round(c,2))
 	plt.legend()
-	plt.savefig("test_mlkr.pdf", transparent=False)
+	plt.savefig("test_lfda.pdf", transparent=False)
 
 	y_pred, _ = model.predict(X_test, get_variance=True)
 	y_prob = model.predict_proba(X_test)
@@ -132,7 +133,9 @@ def test_mlkr(X, y):
 
 	print("model best params: ", model.estimator.get_params())
 	print("score on train: ", model.score(X, y))
-	print("y_prob: ", y_prob)
+
+	# print("y_prob: ", y_prob)
+	print("y_prob: ", len(y_prob))
 
 	print("score on test: ", r2)
 	print("mae on test: ", mae)
@@ -145,8 +148,8 @@ if __name__ == "__main__":
 	# test_ensemble(X, y)
 	# test_gaussian_process(X, y)
 
-	interested_cols = range(10, 13)
-	X = X[:, interested_cols]
+	# interested_cols = range(10, 13)
+	# X = X[:, interested_cols]
 	test_mlkr(X, y)
 
 

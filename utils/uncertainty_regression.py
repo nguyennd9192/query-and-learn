@@ -33,6 +33,8 @@ from scipy.signal import find_peaks, peak_prominences
 from sklearn import neighbors
 import metric_learn as mkl
 
+from sklearn.metrics import pairwise_distances
+
 # from statsmodels.distributions.empirical_distribution import ECDF
  
 class UncertainEnsembleRegression(object):
@@ -264,10 +266,10 @@ class UncertainMetricLearningRegression(object):
     # learn_metric = mkl.SDML_Supervised(sparsity_param=0.1, balance_param=0.0015,
     #           prior='covariance')
     # learn_metric = mkl.LMNN(k=3, learn_rate=0.1) # 
-    # learn_metric = mkl.MLKR(n_components=2, init="auto")
+    learn_metric = mkl.MLKR(n_components=2, init="auto")
 
-    learn_metric = mkl.LFDA(n_components=2, 
-      k=50, embedding_type="plain") # weighted, orthonormalized
+    # learn_metric = mkl.LFDA(n_components=2, 
+    #   k=10, embedding_type="orthonormalized") # weighted, orthonormalized
     self.learn_metric = learn_metric
 
 
@@ -287,13 +289,12 @@ class UncertainMetricLearningRegression(object):
     self.X_train_embedded = X_train_embedded
 
     if self.estimator is None: # # for not always search parameters:
-      # if self.estimator is None or self.search_param: # # either self.estimator is None or search_param is True-> require search
-      # estimator, GridSearchCV = RegressionFactory.get_regression(method="gp", 
-      #     kernel='cosine', alpha=None, gamma=None, # # rbf
-      #     search_param=self.search_param, X=X_train, y=y_train,  
-      #     cv=self.cv, n_times=self.n_times, mt_kernel=self.mt_kernel) # mt_kernel=self.mt_kernel
-      self.estimator = neighbors.KNeighborsRegressor(5, weights="distance") # 'uniform', 'distance'
-
+      estimator, GridSearchCV = RegressionFactory.get_regression(
+          method="gp", kernel='rbf', alpha=None, gamma=None, # # rbf, cosine
+          search_param=self.search_param, X=X_train_embedded, y=y_train,  
+          cv=self.cv, n_times=self.n_times) # mt_kernel=self.mt_kernel
+      # self.estimator = neighbors.KNeighborsRegressor(10, weights="distance") # 'uniform', 'distance'
+      self.estimator = estimator
     self.estimator.fit(X_train_embedded, y_train)
     return self.estimator
 
@@ -305,19 +306,26 @@ class UncertainMetricLearningRegression(object):
   def predict(self, X_val, get_variance=False):
 
     X_val_transform = self.learn_metric.transform(X_val)
+
+    y_val_pred = self.estimator.predict(X_val_transform)
+
     if get_variance:
-      nbs = [2, 5, 10, 20, 30]
-      y_preds = []
-      for nb in nbs:
-        estimator = neighbors.KNeighborsRegressor(nb, weights="distance") # 'uniform', 'distance'
-        estimator.fit(self.X_train_embedded, self.y_train)
+      # nbs = [2, 5, 10, 20, 30]
+      # y_preds = []
+      # for nb in nbs:
+      #   estimator = neighbors.KNeighborsRegressor(nb, weights="distance") # 'uniform', 'distance'
+      #   estimator.fit(self.X_train_embedded, self.y_train)
         
-        y_pred = estimator.predict(X_val_transform)
-        y_preds.append(y_pred)
-      y_preds = np.array(y_preds)
-      return np.mean(y_preds, axis=0), np.var(y_preds, axis=0)
+      #   y_pred = estimator.predict(X_val_transform)
+      #   y_preds.append(y_pred)
+      # y_preds = np.array(y_preds)
+      # return np.mean(y_preds, axis=0), # np.var(y_preds, axis=0)
+      distances = pairwise_distances(X_val, self.X_train)
+      print ("distances.shape:", distances.shape)
+      max_distances = np.max(distances, axis=1)
+      return y_val_pred, max_distances
+
     else:
-      y_val_pred = self.estimator.predict(X_val_transform)
       return y_val_pred
 
   def score(self, X_val, y_val):

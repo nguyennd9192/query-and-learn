@@ -175,7 +175,6 @@ def show_trace(ith_trial):
 	# # load label and un_label
 	X_trval, y_trval, index_trval, X_test, y_test, test_idx = get_data_from_flags()
 	n_trval = len(X_trval)
-	all_results = load_pickle(result_file)
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job, result_file=result_file)
 	
@@ -193,7 +192,7 @@ def show_trace(ith_trial):
 			for k in estimator_update_by:
 				unlbl_dir += k
 
-	qids = range(1, 38)
+	qids = range(1, 17)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	est_files = [unlbl_dir+"/query_{0}/pre_trained_est.pkl".format(qid) for qid in qids]
@@ -311,7 +310,7 @@ def show_trace(ith_trial):
 			ax.grid(which='minor', alpha=0.2)
 			plt.title(get_basename(save_fig))
 			# ax.set_yscale('log')
-	
+
 			plt.savefig(save_fig, transparent=False)
 		except Exception as e:
 			pass

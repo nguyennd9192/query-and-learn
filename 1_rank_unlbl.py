@@ -77,11 +77,11 @@ def process_dimensional_reduction(unlbl_X):
 	return X_trans
 
 
-def plot_and_query(FLAGS, all_results,
+def query_and_learn(FLAGS, 
 		selected_inds, selected_inds_to_estimator,
-		estimator, X_trval_csv, y_trval_csv, index_trval_csv, 
+		estimator, X_trval, y_trval, index_trval, 
 		unlbl_file, unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
-		is_save_query, csv_save_dir, tsne_file):
+		is_save_query, csv_save_dir, tsne_file, is_plot):
 	active_p = 1.0
 	batch_size = 10
 	batch_outstand = 10
@@ -91,132 +91,123 @@ def plot_and_query(FLAGS, all_results,
 
 	selected_inds_copy = copy.copy(selected_inds)
 	# if is_load_pre_trained:
-	try:
-		X_all_trans = load_pickle(tsne_file)
-		print ("Success in reading")
 
-	except Exception as e:
-		X_all = np.concatenate((X_trval_csv, unlbl_X))
-		X_all_trans = process_dimensional_reduction(unlbl_X=X_all)
-		makedirs(tsne_file)
-		pickle.dump(X_all_trans, gfile.GFile(tsne_file, 'w'))
+	if is_plot:
+		try:
+			X_all_trans = load_pickle(tsne_file)
+			print ("Success in reading")
 
-	# x_trval = X_all_trans[:n_trval, 0]
-	# y_trval = X_all_trans[:n_trval, 1]
+		except Exception as e:
+			X_all = np.concatenate((X_trval, unlbl_X))
+			X_all_trans = process_dimensional_reduction(unlbl_X=X_all)
+			makedirs(tsne_file)
+			pickle.dump(X_all_trans, gfile.GFile(tsne_file, 'w'))
 
-	# x = X_all_trans[n_trval:, 0]
-	# y = X_all_trans[n_trval:, 1]
+		# # x, y to plot
+		x = X_all_trans[:, 0]
+		y = X_all_trans[:, 1]
 
-	# # x, y to plot
-	x = X_all_trans[:, 0]
-	y = X_all_trans[:, 1]
+		scaler = MinMaxScaler()
+		x = scaler.fit_transform(x.reshape(-1, 1)).ravel()
+		y = scaler.fit_transform(y.reshape(-1, 1)).ravel()
 
-	scaler = MinMaxScaler()
-	x = scaler.fit_transform(x.reshape(-1, 1)).ravel()
-	y = scaler.fit_transform(y.reshape(-1, 1)).ravel()
+	# # save querying data 
+	query_data = dict()
+	query_data["unlbl_file"] = unlbl_file
+	query_data["unlbl_index"] = unlbl_index
+	# # end save querying data 
 
-	for result_key, result_dict in all_results.items():
-		# # "k" of all_results store all setting params 
-		if result_key == "tuple_keys":
-			continue
-		else:
-			result_key_to_text = result_dict
-		exp_params = read_exp_params(result_key)
+	# m, c = exp_params["m"], exp_params["c"]
+	m, c = 0.1, 0.1
+	csv_saveat = csv_save_dir + "/m{0}_c{1}.csv".format(m, c)
 
-		# # save querying data 
-		query_data = dict()
-		query_data["unlbl_file"] = unlbl_file
-		query_data["unlbl_index"] = unlbl_index
-		# # end save querying data 
+	# accuracies = np.array(result_dict["accuracy"])
+	# acc_cv_train = np.array(result_dict["cv_train_model"])
 
-		# m, c = exp_params["m"], exp_params["c"]
-		m, c = 0.1, 0.1
-		csv_saveat = csv_save_dir + "/m{0}_c{1}.csv".format(m, c)
+	# models = [k.estimator.get_params() for k in result_dict["save_model"]]
+	# GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
 
-		# accuracies = np.array(result_dict["accuracy"])
-		# acc_cv_train = np.array(result_dict["cv_train_model"])
+	# shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
 
-		# models = [k.estimator.get_params() for k in result_dict["save_model"]]
-		# GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
+	# estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
+	# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
+	# estimator.fit(X_trval, y_trval)
 
-		# shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
+	_x_train, _y_train = est_alpha_updated(
+		X_train=X_trval, y_train=y_trval, 
+		X_test=unlbl_X, y_test=unlbl_y, 
+		selected_inds=selected_inds_to_estimator) # # in the past: selected_inds (update by all database)
+	
+	estimator.fit(_x_train, _y_train)
 
-		# estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
-		# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
-		# estimator.fit(X_trval_csv, y_trval_csv)
+	unlbl_y_pred = estimator.predict(unlbl_X)
+	query_data["unlbl_y_pred"] = unlbl_y_pred
 
-		_x_train, _y_train = est_alpha_updated(
-			X_train=X_trval_csv, y_train=y_trval_csv, 
-			X_test=unlbl_X, y_test=unlbl_y, 
-			selected_inds=selected_inds_to_estimator) # # in the past: selected_inds (update by all database)
+	select_batch_inputs = {"model": estimator, "labeled": None, 
+			"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True,
+			"y_star": min(_y_train)}
+	N_unlbl = unlbl_X.shape[0]
+	n_sample = min(batch_size, N_unlbl)
 		
-		estimator.fit(_x_train, _y_train)
 
-		unlbl_y_pred = estimator.predict(unlbl_X)
-		query_data["unlbl_y_pred"] = unlbl_y_pred
-
-		select_batch_inputs = {"model": estimator, "labeled": None, 
-				"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True,
-				"y_star": min(_y_train)}
-		N_unlbl = unlbl_X.shape[0]
-		n_sample = min(batch_size, N_unlbl)
-			
-
-		# # 1. update by D_{Q}
-		new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
-											list(selected_inds_copy), **select_batch_inputs)
-		selected_inds_copy.extend(new_batch)
-		if is_save_query:
-			query2update_DQ = np.array([None] * len(unlbl_index))
-			query2update_DQ[new_batch] = "query2update_DQ"
-			query_data["query2update_DQ"] = query2update_DQ
-			query_data["acq_val"] = acq_val
+	# # 1. update by D_{Q}
+	new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
+										list(selected_inds_copy), **select_batch_inputs)
+	selected_inds_copy.extend(new_batch)
+	if is_save_query:
+		query2update_DQ = np.array([None] * len(unlbl_index))
+		query2update_DQ[new_batch] = "query2update_DQ"
+		query_data["query2update_DQ"] = query2update_DQ
+		query_data["acq_val"] = acq_val
 
 
-		# # 2. select by D_{o/s}
-		argsort_y_pred = np.argsort(unlbl_y_pred)
-		outstand_idx = [k for k in argsort_y_pred if k not in selected_inds_copy]
-		print ("CHECK selected_inds_copy:", len(unlbl_y_pred), len(selected_inds_copy))
-		assert outstand_idx != []
-		outstand_list = outstand_idx[:batch_outstand]
-		lim_outstand_list = max(unlbl_y_pred[outstand_list])
+	# # 2. select by D_{o/s}
+	argsort_y_pred = np.argsort(unlbl_y_pred)
+	outstand_idx = [k for k in argsort_y_pred if k not in selected_inds_copy]
+	print ("CHECK selected_inds_copy:", len(unlbl_y_pred), len(selected_inds_copy))
+	assert outstand_idx != []
+	outstand_list = outstand_idx[:batch_outstand]
+	lim_outstand_list = max(unlbl_y_pred[outstand_list])
 
-		if is_save_query:
-			query_outstanding = np.array([None] * len(unlbl_index))
-			query_outstanding[outstand_list] = "query_outstanding"
-			query_data["query_outstanding"] = query_outstanding
+	if is_save_query:
+		query_outstanding = np.array([None] * len(unlbl_index))
+		query_outstanding[outstand_list] = "query_outstanding"
+		query_data["query_outstanding"] = query_outstanding
 
-		selected_inds_copy.extend(outstand_list)
-		max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
+	selected_inds_copy.extend(outstand_list)
+	max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
-		# # 3. select by D_{rand}
-		the_rest = list(set(range(N_unlbl)) - set(selected_inds_copy))
-		random_list = random.sample(the_rest, batch_rand)
+	# # 3. select by D_{rand}
+	the_rest = list(set(range(N_unlbl)) - set(selected_inds_copy))
+	random_list = random.sample(the_rest, batch_rand)
 
-		if is_save_query:
-			query_random = np.array([None] * len(unlbl_index))
-			query_random[random_list] = "query_random"
-			query_data["query_random"] = query_random
-			print ("query2update_DQ", len(query_data["query2update_DQ"]))
-			print ("acq_val", len(query_data["acq_val"]))
-			print ("query_outstanding", len(query_data["query_outstanding"]))
-			print ("query_random", len(query_data["query_random"]))
+	if is_save_query:
+		query_random = np.array([None] * len(unlbl_index))
+		query_random[random_list] = "query_random"
+		query_data["query_random"] = query_random
+		print ("query2update_DQ", len(query_data["query2update_DQ"]))
+		print ("acq_val", len(query_data["acq_val"]))
+		print ("query_outstanding", len(query_data["query_outstanding"]))
+		print ("query_random", len(query_data["query_random"]))
 
-			query_df = pd.DataFrame().from_dict(query_data)
-			makedirs(csv_saveat)
-			query_df.to_csv(csv_saveat)
-			print("Save query data at:", csv_saveat)	
+		query_df = pd.DataFrame().from_dict(query_data)
+		makedirs(csv_saveat)
+		query_df.to_csv(csv_saveat)
+		print("Save query data at:", csv_saveat)	
 
-		selected_inds_copy.extend(random_list)
+	selected_inds_copy.extend(random_list)
 
-		# # AL points ~ smallest min margin ~ biggest apparent points
+	# # AL points ~ smallest min margin ~ biggest apparent points
+	
+
+	if is_plot:
 		if FLAGS.sampling_method == "margin":
 			acq_val[np.isinf(acq_val)] = np.max(acq_val)
+	
 		scaler = MinMaxScaler()
 		size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
-
 		# # name, color, marker for plot
-		plot_index = np.concatenate((unlbl_index, index_trval_csv), axis=0)
+		plot_index = np.concatenate((unlbl_index, index_trval), axis=0)
 		name = [k.replace(unlbl_file, "") for k in plot_index]
 		family = [get_family(k) for k in plot_index]
 
@@ -229,7 +220,7 @@ def plot_and_query(FLAGS, all_results,
 
 		lim_acq_val = min(acq_val[new_batch])
 
-		z =  np.concatenate((unlbl_y_pred, y_trval_csv)) # unlbl_y_pred, min_margin
+		z =  np.concatenate((unlbl_y_pred, y_trval)) # unlbl_y_pred, min_margin
 		x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
 		y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
 		xi, yi = np.meshgrid(x1,y1)
@@ -252,7 +243,7 @@ def plot_and_query(FLAGS, all_results,
 		marker_array2 = np.array(copy.copy(marker_array))
 		mask = np.full(len(list_cdict2),False,dtype=bool)
 		mask[selected_inds_copy] = True # # for selected ids
-		mask[-len(index_trval_csv):] = True # # for obs dataset
+		mask[-len(index_trval):] = True # # for obs dataset
 		list_cdict2[~mask] = dict({"grey":"full"})
 		marker_array2[~mask] = "o"
 
@@ -264,7 +255,7 @@ def plot_and_query(FLAGS, all_results,
 		
 		# # acp_val map
 		lim_acq_val = min(acq_val[new_batch])
-		z =  np.concatenate((acq_val, [0]*len(y_trval_csv))) # unlbl_y_pred, min_margin
+		z =  np.concatenate((acq_val, [0]*len(y_trval))) # unlbl_y_pred, min_margin
 		x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
 		y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
 		xi, yi = np.meshgrid(x1,y1)
@@ -295,11 +286,10 @@ def plot_and_query(FLAGS, all_results,
 		except Exception as e:
 			pass
 
-		break
 	return _x_train, _y_train, estimator
 
 
-def evaluation_map(FLAGS, all_results, X_train, y_train, index_trval_csv, 
+def evaluation_map(FLAGS, X_train, y_train, index_trval, 
 	all_query, sampler, uniform_sampler, save_at, eval_data_file, estimator):
 	"""
 	# # to create an error map of samples in each query batch
@@ -307,98 +297,77 @@ def evaluation_map(FLAGS, all_results, X_train, y_train, index_trval_csv,
 	DQ, OS, RND = all_query 
 	all_query_name = ["DQ", "OS", "RND"]
 	feedback_val = None
-	for result_key, result_dict in all_results.items():
-		# # "k" of all_results store all setting params 
-		if result_key == "tuple_keys":
-			continue
-		else:
-			result_key_to_text = result_dict
-		exp_params = read_exp_params(result_key)
+	fig = plt.figure(figsize=(10, 8))
+	grid = plt.GridSpec(6, 4, hspace=0.3, wspace=0.3)
+	ax = fig.add_subplot(grid[:3, :], xticklabels=[])
+	y_star_ax = fig.add_subplot(grid[3:5, :], sharex=ax)
+	ninst_ax = fig.add_subplot(grid[-1:, :], sharex=ax)
 
-		m, c = exp_params["m"], exp_params["c"]
-		# csv_saveat = csv_save_dir + "/m{0}_c{1}.csv".format(m, c)
+	flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
+			  linestyle='none', markeredgecolor='k')
+	dx = 0.2
+	ndx = 0
+	plot_data = dict()
+	for dt, dtname in zip(all_query, all_query_name):
+		X_qr, y_qr, idx_qr = dt	
+		if X_qr.shape[0] != 0:
+			print ("X_qr.shpae", X_qr.shape)		
+			estimator.fit(X_train, y_train)
 
-		accuracies = np.array(result_dict["accuracy"])
-		acc_cv_train = np.array(result_dict["cv_train_model"])
+			y_qr_pred = estimator.predict(X_qr)
+			pos_x = 1.0 + ndx*dx
 
-		# models = [k.estimator.get_params() for k in result_dict["save_model"]]
-		# GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
-
-		# estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
-		# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
+			ax, y_star_ax, mean, y_min = show_one_rst(
+				y=y_qr, y_pred=y_qr_pred, ax=ax, y_star_ax=y_star_ax, 
+				ninst_ax=ninst_ax, pos_x=pos_x, color=color_codes[dtname])
+			if dt == "DQ":
+				feedback_val = copy.copy(mean)
+			plot_data[dtname] = dict()
+			plot_data[dtname]["idx_qr"] = idx_qr
+			plot_data[dtname]["y_qr"] = y_qr
+			plot_data[dtname]["y_qr_pred"] = y_qr_pred
 		
-		# fig, ax =plt.subplots(figsize=(8, 8))
-		fig = plt.figure(figsize=(10, 8))
-		grid = plt.GridSpec(6, 4, hspace=0.3, wspace=0.3)
-		ax = fig.add_subplot(grid[:3, :], xticklabels=[])
-		y_star_ax = fig.add_subplot(grid[3:5, :], sharex=ax)
-		ninst_ax = fig.add_subplot(grid[-1:, :], sharex=ax)
+			print ("=============")
+		ndx += 1
+	
+	# # update DQ to f then estimate RND
+	dtname = "DQ_to_RND"
+	X_dq, y_dq, idx_dq = DQ	
+	X_rnd, y_rnd, idx_rnd = RND	
 
-		flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
-				  linestyle='none', markeredgecolor='k')
-		dx = 0.2
-		ndx = 0
-		plot_data = dict()
-		for dt, dtname in zip(all_query, all_query_name):
-			X_qr, y_qr, idx_qr = dt	
-			if X_qr.shape[0] != 0:
-				print ("X_qr.shpae", X_qr.shape)		
-				estimator.fit(X_train, y_train)
+	X_train_udt, y_train_udt = est_alpha_updated(
+		X_train=X_train, y_train=y_train, 
+		X_test=X_dq, y_test=y_dq, selected_inds=range(len(y_dq)))
+	estimator.fit(X_train_udt, y_train_udt)
+	y_rnd_pred = estimator.predict(X_rnd)
+	
+	pos_x = 1.0 + 3*dx
+	ax, y_star_ax, mean, y_min = show_one_rst(
+		y=y_rnd, y_pred=y_rnd_pred, ax=ax, y_star_ax=y_star_ax, 
+		ninst_ax=ninst_ax, pos_x=pos_x, color=color_codes[dtname])
 
-				y_qr_pred = estimator.predict(X_qr)
-				pos_x = 1.0 + ndx*dx
+	plot_data[dtname] = dict()
+	plot_data[dtname]["idx_qr"] = idx_rnd
+	plot_data[dtname]["y_qr"] = y_rnd
+	plot_data[dtname]["y_qr_pred"] = y_rnd_pred
+	makedirs(eval_data_file)
+	pickle.dump(plot_data, gfile.GFile(eval_data_file, 'w'))
+	print ("Save at:", eval_data_file)
 
-				ax, y_star_ax, mean, y_min = show_one_rst(
-					y=y_qr, y_pred=y_qr_pred, ax=ax, y_star_ax=y_star_ax, 
-					ninst_ax=ninst_ax, pos_x=pos_x, color=color_codes[dtname])
-				if dt == "DQ":
-					feedback_val = copy.copy(mean)
-				plot_data[dtname] = dict()
-				plot_data[dtname]["idx_qr"] = idx_qr
-				plot_data[dtname]["y_qr"] = y_qr
-				plot_data[dtname]["y_qr_pred"] = y_qr_pred
-			
-				print ("=============")
-			ndx += 1
-		
-		# # update DQ to f then estimate RND
-		dtname = "DQ_to_RND"
-		X_dq, y_dq, idx_dq = DQ	
-		X_rnd, y_rnd, idx_rnd = RND	
+	ax.set_yscale('log')
+	ax.set_xlabel(r"Query index", **axis_font) 
+	ax.set_ylabel(r"|y_obs - y_pred|", **axis_font)
+	y_star_ax.set_ylabel(r"y_os", **axis_font)
 
-		X_train_udt, y_train_udt = est_alpha_updated(
-			X_train=X_train, y_train=y_train, 
-			X_test=X_dq, y_test=y_dq, selected_inds=range(len(y_dq)))
-		estimator.fit(X_train_udt, y_train_udt)
-		y_rnd_pred = estimator.predict(X_rnd)
-		
-		pos_x = 1.0 + 3*dx
-		ax, y_star_ax, mean, y_min = show_one_rst(
-			y=y_rnd, y_pred=y_rnd_pred, ax=ax, y_star_ax=y_star_ax, 
-			ninst_ax=ninst_ax, pos_x=pos_x, color=color_codes[dtname])
+	ax.tick_params(axis='both', labelsize=12)
+	plt.setp(ax.get_xticklabels(), visible=False)
+	plt.tight_layout(pad=1.1)
 
-		plot_data[dtname] = dict()
-		plot_data[dtname]["idx_qr"] = idx_rnd
-		plot_data[dtname]["y_qr"] = y_rnd
-		plot_data[dtname]["y_qr_pred"] = y_rnd_pred
+	makedirs(save_at)
+	plt.savefig(save_at, transparent=False)
+	print ("Save at: ", save_at)
 
-		ax.set_yscale('log')
-		ax.set_xlabel(r"Query index", **axis_font) 
-		ax.set_ylabel(r"|y_obs - y_pred|", **axis_font)
-		y_star_ax.set_ylabel(r"y_os", **axis_font)
 
-		ax.tick_params(axis='both', labelsize=12)
-		plt.setp(ax.get_xticklabels(), visible=False)
-		plt.tight_layout(pad=1.1)
-
-		makedirs(save_at)
-		plt.savefig(save_at, transparent=False)
-		print ("Save at: ", save_at)
-
-		makedirs(eval_data_file)
-		pickle.dump(plot_data, gfile.GFile(eval_data_file, 'w'))
-		print ("Save at:", eval_data_file)
-		break	
 	return feedback_val
 
 
@@ -413,13 +382,13 @@ def map_unlbl_data(ith_trial):
 	result_dir = get_savedir()
 	filename = get_savefile()
 	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
-	all_results = load_pickle(result_file)
+	# all_results = load_pickle(result_file)
 
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
-	X_trval_csv, y_trval_csv, index_trval_csv, X_test_csv, y_test_csv, test_idx_csv = get_data_from_flags()
-	n_trval = len(X_trval_csv)
+	X_trval, y_trval, index_trval, X_test_csv, y_test_csv, test_idx_csv = get_data_from_flags()
+	n_trval = len(X_trval)
 	
-	# deformations = read_deformation(qr_indexes=index_trval_csv)
+	# deformations = read_deformation(qr_indexes=index_trval)
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job,  result_file=result_file)
 
@@ -446,10 +415,6 @@ def map_unlbl_data(ith_trial):
 		# # read load queried data
 		# # queried_idxes is None mean all we investigate at initial step
 		if next_query_idx != 1:
-		# if True:
-			# qr_dir = csv_save_dir.replace(result_dropbox_dir, __ALdir__+"input/origin_struct/queries/")
-			# # vasp run results
-
 			# queried files
 			queried_files = [unlbl_dir + "/query_{}".format(k) + "/m0.1_c0.1.csv" for k in queried_idxes]
 			# queried_files = [unlbl_dir + "/query_{}".format(next_query_idx) + "/m0.1_c0.1.csv"]
@@ -536,15 +501,18 @@ def map_unlbl_data(ith_trial):
 			"""
 			tsne_file = result_dropbox_dir+"/dim_reduc/"+unlbl_job+".pkl"
 
-			_x_train, _y_train, estimator = plot_and_query(FLAGS=FLAGS, all_results=all_results,
+			# # to force parameter search
+			estimator.estimator = None
+			_x_train, _y_train, estimator = query_and_learn(
+				FLAGS=FLAGS, 
 				selected_inds=selected_inds, 
 				selected_inds_to_estimator=selected_inds_to_estimator,
 				estimator=estimator,
-				X_trval_csv=X_trval_csv, y_trval_csv=y_trval_csv, 
-				index_trval_csv=index_trval_csv,
+				X_trval=X_trval, y_trval=y_trval, index_trval=index_trval,
 				unlbl_file=unlbl_file, unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 				sampler=sampler, uniform_sampler=uniform_sampler, 
-				is_save_query=is_save_query, csv_save_dir=ith_query_storage, tsne_file=tsne_file)
+				is_save_query=is_save_query, csv_save_dir=ith_query_storage, tsne_file=tsne_file,
+				is_plot=False)
 			makedirs(est_file)
 			pickle.dump(estimator, gfile.GFile(est_file, 'w'))
 
@@ -556,9 +524,9 @@ def map_unlbl_data(ith_trial):
 		"""
 		# # 1. update training data by the selected_inds
 
-		print ("X before shape:", X_trval_csv.shape)
+		print ("X before shape:", X_trval.shape)
 		# _x_train, _y_train = est_alpha_updated(
-		# 	X_train=X_trval_csv, y_train=y_trval_csv, 
+		# 	X_train=X_trval, y_train=y_trval, 
 		# 	X_test=unlbl_X, y_test=unlbl_y, 
 		# 	selected_inds=selected_inds)
 
@@ -584,9 +552,9 @@ def map_unlbl_data(ith_trial):
 
 
 		# if this_dq_X.shape[0] != 0 and this_os_X.shape[0] != 0 and this_rnd_X.shape[0] != 0:
-		feedback_val = evaluation_map(FLAGS=FLAGS, all_results=all_results,
+		feedback_val = evaluation_map(FLAGS=FLAGS,
 				X_train=_x_train, y_train=_y_train, 
-				index_trval_csv=index_trval_csv, 
+				index_trval=index_trval, 
 				all_query=this_query, sampler=sampler, 
 				uniform_sampler=uniform_sampler,
 				save_at=save_at, eval_data_file=eval_data_file,

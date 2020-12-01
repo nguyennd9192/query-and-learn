@@ -241,9 +241,9 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
         verbose=False)
     return model
 
-  if method=="mlkr":
+  if "mlkr" in method:
     model = UncertainMetricLearningRegression(random_state=1, 
-        cv=3, n_times=3, search_param=False,
+        cv=10, n_times=3, search_param=False,
         verbose=False)
     return model
 
