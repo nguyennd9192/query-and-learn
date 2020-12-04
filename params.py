@@ -2,14 +2,26 @@
 # # sampling_method: uniform, exploitation, margin, bandit_discrete, simulate_batch_best_sim
 # # simulate_batch_mixture (not work yet), 
 from absl import flags 
+import pandas as pd
+import ntpath, os
+# from utils.general_lib import *
+def get_basename(filename):
+    head, tail = ntpath.split(filename)
+    basename = os.path.splitext(tail)[0]
+    return tail
 
-localdir = "/Volumes/Nguyen_6TB/work/SmFe12_screening"
 ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-database_dir = localdir + "/result/standard"
-coarse_db_dir = localdir + "/result/coarse_relax"
-fine_db_dir = localdir + "/result/fine_relax"
+# ALdir = "/home/nguyen/work/active-learning"
 
+database_dir = ALdir + "/data/standard"
+coarse_db_dir = ALdir + "/data/coarse_relax"
+fine_db_dir = ALdir + "/data/fine_relax"
 
+std_file = database_dir+"/summary.csv"
+coarse_file = coarse_db_dir+"/summary.csv"
+fine_file = fine_db_dir+"/summary.csv"
+
+# # # data base storage
 database_jobs = [
   "mix/query_1.csv",  "mix/supp_2.csv", "mix/supp_3.csv", "mix/supp_4.csv",  
   "mix/supp_5.csv", "mix/supp_6.csv", "mix/supp_7.csv", "mix/supp_8.csv",
@@ -20,6 +32,42 @@ database_results = [database_dir+"/"+k for k in database_jobs]
 fine_db_rst = [fine_db_dir+"/"+k for k in database_jobs]
 coarse_db_rst = [coarse_db_dir+"/"+k for k in database_jobs]
 
+if os.path.isfile(std_file) and os.path.isfile(coarse_file) and os.path.isfile(fine_file):
+  db_results = pd.read_csv(std_file, index_col="index_reduce")
+  crs_db_results = pd.read_csv(coarse_file, index_col="index_reduce")
+  fine_db_results = pd.read_csv(fine_file, index_col="index_reduce")
+  print ("Done reading database.")
+else:
+  # # standard result
+  frames = [pd.read_csv(k, index_col=0) for k in database_results]
+  db_results = pd.concat(frames)
+  index_reduce = [get_basename(k) for k in db_results.index]
+  db_results["index_reduce"] = index_reduce
+  db_results.set_index('index_reduce', inplace=True)
+
+  # # coarse, fine db
+  crs_frames = [pd.read_csv(k, index_col=0) for k in coarse_db_rst]
+  crs_db_results = pd.concat(crs_frames)
+  crs_db_results = crs_db_results.dropna()
+  index_reduce = [get_basename(k) for k in crs_db_results.index]
+  crs_db_results["index_reduce"] = index_reduce
+  crs_db_results.set_index('index_reduce', inplace=True)
+
+
+  fine_frames = [pd.read_csv(k, index_col=0) for k in fine_db_rst]
+  fine_db_results = pd.concat(fine_frames)
+  fine_db_results = fine_db_results.dropna()
+  index_reduce = [get_basename(k) for k in fine_db_results.index]
+  fine_db_results["index_reduce"] = index_reduce
+  fine_db_results.set_index('index_reduce', inplace=True)
+
+  db_results.to_csv(std_file)
+  crs_db_results.to_csv(coarse_file)
+  fine_db_results.to_csv(fine_file)
+
+print (len(crs_db_results))
+print (len(fine_db_results))
+print (len(db_results))
 
 
 
@@ -36,6 +84,14 @@ flags.DEFINE_string("sampling_method", "margin",
                   # uniform, exploitation, margin, expected_improvement
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
+
+flags.DEFINE_string(
+    "score_method", "u_gp", # # u_gp, u_knn, e_krr
+    "Method to use to calculate accuracy.")  
+flags.DEFINE_string(
+    "embedding_space", "mlkr", # # e_krr, u_gp, u_gp_mt, mlkr, fully_connected, moe, LeNet
+    "Method to use to calculate accuracy.") 
+
 flags.DEFINE_boolean(
     "is_test_separate", False, # # True, False
     ("Whether or not the test file was prepared separately.")
@@ -70,9 +126,8 @@ flags.DEFINE_string("confusions", "0.1",
   "Percentage of labels to randomize") 
 flags.DEFINE_string("active_sampling_percentage", "0.1 0.3 0.5 0.7 0.9",
                     "Mixture weights on active sampling.")
-flags.DEFINE_string(
-    "score_method", "mlkr-MLKR", # # e_krr, u_gp, u_gp_mt, mlkr, fully_connected, moe, LeNet
-    "Method to use to calculate accuracy.")  
+
+
 flags.DEFINE_string(
     "select_method", "None",
     "Method to use for selecting points.")

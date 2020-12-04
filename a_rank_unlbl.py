@@ -83,9 +83,9 @@ def query_and_learn(FLAGS,
 		unlbl_file, unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
 		is_save_query, csv_save_dir, tsne_file, is_plot):
 	active_p = 1.0
-	batch_size = 10
-	batch_outstand = 10
-	batch_rand = 10
+	batch_size = 50
+	batch_outstand = 50
+	batch_rand = 50
 	plt_mode = "2D" # 3D, 2D, 3D_patch
 	# is_load_pre_trained = False
 
@@ -372,7 +372,7 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 
 
 
-def map_unlbl_data(ith_trial):
+def map_unlbl_data(ith_trial, FLAGS):
 	current_tsne_map = True
 	is_save_query = True
 	is_load_estimator = False
@@ -399,7 +399,7 @@ def map_unlbl_data(ith_trial):
 
 	# # to mark whether update estimator by DQ only or DQ vs RND
 	# # "" is update all
-	estimator_update_by = ["DQ", "RND", "OS"]
+	estimator_update_by = ["DQ"] # , "RND", "OS"
 	if len(estimator_update_by) < 3:
 		for k in estimator_update_by:
 			unlbl_dir += k
@@ -574,7 +574,14 @@ def map_unlbl_data(ith_trial):
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 
+	pr_file = sys.argv[-1]
+	kwargs = load_pickle(filename=pr_file)
+	FLAGS.score_method = kwargs["score_method"]
+	FLAGS.sampling_method =	kwargs["sampling_method"]
+
+	print ("FLAGS", FLAGS.score_method)
+
 	# rank_unlbl_data(ith_trial="000") # 014 for u_gp
 
-	map_unlbl_data()
+	map_unlbl_data(ith_trial="000", FLAGS=importFLAGS)
 

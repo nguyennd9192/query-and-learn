@@ -48,6 +48,22 @@ def load_pickle(filename):
 	data = pickle.load(gfile.GFile(filename, "rb"))
 	return data
 
+def load_flags(filename):
+	import argparse
+	parser = argparse.ArgumentParser()
+	parser.add_argument(filename, type=argparse.FileType('r'))
+	args = parser.parse_args()
+
+	return args
+
+
+def dump_pickle(data, filename):
+	pickle.dump(data, gfile.GFile(filename, 'wb'))
+
+def dump_flags(data, filename):
+	FLAGS.append_flags_into_file(filename)
+
+
 def get_qrindex(df):
 	update_DQ_str = df.loc[df["query2update_DQ"]=="query2update_DQ", "unlbl_index"].to_list()
 	outstand_str = df.loc[df["query_outstanding"]=="query_outstanding", "unlbl_index"].to_list()
@@ -119,26 +135,7 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
 	oss = []
 	rnds = []
 
-	frames = [pd.read_csv(k, index_col=0) for k in database_results]
-	db_results = pd.concat(frames)
-	index_reduce = [get_basename(k) for k in db_results.index]
-	db_results["index_reduce"] = index_reduce
-	db_results.set_index('index_reduce', inplace=True)
 
-	# # coarse, fine db
-	crs_frames = [pd.read_csv(k, index_col=0) for k in coarse_db_rst]
-	crs_db_results = pd.concat(crs_frames)
-	crs_db_results = crs_db_results.dropna()
-	index_reduce = [get_basename(k) for k in crs_db_results.index]
-	crs_db_results["index_reduce"] = index_reduce
-	crs_db_results.set_index('index_reduce', inplace=True)
-
-	fine_frames = [pd.read_csv(k, index_col=0) for k in fine_db_rst]
-	fine_db_results = pd.concat(fine_frames)
-	fine_db_results = fine_db_results.dropna()
-	index_reduce = [get_basename(k) for k in fine_db_results.index]
-	fine_db_results["index_reduce"] = index_reduce
-	fine_db_results.set_index('index_reduce', inplace=True)
 
 	for qf in queried_files:
 		this_df = pd.read_csv(qf, index_col=0)

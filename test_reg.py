@@ -12,6 +12,7 @@ from sklearn.metrics import r2_score, mean_absolute_error
 import matplotlib.pyplot as plt
 
 
+import time
 def get_train_test(X, y):
 	n_train = int(len(y) * 0.5)
 	X_train = X[:n_train, :]
@@ -86,6 +87,9 @@ def test_MoE(X, y):
 
 
 def test_mlkr(X, y):
+
+	t1 = time.time()
+
 	X_train, y_train, X_test, y_test = get_train_test(X, y)
 	model = UncertainMetricLearningRegression(
 		random_state=1, cv=10, n_times=10,
@@ -139,6 +143,9 @@ def test_mlkr(X, y):
 
 	print("score on test: ", r2)
 	print("mae on test: ", mae)
+	t2 = time.time()
+	print ("Duration:", t2 - t1)
+
 
 if __name__ == "__main__":
 	data_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data"

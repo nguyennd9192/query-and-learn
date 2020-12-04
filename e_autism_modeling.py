@@ -192,7 +192,7 @@ def show_trace(ith_trial):
 			for k in estimator_update_by:
 				unlbl_dir += k
 
-	qids = range(1, 17)
+	qids = range(1, 78)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	est_files = [unlbl_dir+"/query_{0}/pre_trained_est.pkl".format(qid) for qid in qids]
@@ -394,19 +394,29 @@ def error_dist(ith_trial):
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
-	is_label_mix = False
-	for sm in ["margin"]: # "uniform",  "exploitation", "expected_improvement", "margin"
-		FLAGS.sampling_method = sm
-		show_trace(ith_trial="000")
-		error_dist(ith_trial="000")
+	
+	# pr_file = sys.argv[-1]
+	# kwargs = load_pickle(filename=pr_file)
+	# FLAGS.score_method = kwargs["score_method"]
+	# FLAGS.sampling_method =	kwargs["sampling_method"]
 
-	# # to label the "mix" job
-	if is_label_mix:
-		unlbl_csv = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/unlabeled_data/mix.csv"
-		vasp_lbl2mix(unlbl_file=unlbl_csv, 
-			database_results=database_results, 
-			coarse_db_rst=coarse_db_rst, 
-			fine_db_rst=fine_db_rst)
+	print ("FLAGS", FLAGS)
+	show_trace(ith_trial="000")
+	error_dist(ith_trial="000")
+
+	# is_label_mix = False
+	# for sm in ["margin"]: # "uniform",  "exploitation", "expected_improvement", "margin"
+	# 	FLAGS.sampling_method = sm
+	# 	show_trace(ith_trial="000")
+	# 	error_dist(ith_trial="000")
+
+	# # # to label the "mix" job
+	# if is_label_mix:
+	# 	unlbl_csv = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/unlabeled_data/mix.csv"
+	# 	vasp_lbl2mix(unlbl_file=unlbl_csv, 
+	# 		database_results=database_results, 
+	# 		coarse_db_rst=coarse_db_rst, 
+	# 		fine_db_rst=fine_db_rst)
 
 
 

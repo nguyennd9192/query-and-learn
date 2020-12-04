@@ -12,6 +12,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 
+from sklearn.externals.joblib import parallel_backend
 
 class RegressionFactory(object): 
     
@@ -219,7 +220,11 @@ class RegressionFactory(object):
     #   cv = 20 # # len(y_obs) - 5
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
                 cv=cv,n_jobs=1) # # scoring
-    GridSearch.fit(X, y_obs)
+
+    with parallel_backend('threading'):
+      GridSearch.fit(X, y_obs)
+
+      
     best_gpr = GridSearch.best_estimator_
     print("best_gpr params:", best_gpr.get_params())
     print("cv_results_:", GridSearch.cv_results_)
@@ -241,7 +246,12 @@ class RegressionFactory(object):
     model = mkl.MLKR()
     GridSearch = GridSearchCV(model,param_grid=param_grid,
                 cv=cv,n_jobs=1, scoring="neg_mean_absolute_error")
-    GridSearch.fit(X, y_obs)
+
+
+    with parallel_backend('threading'):
+      GridSearch.fit(X, y_obs)
+
+
     best_model = GridSearch.best_estimator_
     print("best_gpr params:", best_gpr.get_params())
     print("cv_results_:", GridSearch.cv_results_)
