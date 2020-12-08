@@ -83,9 +83,9 @@ def query_and_learn(FLAGS,
 		unlbl_file, unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
 		is_save_query, csv_save_dir, tsne_file, is_plot):
 	active_p = 1.0
-	batch_size = 50
-	batch_outstand = 50
-	batch_rand = 50
+	batch_size = 10
+	batch_outstand = 10
+	batch_rand = 10
 	plt_mode = "2D" # 3D, 2D, 3D_patch
 	# is_load_pre_trained = False
 
@@ -121,38 +121,32 @@ def query_and_learn(FLAGS,
 	m, c = 0.1, 0.1
 	csv_saveat = csv_save_dir + "/m{0}_c{1}.csv".format(m, c)
 
-	# accuracies = np.array(result_dict["accuracy"])
-	# acc_cv_train = np.array(result_dict["cv_train_model"])
-
-	# models = [k.estimator.get_params() for k in result_dict["save_model"]]
-	# GSCVs = [k.GridSearchCV.best_score_ for k in result_dict["save_model"]]
-
-	# shfl_indices, X_train, y_train, X_val, y_val, X_test, y_test, y_noise, idx_train, idx_val, idx_test = result_dict["all_X"]
-
-	# estimator = result_dict["save_model"][-1] # # ".estimator" return GaussianRegressor, otherwise return estimator used in sampler
-	# estimator = utils.get_model(FLAGS.score_method, FLAGS.seed, False) # FLAGS.is_search_params
-	# estimator.fit(X_trval, y_trval)
-
-	_x_train, _y_train = est_alpha_updated(
+	# # update train, test by selected inds
+	_x_train, _y_train, _unlbl_X, embedding_model = est_alpha_updated(
 		X_train=X_trval, y_train=y_trval, 
 		X_test=unlbl_X, y_test=unlbl_y, 
-		selected_inds=selected_inds_to_estimator) # # in the past: selected_inds (update by all database)
-	
+		selected_inds=selected_inds_to_estimator,
+		embedding_method=FLAGS.embedding_method,
+		mae_update_threshold=FLAGS.mae_update_threshold,
+		estimator=estimator) # # in the past: selected_inds (update by all database)
+
+	# # fit with whole
 	estimator.fit(_x_train, _y_train)
 
-	unlbl_y_pred = estimator.predict(unlbl_X)
+	unlbl_y_pred = estimator.predict(_unlbl_X)
 	query_data["unlbl_y_pred"] = unlbl_y_pred
 
 	select_batch_inputs = {"model": estimator, "labeled": None, 
-			"eval_acc": None, "X_test": None,	"y_test": None, "y": None, "verbose": True,
+			"eval_acc": None, "X_test": None, 
+			"y_test": None, "y": None, "verbose": True,
 			"y_star": min(_y_train)}
-	N_unlbl = unlbl_X.shape[0]
+	N_unlbl = _unlbl_X.shape[0]
 	n_sample = min(batch_size, N_unlbl)
 		
 
 	# # 1. update by D_{Q}
 	new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
-										list(selected_inds_copy), **select_batch_inputs)
+						list(selected_inds_copy), **select_batch_inputs)
 	selected_inds_copy.extend(new_batch)
 	if is_save_query:
 		query2update_DQ = np.array([None] * len(unlbl_index))
@@ -164,7 +158,6 @@ def query_and_learn(FLAGS,
 	# # 2. select by D_{o/s}
 	argsort_y_pred = np.argsort(unlbl_y_pred)
 	outstand_idx = [k for k in argsort_y_pred if k not in selected_inds_copy]
-	print ("CHECK selected_inds_copy:", len(unlbl_y_pred), len(selected_inds_copy))
 	assert outstand_idx != []
 	outstand_list = outstand_idx[:batch_outstand]
 	lim_outstand_list = max(unlbl_y_pred[outstand_list])
@@ -185,15 +178,10 @@ def query_and_learn(FLAGS,
 		query_random = np.array([None] * len(unlbl_index))
 		query_random[random_list] = "query_random"
 		query_data["query_random"] = query_random
-		print ("query2update_DQ", len(query_data["query2update_DQ"]))
-		print ("acq_val", len(query_data["acq_val"]))
-		print ("query_outstanding", len(query_data["query_outstanding"]))
-		print ("query_random", len(query_data["query_random"]))
 
 		query_df = pd.DataFrame().from_dict(query_data)
 		makedirs(csv_saveat)
 		query_df.to_csv(csv_saveat)
-		print("Save query data at:", csv_saveat)	
 
 	selected_inds_copy.extend(random_list)
 
@@ -286,11 +274,12 @@ def query_and_learn(FLAGS,
 		except Exception as e:
 			pass
 
-	return _x_train, _y_train, estimator
+	return _x_train, _y_train, estimator, embedding_model
 
 
 def evaluation_map(FLAGS, X_train, y_train, index_trval, 
-	all_query, sampler, uniform_sampler, save_at, eval_data_file, estimator):
+	all_query, sampler, uniform_sampler, 
+	save_at, eval_data_file, estimator):
 	"""
 	# # to create an error map of samples in each query batch
 	"""
@@ -311,7 +300,6 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 	for dt, dtname in zip(all_query, all_query_name):
 		X_qr, y_qr, idx_qr = dt	
 		if X_qr.shape[0] != 0:
-			print ("X_qr.shpae", X_qr.shape)		
 			estimator.fit(X_train, y_train)
 
 			y_qr_pred = estimator.predict(X_qr)
@@ -326,8 +314,6 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 			plot_data[dtname]["idx_qr"] = idx_qr
 			plot_data[dtname]["y_qr"] = y_qr
 			plot_data[dtname]["y_qr_pred"] = y_qr_pred
-		
-			print ("=============")
 		ndx += 1
 	
 	# # update DQ to f then estimate RND
@@ -335,9 +321,16 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 	X_dq, y_dq, idx_dq = DQ	
 	X_rnd, y_rnd, idx_rnd = RND	
 
-	X_train_udt, y_train_udt = est_alpha_updated(
+	X_train_udt, y_train_udt, _, embedding_model = est_alpha_updated(
 		X_train=X_train, y_train=y_train, 
-		X_test=X_dq, y_test=y_dq, selected_inds=range(len(y_dq)))
+		X_test=X_dq, y_test=y_dq, selected_inds=range(len(y_dq)),
+		embedding_method=FLAGS.embedding_method,
+		mae_update_threshold=FLAGS.mae_update_threshold,
+		estimator=estimator
+		)
+
+	if embedding_model != "empty":
+		X_rnd = embedding_model.transform(X_val=X_rnd, get_min_dist=False)
 	estimator.fit(X_train_udt, y_train_udt)
 	y_rnd_pred = estimator.predict(X_rnd)
 	
@@ -373,7 +366,6 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 
 
 def map_unlbl_data(ith_trial, FLAGS):
-	current_tsne_map = True
 	is_save_query = True
 	is_load_estimator = False
 
@@ -424,7 +416,8 @@ def map_unlbl_data(ith_trial, FLAGS):
 			# print ("queried_files", queried_files)
 			valid_Xyid = get_queried_data(queried_files=queried_files, database_results=database_results, 
 				unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-				coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst)
+				coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
+				embedding_model=embedding_model)
 			# # alocate representation, label and id of labeled data
 			dq_X, dq_y, dq_idx = valid_Xyid[0]
 			os_X, os_y, os_idx = valid_Xyid[1]
@@ -467,15 +460,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 			# print ("unlbl_X shape in: ", next_query_idx, "queried: ", unlbl_X.shape)
 			# print ("selected_inds: ", next_query_idx, "queried: ", len(selected_inds))
 
-		# # prepare sampler
-		uniform_sampler = AL_MAPPING["uniform"](unlbl_X, unlbl_y, FLAGS.seed)
-		sampler = get_AL_sampler(FLAGS.sampling_method)
-		sampler = sampler(unlbl_X, unlbl_y, FLAGS.seed)
-		
-		ith_query_storage = unlbl_dir+"/query_{}".format(next_query_idx)
-		est_file = ith_query_storage + "/pre_trained_est.pkl"
-		
-		# # load previous update info of mt_kernel
+		# # 1. load previous update info of mt_kernel
 		if is_load_estimator:
 			estimator = load_pickle(est_file)
 		elif FLAGS.score_method == "u_gp_mt":	
@@ -493,45 +478,55 @@ def map_unlbl_data(ith_trial, FLAGS):
 				FLAGS.score_method, FLAGS.seed, 
 				FLAGS.is_search_params, n_shuffle=10000,
 				mt_kernel=None)
-			
+
+
+		# # 2. prepare embedding space 
+		# # if FLAGS.embedding_method as "org",
+		# # unlbl_X_sampler is exactly same as unlbl_X
+		_, _, unlbl_X_sampler, _ = est_alpha_updated(
+			X_train=X_trval, y_train=y_trval, 
+			X_test=unlbl_X, y_test=unlbl_y, 
+			selected_inds=selected_inds,
+			embedding_method=FLAGS.embedding_method,
+			mae_update_threshold=FLAGS.mae_update_threshold,
+			estimator=estimator)
+
+
+		# # 3. prepare sampler
+		uniform_sampler = AL_MAPPING["uniform"](unlbl_X_sampler, unlbl_y, FLAGS.seed)
+		sampler = get_AL_sampler(FLAGS.sampling_method)
+		sampler = sampler(unlbl_X_sampler, unlbl_y, FLAGS.seed)
+		
+		ith_query_storage = unlbl_dir+"/query_{}".format(next_query_idx)
+		est_file = ith_query_storage + "/pre_trained_est.pkl"
+		
 		# # tsne
-		if current_tsne_map:
-			"""
-			plot current state of hypothetical structures + querying 
-			"""
-			tsne_file = result_dropbox_dir+"/dim_reduc/"+unlbl_job+".pkl"
+		"""
+		plot current state of hypothetical structures + querying 
+		"""
+		tsne_file = result_dropbox_dir+"/dim_reduc/"+unlbl_job+".pkl"
 
-			# # to force parameter search
-			estimator.estimator = None
-			_x_train, _y_train, estimator = query_and_learn(
-				FLAGS=FLAGS, 
-				selected_inds=selected_inds, 
-				selected_inds_to_estimator=selected_inds_to_estimator,
-				estimator=estimator,
-				X_trval=X_trval, y_trval=y_trval, index_trval=index_trval,
-				unlbl_file=unlbl_file, unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
-				sampler=sampler, uniform_sampler=uniform_sampler, 
-				is_save_query=is_save_query, csv_save_dir=ith_query_storage, tsne_file=tsne_file,
-				is_plot=False)
-			makedirs(est_file)
-			pickle.dump(estimator, gfile.GFile(est_file, 'w'))
+		# # to force parameter search
+		# estimator.estimator = None
+		_x_train, _y_train, estimator, embedding_model = query_and_learn(
+			FLAGS=FLAGS, 
+			selected_inds=selected_inds, 
+			selected_inds_to_estimator=selected_inds_to_estimator,
+			estimator=estimator,
+			X_trval=X_trval, y_trval=y_trval, index_trval=index_trval,
+			unlbl_file=unlbl_file, unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+			sampler=sampler, uniform_sampler=uniform_sampler, 
+			is_save_query=is_save_query, csv_save_dir=ith_query_storage, tsne_file=tsne_file,
+			is_plot=False)
+		makedirs(est_file)
+		pickle.dump(estimator, gfile.GFile(est_file, 'w'))
 
-			save_at = unlbl_dir+"/query_{}".format(next_query_idx)+"/query_performance.pdf"
-			eval_data_file = ith_query_storage+"/eval_query_{}.pkl".format(next_query_idx) 
+		save_at = unlbl_dir+"/query_{}".format(next_query_idx)+"/query_performance.pdf"
+		eval_data_file = ith_query_storage+"/eval_query_{}.pkl".format(next_query_idx) 
 		
 		"""
 		# # It's time to create an error map of samples in each query batch
 		"""
-		# # 1. update training data by the selected_inds
-
-		print ("X before shape:", X_trval.shape)
-		# _x_train, _y_train = est_alpha_updated(
-		# 	X_train=X_trval, y_train=y_trval, 
-		# 	X_test=unlbl_X, y_test=unlbl_y, 
-		# 	selected_inds=selected_inds)
-
-		# print ("X update shape:", _x_train.shape)
-		# print ("Total selected_inds:", len(selected_inds))
 
 		# # 2. put this_queried_files to database for querying results
 		this_queried_files = [unlbl_dir+"/query_{}".format(next_query_idx)+"/m0.1_c0.1.csv"]
@@ -540,7 +535,8 @@ def map_unlbl_data(ith_trial, FLAGS):
 		valid_Xyid = get_queried_data(queried_files=this_queried_files, 
 			database_results=database_results, 
 			unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-			coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst)
+			coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
+			embedding_model=embedding_model)
 		# # alocate representation, label and id of labeled data
 
 		this_dq_X, this_dq_y, this_dq_idx = valid_Xyid[0]
@@ -574,14 +570,16 @@ def map_unlbl_data(ith_trial, FLAGS):
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 
-	pr_file = sys.argv[-1]
-	kwargs = load_pickle(filename=pr_file)
-	FLAGS.score_method = kwargs["score_method"]
-	FLAGS.sampling_method =	kwargs["sampling_method"]
+	# pr_file = sys.argv[-1]
+	# kwargs = load_pickle(filename=pr_file)
+	# FLAGS.score_method = kwargs["score_method"]
+	# FLAGS.sampling_method =	kwargs["sampling_method"]
+	# FLAGS.embedding_method = kwargs["embedding_method"]
+
 
 	print ("FLAGS", FLAGS.score_method)
 
 	# rank_unlbl_data(ith_trial="000") # 014 for u_gp
 
-	map_unlbl_data(ith_trial="000", FLAGS=importFLAGS)
+	map_unlbl_data(ith_trial="000", FLAGS=FLAGS)
 

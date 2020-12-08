@@ -37,7 +37,7 @@ from utils.general_lib import load_pickle
 from utils.kernel_block_solver import BlockKernelSolver
 from utils.small_cnn import SmallCNN
 from utils.allconv import AllConv
-from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression, UncertainMetricLearningRegression
+from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression
 from utils.mixture_of_experts import NN_estimator
 
 class Logger(object):
@@ -238,12 +238,6 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
     model = UncertainEnsembleRegression(random_state=1, 
         n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
         cv=5, n_times=3, score_method="kr", search_param=is_search_params, # # GaussianProcess
-        verbose=False)
-    return model
-
-  if "mlkr" in method:
-    model = UncertainMetricLearningRegression(random_state=1, 
-        cv=10, n_times=3, search_param=False,
         verbose=False)
     return model
 

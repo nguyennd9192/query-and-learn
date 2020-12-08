@@ -2,7 +2,8 @@
 
 
 from utils import utils
-from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression, UncertainMetricLearningRegression
+from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression
+from utils.embedding_space import EmbeddingSpace
 from utils.mixture_of_experts import *
 from sklearn.metrics import r2_score
 from torch.utils.data import DataLoader
@@ -91,18 +92,19 @@ def test_mlkr(X, y):
 	t1 = time.time()
 
 	X_train, y_train, X_test, y_test = get_train_test(X, y)
-	model = UncertainMetricLearningRegression(
-		random_state=1, cv=10, n_times=10,
-		search_param=False, verbose=False)
+	# y_train_lbl = y_train
+
+	y_train_lbl = np.round(y_train, 1)
+
+	# print (y_train_lbl)
+	embedding_method = "LMNN" # [None, "MLKR", "LFDA", "LMNN"]
+	model = EmbeddingSpace(embedding_method=embedding_method)
+	model.fit(X_train=X_train, y_train=y_train_lbl)
+	X_train_embedded = model.transform(X_val=X_train, get_min_dist=False)
+	X_test_embedded = model.transform(X_val=X_test, get_min_dist=False)
 
 	# y_train_lbl = np.array(list(map(str, np.around(y_train,1))))
 
-	y_train_lbl = y_train
-	# print (y_train_lbl)
-	model.fit(X_train, y_train_lbl )
-	
-	X_train_embedded = model.transform(X_train)
-	X_test_embedded = model.transform(X_test)
 
 	xtrain_embedded, ytrain_embedded = X_train_embedded[:, 0], X_train_embedded[:, 1]
 	xtest_embedded, ytest_embedded = X_test_embedded[:, 0], X_test_embedded[:, 1]
@@ -127,22 +129,15 @@ def test_mlkr(X, y):
 	for a, b, c in zip(xtest_embedded, ytest_embedded, y_test):
 		plt.text(a, b, round(c,2))
 	plt.legend()
-	plt.savefig("test_lfda.pdf", transparent=False)
+	plt.savefig("test.pdf", transparent=False)
 
-	y_pred, _ = model.predict(X_test, get_variance=True)
-	y_prob = model.predict_proba(X_test)
+	# y_pred, _ = model.predict(X_test, get_variance=True)
+	# y_prob = model.predict_proba(X_test)
 
-	r2 = r2_score(y_pred, y_test)
-	mae = mean_absolute_error(y_pred, y_test)
+	# r2 = r2_score(y_pred, y_test)
+	# mae = mean_absolute_error(y_pred, y_test)
 
-	print("model best params: ", model.estimator.get_params())
-	print("score on train: ", model.score(X, y))
 
-	# print("y_prob: ", y_prob)
-	print("y_prob: ", len(y_prob))
-
-	print("score on test: ", r2)
-	print("mae on test: ", mae)
 	t2 = time.time()
 	print ("Duration:", t2 - t1)
 

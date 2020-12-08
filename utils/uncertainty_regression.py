@@ -152,17 +152,11 @@ class UncertainEnsembleRegression(object):
     else:
       return var
 
-  def best_score_(self):
-    # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
-    # # GridSearchCV.best_score_ returns cv score of best parameter
-    # # this UncertainGaussianProcess.best_score_returns cv score of given params
-    if self.GridSearchCV is None:
-      r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, self.X_train, self.y_train, 
+  def best_score_(self, X=None, y=None):
+    if self.GridSearchCV is None and y is not None:
+      r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, X, y, 
                 n_folds=3, n_times=3, score_type='r2')
-      result = r2
-    else:
-      result = self.GridSearchCV.best_score_
-    return result
+    return mae
 
 
 class UncertainGaussianProcess(object):
@@ -229,17 +223,10 @@ class UncertainGaussianProcess(object):
       return y_val_pred_std.reshape(-1, 1)
 
 
-  def best_score_(self):
-    # # some conflict meaning between best_score_ for GridSearchCV object and this attribute:
-    # # GridSearchCV.best_score_ returns cv score of best parameter
-    # # this UncertainGaussianProcess.best_score_returns cv score of given params
-    if self.GridSearchCV is None:
-      r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, self.X_train, self.y_train, 
-                n_folds=3, n_times=3, score_type='r2')
-      result = r2
-    else:
-      result = self.GridSearchCV.best_score_
-    return result
+  def best_score_(self, X=None, y=None):
+    r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, X, y, 
+              n_folds=3, n_times=3, score_type='r2')
+    return mae
 
 
 

@@ -76,10 +76,8 @@ color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue", "DQ_
 pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
 
-
-
 # python rank_unlbl.py§
-flags.DEFINE_string("dataset", "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d", "Dataset name") 
+flags.DEFINE_string("dataset", "SmFe12_init", "Dataset name")  # 11*10*23-21_CuAlZnTiMoGa___ofm1_no_d
 flags.DEFINE_string("sampling_method", "margin", 
                   # uniform, exploitation, margin, expected_improvement
                     ("Name of sampling method to use, can be any defined in "
@@ -89,8 +87,13 @@ flags.DEFINE_string(
     "score_method", "u_gp", # # u_gp, u_knn, e_krr
     "Method to use to calculate accuracy.")  
 flags.DEFINE_string(
-    "embedding_space", "mlkr", # # e_krr, u_gp, u_gp_mt, mlkr, fully_connected, moe, LeNet
-    "Method to use to calculate accuracy.") 
+    "embedding_method", "MLKR", # # org_space, MLKR, LFDA, LMNN
+    "Method to transform space.") 
+
+flags.DEFINE_string(
+    "mae_update_threshold", "0.3", # # 0.3, 1.0, update_all
+    "mean absolute error to update dq to estimator") 
+
 
 flags.DEFINE_boolean(
     "is_test_separate", False, # # True, False
@@ -134,9 +137,9 @@ flags.DEFINE_string(
 flags.DEFINE_string("normalize_data", "True", "Whether to normalize the data.")
 flags.DEFINE_string("standardize_data", "False",
                     "Whether to standardize the data.")
-flags.DEFINE_string("save_dir", "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/results",
+flags.DEFINE_string("save_dir", ALdir+"/results",
                     "Where to save outputs")
-flags.DEFINE_string("data_dir", "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data",
+flags.DEFINE_string("data_dir", ALdir+"/data",
                     "Directory with predownloaded and saved datasets.")
 flags.DEFINE_string("max_dataset_size", "15000",
                     ("maximum number of datapoints to include in data "

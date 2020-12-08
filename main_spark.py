@@ -22,45 +22,62 @@ def create_params_grid():
 
 	sampling_methods = [
 		"uniform", "exploitation", "margin", "expected_improvement"]
-	score_methods = ["e_krr", "u_gp", "u_gp_mt",  
-		"fully_connected",	"ml-gp", "ml-knn"]
+	score_methods = ["u_gp_mt", "u_gp", #  "e_krr",
+		# "fully_connected",	"ml-gp", "ml-knn"
+		]
 
-	all_kwargs = list(product(sampling_methods, score_methods))
+	embedding_methods = ["org_space", "MLKR", "LFDA", "LMNN"]
+
+	all_kwargs = list(product(sampling_methods, score_methods, embedding_methods))
 	n_tasks = len(all_kwargs)
 	MainDir = copy.copy(ALdir)
 
-	shrun_file = open(MainDir+"/code/batch_run.sh","w") 
-	shrun_file.write("#!/bin/bash \n")
-	shrun_file.write("#SBATCH --ntasks={0}\n".format(n_tasks))
-	shrun_file.write("#SBATCH --output=./output.txt\n")
-	
-	shrun_file.write("#SBATCH --cpus-per-task=8\n")
-	shrun_file.write("#SBATCH --mem-per-cpu=8000\n")
+	ncpus_reserve = 1
+	ncores_per_cpu = 32
+	cpus_per_task = 16
+	max_cpus = ncpus_reserve*ncores_per_cpu # # ncpus take * ncores per cpu
+	ntask_per_batch = int(max_cpus / cpus_per_task)
 
+	nbatch = int(n_tasks/ntask_per_batch)
+	makedirs(MainDir+"/code/batch_list/tmps.txt")
 
-	for ith, kw in enumerate(all_kwargs):
-		sampling_method, score_method = kw[0], kw[1]
-		kwargs = dict({})
+	for batch_ith in range(nbatch):
 
-		# # update kwargs
-		kwargs["score_method"] = score_method
-		kwargs["sampling_method"] = sampling_method
+		shrun_file = open(MainDir+"/code/batch_list/batch_run_{0}.sh".format(batch_ith),"w") 
+		shrun_file.write("#!/bin/bash \n")
+		shrun_file.write("#SBATCH --ntasks={0}\n".format(ntask_per_batch))
+		shrun_file.write("#SBATCH --output=./output_{0}.txt\n".format(batch_ith))
+		
+		shrun_file.write("#SBATCH --cpus-per-task={}\n".format(cpus_per_task))
+		# shrun_file.write("#SBATCH --mem-per-cpu=8000\n")
 
-		print ("==========================")
+		init_kw = batch_ith*ntask_per_batch
+		last_kw = (batch_ith+1)*ntask_per_batch
 
-		param_file = MainDir +"/data/params_grid/{0}_{1}.pkl".format(sampling_method, score_method)
-		makedirs(param_file)
-		dump_pickle(data=kwargs, filename=param_file)
+		for kw in all_kwargs[init_kw:last_kw]:
+			sampling_method, score_method, embedding_method = kw[0], kw[1], kw[2]
+			kwargs = dict({})
 
-		sh_file = MainDir+"/code/sh/{0}{1}.sh".format(sampling_method, score_method)
-		makedirs(sh_file)
+			# # update kwargs
+			kwargs["sampling_method"] = sampling_method
+			kwargs["score_method"] = score_method
+			kwargs["embedding_method"] = embedding_method
 
-		with open(sh_file, "w") as f:
-			f.write("cd {0}\n".format(MainDir+"/code"))
-			f.write("python a_rank_unlbl.py {0}\n".format(param_file))
-			f.write("python e_autism_modeling.py {0}\n".format(param_file))
+			print ("==========================")
 
-		shrun_file.write("srun --ntasks=1 --nodes=1 sh {0}\n".format(sh_file))
+			param_file = MainDir +"/data/params_grid/{0}_{1}_{2}.pkl".format(sampling_method, score_method, embedding_method)
+			makedirs(param_file)
+			dump_pickle(data=kwargs, filename=param_file)
+
+			sh_file = MainDir+"/code/sh/{0}_{1}_{2}.sh".format(sampling_method, score_method, embedding_method)
+			makedirs(sh_file)
+
+			with open(sh_file, "w") as f:
+				f.write("cd {0}\n".format(MainDir+"/code"))
+				f.write("python a_rank_unlbl.py {0}\n".format(param_file))
+				f.write("python e_autism_modeling.py {0}\n".format(param_file))
+
+			shrun_file.write("srun --ntasks=1 --nodes=1 sh {0}\n".format(sh_file))
 
 	shrun_file.close()
 

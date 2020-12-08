@@ -52,25 +52,30 @@ import pandas as pd
 
 
 def get_savefile():
-	if not FLAGS.is_test_separate:
-		s_at =str( "results_score_" + FLAGS.score_method + 
-								"_select_" + FLAGS.select_method +
-								"_norm_" + (FLAGS.normalize_data) +
-								"_is_search_params_" + str(FLAGS.is_search_params) +
-								"_stand_" + FLAGS.standardize_data)
-	else:
-		s_at =str( "results_score_" + FLAGS.score_method + 
-								"_select_" + FLAGS.select_method +
-								"_norm_" + (FLAGS.normalize_data) +
-								"_is_search_params_" + str(FLAGS.is_search_params) +
-								"_stand_" + FLAGS.standardize_data +
-								"_test_" + FLAGS.test_prefix)
+	# if not FLAGS.is_test_separate:
+	# 	s_at =str( "results_score_" + FLAGS.score_method + 
+	# 							"_select_" + FLAGS.select_method +
+	# 							"_norm_" + (FLAGS.normalize_data) +
+	# 							"_is_search_params_" + str(FLAGS.is_search_params) +
+	# 							"_stand_" + FLAGS.standardize_data)
+	# else:
+	# 	s_at =str( "results_score_" + FLAGS.score_method + 
+	# 							"_select_" + FLAGS.select_method +
+	# 							"_norm_" + (FLAGS.normalize_data) +
+	# 							"_is_search_params_" + str(FLAGS.is_search_params) +
+	# 							"_stand_" + FLAGS.standardize_data +
+	# 							"_test_" + FLAGS.test_prefix)
+	s_at = "results"
 	return s_at
 
 def get_savedir():
 	s_dir = str(os.path.join(
 			FLAGS.save_dir,
-			FLAGS.dataset + "_" + FLAGS.sampling_method))
+			"_".join([FLAGS.dataset, FLAGS.sampling_method,
+						FLAGS.score_method, FLAGS.embedding_method, 
+						FLAGS.mae_update_threshold])))
+
+
 	return s_dir
 
 get_wrapper_AL_mapping()

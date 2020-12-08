@@ -224,10 +224,20 @@ def show_trace(ith_trial):
 			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 			estimator_update_by=estimator_update_by)
 
-		_x_train, _y_train = est_alpha_updated(
-				X_train=X_trval, y_train=y_trval, 
-				X_test=unlbl_X, y_test=unlbl_y, 
-				selected_inds=selected_inds_to_estimator)
+		# _x_train, _y_train = est_alpha_updated(
+		# 		X_train=X_trval, y_train=y_trval, 
+		# 		X_test=unlbl_X, y_test=unlbl_y, 
+		# 		selected_inds=selected_inds_to_estimator)
+		_x_train, _y_train, _unlbl_X, embedding_model = est_alpha_updated(
+			X_train=X_trval, y_train=y_trval, 
+			X_test=unlbl_X, y_test=unlbl_y, 
+			selected_inds=selected_inds_to_estimator,
+			embedding_method=FLAGS.embedding_method,
+			mae_update_threshold=FLAGS.mae_update_threshold,
+			estimator=estimator) 
+
+
+
 		dq_X, dq_y, dq_idx = this_qid_Xy[0]
 		os_X, os_y, os_idx = this_qid_Xy[1]
 		rnd_X, rnd_y, rnd_idx = this_qid_Xy[2]
@@ -253,6 +263,10 @@ def show_trace(ith_trial):
 		X_test = copy.copy(unlbl_X_filter)
 		y_test = copy.copy(unlbl_y_filter)
 		idx_test = copy.copy(unlbl_idx_filter)
+
+		if embedding_model != "empty":
+			X_test = embedding_model.transform(X_val=X_test, get_min_dist=False)
+
 
 		y_pred = estimator.predict(X_test)
 		print ("y_test", y_test, "y_pred", y_pred)
@@ -395,10 +409,11 @@ def error_dist(ith_trial):
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 	
-	# pr_file = sys.argv[-1]
-	# kwargs = load_pickle(filename=pr_file)
-	# FLAGS.score_method = kwargs["score_method"]
-	# FLAGS.sampling_method =	kwargs["sampling_method"]
+	pr_file = sys.argv[-1]
+	kwargs = load_pickle(filename=pr_file)
+	FLAGS.score_method = kwargs["score_method"]
+	FLAGS.sampling_method =	kwargs["sampling_method"]
+	FLAGS.embedding_method = kwargs["embedding_method"]
 
 	print ("FLAGS", FLAGS)
 	show_trace(ith_trial="000")

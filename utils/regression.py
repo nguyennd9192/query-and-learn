@@ -37,7 +37,7 @@ class RegressionFactory(object):
           param_grid = {"alpha": alphas, "gamma": gammas}
 
           md_selection = GridSearchCV(KernelRidge(kernel=kernel), param_grid=param_grid,
-                cv=cv,n_jobs=4) # # scoring
+                cv=cv,n_jobs=4, scoring="neg_mean_absolute_error") # # scoring
           md_selection.fit(X,y)
           model = md_selection.best_estimator_
         else:
@@ -53,7 +53,6 @@ class RegressionFactory(object):
           model = GaussianProcessRegressor(alpha=0.01, kernel=default_kernel)
           md_selection = None
         model.fit(X, y)
-        print("best_gpr params:", model.get_params())
     # elif method == "mlkr":
     #     if search_param:
     #         best_mlkr, md_selection = RegressionFactory.mlkr_cv_with_noise(
@@ -219,15 +218,13 @@ class RegressionFactory(object):
     # if cv == -1: 
     #   cv = 20 # # len(y_obs) - 5
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
-                cv=cv,n_jobs=1) # # scoring
+                cv=cv,n_jobs=1, scoring="neg_mean_absolute_error") # # scoring
 
     with parallel_backend('threading'):
       GridSearch.fit(X, y_obs)
 
       
     best_gpr = GridSearch.best_estimator_
-    print("best_gpr params:", best_gpr.get_params())
-    print("cv_results_:", GridSearch.cv_results_)
 
     return best_gpr, GridSearch
 
@@ -253,9 +250,6 @@ class RegressionFactory(object):
 
 
     best_model = GridSearch.best_estimator_
-    print("best_gpr params:", best_gpr.get_params())
-    print("cv_results_:", GridSearch.cv_results_)
-
     return best_model, GridSearch
 
 
@@ -271,7 +265,8 @@ def CV_predict_score(model, X, y, n_folds=3, n_times=3, score_type='r2'):
     scores = []
     errors = []
     for i in range(n_times):
-        y_predict = CV_predict(model=model, X=X, y=y, n_folds=n_folds, n_times=1)
+        y_predict = RegressionFactory.CV_predict(model=model, 
+          X=X, y=y, n_folds=n_folds, n_times=1)
         # n_times = 1 then the result has only 1 y_pred array
         y_predict = y_predict[0]
 

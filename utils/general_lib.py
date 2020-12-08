@@ -1,9 +1,10 @@
 
-import os, glob, ntpath, pickle, functools
+import os, glob, ntpath, pickle, functools, copy
 import pandas as pd
 import numpy as np
 from tensorflow.io import gfile
 from params import *
+from utils.embedding_space import EmbeddingSpace
 
 def release_mem(fig):
 	fig.clf()
@@ -71,14 +72,43 @@ def get_qrindex(df):
 	return update_DQ_str, outstand_str, random_str
 
 
-def est_alpha_updated(X_train, y_train, X_test, y_test, selected_inds):
-	if selected_inds is not None:
-		_x_train = np.concatenate((X_train, X_test[selected_inds]), axis=0)
-		_y_train = np.concatenate((y_train, y_test[selected_inds]), axis=0)
-		assert X_test[selected_inds].all() != None
-		return _x_train, _y_train
-	else:
-		return X_train, y_train
+def est_alpha_updated(X_train, y_train, 
+				X_test, y_test, selected_inds, 
+				embedding_method,
+				mae_update_threshold, estimator):
+	# # 1. filter 
+	# # hold or dimiss
+	model = "empty"
+	if selected_inds != []:
+		if mae_update_threshold != "update_all":
+			tmp_X = copy.copy(X_test[selected_inds])
+			tmp_y = copy.copy(y_test[selected_inds])
+			print ("test estimator: ", estimator)
+			mae = estimator.best_score_(X=tmp_X, y=tmp_y)
+			if mae > float(mae_update_threshold):
+				selected_inds = None
+
+		# # update X_train, y_train by selected_inds
+		if selected_inds is not None:
+			X_train = np.concatenate((X_train, X_test[selected_inds]), axis=0)
+			y_train = np.concatenate((y_train, y_test[selected_inds]), axis=0)
+			assert X_test[selected_inds].all() != None
+
+
+
+	# # transform or not
+	if embedding_method != "org_space":
+		model = EmbeddingSpace(embedding_method=embedding_method)
+
+		if embedding_method == "LMNN":
+			_y_train = np.round(y_train, 1)
+		else:
+			_y_train = copy.copy(y_train)
+
+		model.fit(X_train=X_train, y_train=_y_train)
+		X_train = model.transform(X_val=X_train, get_min_dist=False)
+		X_test = model.transform(X_val=X_test, get_min_dist=False)
+	return X_train, y_train, X_test, model
 
 
 def load_unlbl_data(unlbl_job, result_file):
@@ -98,7 +128,7 @@ def load_unlbl_data(unlbl_job, result_file):
 
 def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=None):
 	# id_qr = arg[0]
-	feature_dir = localdir + "/input/feature/"
+	feature_dir = "/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/"
 	assert feature_dir in id_qr
 	id_qr_cvt = id_qr.replace(feature_dir, "")
 	assert "ofm1_no_d/" in id_qr_cvt
@@ -123,7 +153,7 @@ def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=No
 
 
 def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
-			coarse_db_rst, fine_db_rst):
+			coarse_db_rst, fine_db_rst, embedding_model):
 	"""
 	database_results: *.csv of all vasp calculated data, normally in the standard step
 	queried_files: all queried files
@@ -135,14 +165,9 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
 	oss = []
 	rnds = []
 
-
-
 	for qf in queried_files:
 		this_df = pd.read_csv(qf, index_col=0)
 		dq, os, rnd = get_qrindex(df=this_df)
-		assert len(dq) == 10
-		assert len(os) == 10
-		assert len(rnd) == 10
 
 		dq_cvt = map(functools.partial(id_qr_to_database, db_results=db_results,
 			crs_db_results=crs_db_results, fine_db_results=fine_db_results), dq)
@@ -173,6 +198,8 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
 		_idx = np.array(data[valid_id, 0])
 
 		_X = np.array(unlbl_X[[np.where(unlbl_index==k)[0][0] for k in _idx], :])
+		if embedding_model != "org_space":
+			_X = embedding_model.transform(X_val=_X, get_min_dist=False)
 		valid_Xyid.append((_X, _y, _idx))
 	
 	return valid_Xyid

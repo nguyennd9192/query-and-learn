@@ -37,8 +37,7 @@ class MarginAL(SamplingMethod):
 
     For binary classification, can just take the absolute distance to decision
     boundary for each point.
-    For multiclass classification, must consider the margin between distance for
-    top two most likely classes.
+    For regression, must impl
 
     Args:
       model: scikit learn model with decision_function implemented
