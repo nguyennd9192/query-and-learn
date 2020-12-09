@@ -67,9 +67,9 @@ else:
   crs_db_results.to_csv(coarse_file)
   fine_db_results.to_csv(fine_file)
 
-print (len(crs_db_results))
-print (len(fine_db_results))
-print (len(db_results))
+print ("crs_db_results: ", len(crs_db_results))
+print ("fine_db_results: ", len(fine_db_results))
+print ("db_results: ", len(db_results))
 
 
 

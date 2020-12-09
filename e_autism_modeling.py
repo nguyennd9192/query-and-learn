@@ -20,7 +20,7 @@ title_font = {'fontname': 'serif', 'size': 14}
 
 
 def load_Xy_query(unlbl_dir, unlbl_job, qid, 
-	unlbl_X, unlbl_y, unlbl_index, estimator_update_by, embedding_model):
+	unlbl_X, unlbl_y, unlbl_index, estimator_update_by):
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
 	if qid == 1:
 		selected_inds = []
@@ -73,12 +73,12 @@ def load_Xy_query(unlbl_dir, unlbl_job, qid,
 
 
 	# # this qid data
-	this_qid_file = [unlbl_dir + "/query_{}".format(qid) + "/m0.1_c0.1.csv"]
+	this_qid_file = [unlbl_dir + "/query_{}".format(qid) + "/query.csv"]
 	this_qid_Xy = get_queried_data(queried_files=this_qid_file, 
 		database_results=database_results, 
 		unlbl_X=unlbl_X, unlbl_index=unlbl_index,
 		coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
-		embedding_model=FLAGS.embedding_model)
+		embedding_model="org_space")
 
 	return unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy
 
@@ -185,18 +185,17 @@ def show_trace(ith_trial):
 		unlbl_job=unlbl_job, result_file=result_file)
 	
 	# estimator_update_by = ["DQ"]
-	estimator_update_by = ["DQ", "RND", "OS"]
-
+	estimator_update_by = ["DQ"] # , "RND", "OS"
+	if len(estimator_update_by) < 3:
+		for k in estimator_update_by:
+			unlbl_dir += k
 
 	if FLAGS.score_method == "u_gp_mt":
 		mt_kernel = 1.0 # 0.001, 1.0
 		fix_update_coeff = 1
 		unlbl_dir += "_mt{}".format(mt_kernel)
 	
-	elif FLAGS.score_method == "u_gp":
-		if len(estimator_update_by) < 3:
-			for k in estimator_update_by:
-				unlbl_dir += k
+		
 
 	qids = range(1, FLAGS.n_run)
 	# qids = [1]
@@ -234,6 +233,8 @@ def show_trace(ith_trial):
 		# 		X_train=X_trval, y_train=y_trval, 
 		# 		X_test=unlbl_X, y_test=unlbl_y, 
 		# 		selected_inds=selected_inds_to_estimator)
+		estimator = load_pickle(est_file)
+
 		_x_train, _y_train, _unlbl_X, embedding_model = est_alpha_updated(
 			X_train=X_trval, y_train=y_trval, 
 			X_test=unlbl_X, y_test=unlbl_y, 
@@ -249,7 +250,6 @@ def show_trace(ith_trial):
 		
 		print ("qid:", qid, "_x_train.shape", _x_train.shape)
 		data = load_pickle(eval_file)
-		estimator = load_pickle(est_file)
 		estimator.fit(_x_train, _y_train)
 
 		dict_values = data["DQ"]
@@ -274,10 +274,7 @@ def show_trace(ith_trial):
 
 
 		y_pred = estimator.predict(X_test)
-		print ("y_test", y_test, "y_pred", y_pred)
-
 		y_test, y_pred = filter_array(y_test, y_pred)
-		print ("len(y_test)", y_test.shape, y_pred.shape)
 
 		try:
 
@@ -312,17 +309,13 @@ def show_trace(ith_trial):
 
 			# # end plot
 			var = estimator.predict_proba(X_test)
-			print ("len(X_test): ", len(X_test))
 
 			var_rst_df.loc[idx_test, "var_{}".format(qid)] = var
 			error_rst_df.loc[idx_test, "err_{}".format(qid)] = y_test - y_pred
 
 			var_rst_df.to_csv(var_save_at)
 			error_rst_df.to_csv(error_save_at)
-
-			print ("n test:", len(y_test))
 			print ("r2:", round(r2, 3), "mae:",  round(mae, 3))
-			print ("var:", var)
 			print ("=======")
 			
 			ax.grid(which='both', linestyle='-.')
@@ -419,7 +412,6 @@ if __name__ == "__main__":
 	FLAGS.sampling_method =	kwargs["sampling_method"]
 	FLAGS.embedding_method = kwargs["embedding_method"]
 
-	print ("FLAGS", FLAGS)
 	show_trace(ith_trial="000")
 	error_dist(ith_trial="000")
 

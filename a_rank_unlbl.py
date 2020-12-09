@@ -126,7 +126,6 @@ def query_and_learn(FLAGS,
 		estimator=estimator) # # in the past: selected_inds (update by all database)
 
 	# # fit with whole
-	print(_x_train, _y_train)
 	estimator.fit(_x_train, _y_train)
 
 	unlbl_y_pred = estimator.predict(_unlbl_X)
@@ -563,13 +562,12 @@ def map_unlbl_data(ith_trial, FLAGS):
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 
-	# pr_file = sys.argv[-1]
-	# kwargs = load_pickle(filename=pr_file)
-	# FLAGS.score_method = kwargs["score_method"]
-	# FLAGS.sampling_method =	kwargs["sampling_method"]
-	# FLAGS.embedding_method = kwargs["embedding_method"]
-
-
+	pr_file = sys.argv[-1]
+	kwargs = load_pickle(filename=pr_file)
+	FLAGS.score_method = kwargs["score_method"]
+	FLAGS.sampling_method =	kwargs["sampling_method"]
+	FLAGS.embedding_method = kwargs["embedding_method"]
+ 	# #
 	print ("FLAGS", FLAGS.score_method)
 
 	# rank_unlbl_data(ith_trial="000") # 014 for u_gp

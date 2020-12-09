@@ -5,7 +5,7 @@ import numpy as np
 from tensorflow.io import gfile
 from params import *
 from utils.embedding_space import EmbeddingSpace
-
+from sklearn.preprocessing import MinMaxScaler
 def release_mem(fig):
 	fig.clf()
 	plt.close()
@@ -93,9 +93,7 @@ def est_alpha_updated(X_train, y_train,
 			y_train = np.concatenate((y_train, y_test[selected_inds]), axis=0)
 			assert X_test[selected_inds].all() != None
 
-
-
-	# # transform or not
+	# # transform to embedding or not
 	if embedding_method != "org_space":
 		model = EmbeddingSpace(embedding_method=embedding_method)
 
@@ -107,6 +105,12 @@ def est_alpha_updated(X_train, y_train,
 		model.fit(X_train=X_train, y_train=_y_train)
 		X_train = model.transform(X_val=X_train, get_min_dist=False)
 		X_test = model.transform(X_val=X_test, get_min_dist=False)
+
+	# # normalize
+	scaler = MinMaxScaler().fit(X_train)
+	X_train = scaler.transform(X_train)
+	X_test = scaler.transform(X_test)
+
 	return X_train, y_train, X_test, model
 
 
@@ -292,7 +296,6 @@ def vasp_lbl2mix(unlbl_file, database_results, coarse_db_rst, fine_db_rst):
 	y_index_cvt = map(functools.partial(id_qr_to_database, db_results=db_results,
 		crs_db_results=crs_db_results, fine_db_results=fine_db_results), unlbl_index)
 	y_index_cvt = np.array(list(y_index_cvt))
-	print (y_index_cvt)
 	unlbl_df["y_obs"] = None
 	for a in y_index_cvt:
 		id_qr, id_qr_cvt, target_y = a[0], a[1], a[2]

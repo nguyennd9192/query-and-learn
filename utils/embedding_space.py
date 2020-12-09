@@ -16,7 +16,6 @@ class EmbeddingSpace(object):
 		elif embedding_method == "LMNN":
 			learn_metric = mkl.LMNN(k=3, learn_rate=0.1) # 
 		self.learn_metric = learn_metric
-
 	# learn_metric = mkl.ITML_Supervised()
 	# learn_metric = mkl.SDML_Supervised(sparsity_param=0.1, balance_param=0.0015,
 	#           prior='covariance')

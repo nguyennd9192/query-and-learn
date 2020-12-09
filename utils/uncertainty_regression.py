@@ -34,24 +34,24 @@ from scipy import stats
 # from statsmodels.distributions.empirical_distribution import ECDF
  
 class UncertainEnsembleRegression(object):
-  def __init__(self,
+  def __init__(self, name, 
         random_state=1, 
         n_shuffle=10000,
         alpha=0.1, gamma=0.1,
         cv=3,
         score_method="kr", search_param=False, # # GaussianProcess
-        verbose=False):
+):
     self.alpha = alpha
     self.gamma = gamma
-    self.score_method = score_method
+    self.name = name 
+
     self.search_param = search_param
     self.kernel = 'rbf'
     self.coef_ = None
-    self.verbose = verbose
     self.cv = cv
     self.n_shuffle = n_shuffle
     self.random_state = random_state
-
+    self.estimator = None
 
   def fit(self, X_train, y_train, sample_weight=None):
     # # in fit function
@@ -67,12 +67,15 @@ class UncertainEnsembleRegression(object):
 
     # # currently, anytime we fit the estimator with X_train, y_train
     # # we researching for parameter
-    estimator, GridSearchCV = RegressionFactory.get_regression(method=self.score_method, 
-        kernel='rbf', alpha=self.alpha, gamma=self.gamma, 
-        search_param=self.search_param, X=X_train, y=y_train,  
-        cv=self.cv)
-    self.GridSearchCV = GridSearchCV
-    self.estimator = estimator
+    if self.estimator is None: # # for not always search parameters:
+      estimator, GridSearchCV = RegressionFactory.get_regression(
+          method=self.name, 
+          kernel=self.kernel, alpha=self.alpha, gamma=self.gamma, 
+          search_param=self.search_param, X=X_train, y=y_train,  
+          cv=self.cv)
+      self.GridSearchCV = GridSearchCV
+      self.estimator = estimator
+    self.estimator.fit(X_train, y_train)
     return estimator
 
   def predict(self, X_val, get_pred_vals=False):
@@ -153,8 +156,8 @@ class UncertainEnsembleRegression(object):
 
   def best_score_(self, X=None, y=None):
     estimator, GridSearchCV = RegressionFactory.get_regression(
-        method=self.score_method, 
-        kernel='rbf', alpha=self.alpha, gamma=self.gamma, 
+        method=self.name, 
+        kernel=self.kernel, alpha=self.alpha, gamma=self.gamma, 
         search_param=self.search_param, X=X, y=y,  
         cv=self.cv) 
 
@@ -165,11 +168,11 @@ class UncertainEnsembleRegression(object):
 
 
 class UncertainGaussianProcess(object):
-  def __init__(self, 
+  def __init__(self, name,
         random_state=1, kernel="rbf",
         cv=3, search_param=False,
         mt_kernel=None):
-
+    self.name = name 
     self.search_param = search_param
     self.kernel = kernel
     self.cv = cv
@@ -228,8 +231,8 @@ class UncertainGaussianProcess(object):
 
   def best_score_(self, X=None, y=None):
     estimator, GridSearchCV = RegressionFactory.get_regression(
-        method="gp", 
-        kernel='rbf', alpha=None, gamma=None, # # rbf, cosine
+        method=self.name, 
+        kernel=self.kernel, alpha=None, gamma=None, # # rbf, cosine
         search_param=self.search_param, X=X, y=y,  
         cv=self.cv, mt_kernel=self.mt_kernel) 
     r2, r2_std, mae, mae_std = CV_predict_score(
@@ -241,12 +244,12 @@ class UncertainGaussianProcess(object):
 
 class UncertainKNearestNeighbor(object):
   def __init__(self, 
+        name,
         random_state=1, 
         cv=3, search_param=False,
-        verbose=False,):
-
+):
+    self.name = name
     self.search_param = search_param
-    self.verbose = verbose
     self.cv = cv
     self.estimator = None
     self.random_state = random_state
@@ -282,7 +285,6 @@ class UncertainKNearestNeighbor(object):
       nb_varlist += abs(min(nb_varlist)) + 1
 
       y_val_preds = []
-      print ("nb_varlist:", nb_varlist)
       for nb in nb_varlist:
         self.estimator.n_neighbors = int(nb)
         self.estimator.fit(self.X_train, self.y_train)
@@ -312,7 +314,7 @@ class UncertainKNearestNeighbor(object):
 
   def best_score_(self, X=None, y=None):
     estimator, GridSearchCV = RegressionFactory.get_regression(
-        method="knn", alpha=None, gamma=None, # # rbf, cosine
+        method=self.name, alpha=None, gamma=None, # # rbf, cosine
         search_param=self.search_param, X=X, y=y,  
         cv=self.cv) 
     r2, r2_std, mae, mae_std = CV_predict_score(

@@ -21,7 +21,7 @@ class RegressionFactory(object):
       search_param=False, X=None, y=None, cv=3, 
       mt_kernel=None):
     method = method.strip().lower()
-    if method == "kr":
+    if method == "e_krr":
         if search_param:
           # alpha, gamma, scores_mean, scores_std = RegressionFactory.kernel_ridge_parameter_search(
           #       X=X, y_obs=y, kernel=kernel, n_folds=cv, n_times=n_times)
@@ -31,7 +31,7 @@ class RegressionFactory(object):
           model = KernelRidge(kernel=kernel, alpha=alpha, gamma=gamma)
         return model, md_selection
 
-    elif method == "gp":
+    elif method == "u_gp":
         if search_param:
           model, md_selection = RegressionFactory.gaussian_process_cv_with_noise(
               X=X, y_obs=y, cv=cv, mt_kernel=mt_kernel)
@@ -185,7 +185,7 @@ class RegressionFactory(object):
 
     GridSearch = GridSearchCV(KernelRidge(kernel=kernel), param_grid=param_grid,
           cv=cv, n_jobs=-1, scoring="neg_mean_absolute_error") # # scoring
-    GridSearch.fit(X,y)
+    GridSearch.fit(X, y_obs)
     best_model = GridSearch.best_estimator_
     return best_model, GridSearch
 

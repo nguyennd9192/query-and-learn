@@ -225,25 +225,31 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
 
   nn_libs = ["fully_connected", "moe", "LeNet"]
   if method=="u_gp":
-    model = UncertainGaussianProcess(random_state=1, cv=10, 
-              search_param=is_search_params, verbose=False, mt_kernel=None) 
+    model = UncertainGaussianProcess(
+      name=method, random_state=1, 
+      cv=10, search_param=is_search_params, 
+      mt_kernel=None) 
     return model
 
   if method=="u_gp_mt" and mt_kernel is not None:
-    model = UncertainGaussianProcess(random_state=1, cv=10, 
-              search_param=is_search_params, verbose=False, mt_kernel=mt_kernel) 
+    model = UncertainGaussianProcess(name=method,
+      random_state=1, cv=10, 
+      search_param=is_search_params, 
+      mt_kernel=mt_kernel) 
     return model
 
   if method=="e_krr":
-    model = UncertainEnsembleRegression(random_state=1, 
-        n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
-        cv=10, score_method="kr", search_param=is_search_params, # # GaussianProcess
-        verbose=False)
+    model = UncertainEnsembleRegression(
+      name=method, random_state=1, 
+      n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
+      cv=10, score_method="kr", search_param=is_search_params,
+      )
     return model
 
   if method=="u_knn":
-    model = UncertainKNearestNeighbor(random_state=1, 
-        cv=10, search_param=is_search_params, verbose=False)
+    model = UncertainKNearestNeighbor(
+      name=method, random_state=1, 
+      cv=10, search_param=is_search_params)
     return model
 
 
@@ -346,7 +352,6 @@ def get_train_val_test_splits(X, y, max_points, seed, confusion, seed_batch,
   y_copy = copy.copy(y)
 
   # Introduce labeling noise
-  print ("y_copy", y_copy)
     
   if is_clf:
     # # for classification tasks
@@ -363,7 +368,6 @@ def get_train_val_test_splits(X, y, max_points, seed, confusion, seed_batch,
     max_points = min(len(y_noise), max_points)
   train_split = int(max_points * split[0])
   val_split = train_split + int(max_points * split[1])
-  print (seed_batch, train_split)
   assert seed_batch <= train_split
 
   # Do this to make sure that the initial batch has examples from all classes
