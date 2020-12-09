@@ -83,7 +83,6 @@ def est_alpha_updated(X_train, y_train,
 		if mae_update_threshold != "update_all":
 			tmp_X = copy.copy(X_test[selected_inds])
 			tmp_y = copy.copy(y_test[selected_inds])
-			print ("test estimator: ", estimator)
 			mae = estimator.best_score_(X=tmp_X, y=tmp_y)
 			if mae > float(mae_update_threshold):
 				selected_inds = None

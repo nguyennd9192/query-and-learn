@@ -38,7 +38,7 @@ class UncertainEnsembleRegression(object):
         random_state=1, 
         n_shuffle=10000,
         alpha=0.1, gamma=0.1,
-        cv=3, n_times=3,
+        cv=3,
         score_method="kr", search_param=False, # # GaussianProcess
         verbose=False):
     self.alpha = alpha
@@ -49,7 +49,6 @@ class UncertainEnsembleRegression(object):
     self.coef_ = None
     self.verbose = verbose
     self.cv = cv
-    self.n_times = n_times
     self.n_shuffle = n_shuffle
     self.random_state = random_state
 
@@ -71,7 +70,7 @@ class UncertainEnsembleRegression(object):
     estimator, GridSearchCV = RegressionFactory.get_regression(method=self.score_method, 
         kernel='rbf', alpha=self.alpha, gamma=self.gamma, 
         search_param=self.search_param, X=X_train, y=y_train,  
-        cv=self.cv, n_times=self.n_times)
+        cv=self.cv)
     self.GridSearchCV = GridSearchCV
     self.estimator = estimator
     return estimator
@@ -153,23 +152,27 @@ class UncertainEnsembleRegression(object):
       return var
 
   def best_score_(self, X=None, y=None):
+    estimator, GridSearchCV = RegressionFactory.get_regression(
+        method=self.score_method, 
+        kernel='rbf', alpha=self.alpha, gamma=self.gamma, 
+        search_param=self.search_param, X=X, y=y,  
+        cv=self.cv) 
+
     if self.GridSearchCV is None and y is not None:
-      r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, X, y, 
+      r2, r2_std, mae, mae_std = CV_predict_score(estimator, X, y, 
                 n_folds=3, n_times=3, score_type='r2')
     return mae
 
 
 class UncertainGaussianProcess(object):
   def __init__(self, 
-        random_state=1, 
-        cv=3, n_times=3, search_param=False,
-        verbose=False, mt_kernel=None):
+        random_state=1, kernel="rbf",
+        cv=3, search_param=False,
+        mt_kernel=None):
 
     self.search_param = search_param
-    self.kernel = 'rbf'
-    self.verbose = verbose
+    self.kernel = kernel
     self.cv = cv
-    self.n_times = n_times
     self.estimator = None
     self.random_state = random_state
     self.mt_kernel = mt_kernel
@@ -188,9 +191,9 @@ class UncertainGaussianProcess(object):
     if self.estimator is None: # # for not always search parameters:
     # if self.estimator is None or self.search_param: # # either self.estimator is None or search_param is True-> require search
       estimator, GridSearchCV = RegressionFactory.get_regression(method="gp", 
-          kernel='cosine', alpha=None, gamma=None, # # rbf
+          kernel=self.kernel, alpha=None, gamma=None, # # rbf
           search_param=self.search_param, X=X_train, y=y_train,  
-          cv=self.cv, n_times=self.n_times, mt_kernel=self.mt_kernel) # mt_kernel=self.mt_kernel
+          cv=self.cv, mt_kernel=self.mt_kernel) # mt_kernel=self.mt_kernel
       self.estimator = estimator
       self.GridSearchCV = GridSearchCV
     self.estimator.fit(X_train, y_train)
@@ -224,9 +227,99 @@ class UncertainGaussianProcess(object):
 
 
   def best_score_(self, X=None, y=None):
-    r2, r2_std, mae, mae_std = CV_predict_score(self.estimator, X, y, 
-              n_folds=3, n_times=3, score_type='r2')
+    estimator, GridSearchCV = RegressionFactory.get_regression(
+        method="gp", 
+        kernel='rbf', alpha=None, gamma=None, # # rbf, cosine
+        search_param=self.search_param, X=X, y=y,  
+        cv=self.cv, mt_kernel=self.mt_kernel) 
+    r2, r2_std, mae, mae_std = CV_predict_score(
+            estimator, X, y, n_folds=3, n_times=3, score_type='r2')
     return mae
+
+
+
+
+class UncertainKNearestNeighbor(object):
+  def __init__(self, 
+        random_state=1, 
+        cv=3, search_param=False,
+        verbose=False,):
+
+    self.search_param = search_param
+    self.verbose = verbose
+    self.cv = cv
+    self.estimator = None
+    self.random_state = random_state
+
+
+  def fit(self, X_train, y_train, sample_weight=None):
+    # # in fit function
+    # # just return estimator with best param with X_train, y_train
+    np.random.seed(self.random_state)
+    n_features = X_train.shape[1]
+
+
+    self.X_train = X_train
+    self.y_train = y_train
+
+    if self.estimator is None: # # for not always search parameters:
+    # if self.estimator is None or self.search_param: # # either self.estimator is None or search_param is True-> require search
+      estimator, GridSearchCV = RegressionFactory.get_regression(method="u_knn", 
+          search_param=self.search_param, X=X_train, y=y_train,  
+          cv=self.cv) 
+
+      self.estimator = estimator
+      self.GridSearchCV = GridSearchCV
+    self.estimator.fit(X_train, y_train)
+    return self.estimator
+
+  def predict(self, X_val, get_variance=False):
+    y_val_pred = self.estimator.predict(X_val)
+    if get_variance:
+
+      best_nb =  self.estimator.get_params()["n_neighbors"]
+      nb_varlist = np.random.normal(loc=best_nb, scale=20, size=10)
+      nb_varlist += abs(min(nb_varlist)) + 1
+
+      y_val_preds = []
+      print ("nb_varlist:", nb_varlist)
+      for nb in nb_varlist:
+        self.estimator.n_neighbors = int(nb)
+        self.estimator.fit(self.X_train, self.y_train)
+        y_val_preds.append(y_val_pred)
+
+      return y_val_pred, np.mean(y_val_preds, axis=0)
+    else:
+      return y_val_pred
+
+  def score(self, X_val, y_val):
+    y_pred = self.predict(X_val, get_variance=False)    
+    val_acc = metrics.r2_score(y_val, y_pred)
+    return val_acc
+
+  def predict_proba(self, X, is_norm=True):
+    # # large variance -> probability to be observed small -> sorting descending take first
+    # # small variance -> probability to be observed large 
+    y_val_preds, y_val_pred_std = self.predict(X, get_variance=True)
+
+    # # normalize variance to 0-1
+    var_norm = MinMaxScaler().fit_transform(X=y_val_pred_std.reshape(-1, 1))
+    if is_norm:
+      return var_norm.ravel()
+    else:
+      return y_val_pred_std.reshape(-1, 1)
+
+
+  def best_score_(self, X=None, y=None):
+    estimator, GridSearchCV = RegressionFactory.get_regression(
+        method="knn", alpha=None, gamma=None, # # rbf, cosine
+        search_param=self.search_param, X=X, y=y,  
+        cv=self.cv) 
+    r2, r2_std, mae, mae_std = CV_predict_score(
+            estimator, X, y, n_folds=3, n_times=3, score_type='r2')
+    return mae
+
+
 
 
 

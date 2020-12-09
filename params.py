@@ -1,17 +1,19 @@
-# # latbx_ofm1, ofm_subs_Ga123, letter, latbx_ofm1_fe
-# # sampling_method: uniform, exploitation, margin, bandit_discrete, simulate_batch_best_sim
-# # simulate_batch_mixture (not work yet), 
+
 from absl import flags 
 import pandas as pd
 import ntpath, os
-# from utils.general_lib import *
+
 def get_basename(filename):
     head, tail = ntpath.split(filename)
     basename = os.path.splitext(tail)[0]
     return tail
+batch_size =  20
+batch_outstand = 20 
+batch_rand = 20 
+n_run = int(3024 / (batch_size + batch_outstand + batch_rand))
 
-ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-# ALdir = "/home/nguyen/work/active-learning"
+# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+ALdir = "/home/nguyen/work/active-learning"
 
 database_dir = ALdir + "/data/standard"
 coarse_db_dir = ALdir + "/data/coarse_relax"
@@ -82,31 +84,44 @@ flags.DEFINE_string("sampling_method", "margin",
                   # uniform, exploitation, margin, expected_improvement
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
-
 flags.DEFINE_string(
-    "score_method", "u_gp", # # u_gp, u_knn, e_krr
-    "Method to use to calculate accuracy.")  
+    "score_method", "u_knn", # # u_gp, u_knn, e_krr, u_knn
+    ("Method to use to calculate accuracy.")
+)  
 flags.DEFINE_string(
     "embedding_method", "MLKR", # # org_space, MLKR, LFDA, LMNN
-    "Method to transform space.") 
-
+    ("Method to transform space.")
+) 
 flags.DEFINE_string(
     "mae_update_threshold", "0.3", # # 0.3, 1.0, update_all
-    "mean absolute error to update dq to estimator") 
+    ("mean absolute error to update dq to estimator")
+) 
+
+flags.DEFINE_integer("batch_size", batch_size, 
+    ("batch size of DQ")
+)
+flags.DEFINE_integer("batch_outstand", batch_outstand, 
+    ("batch size of out-standing points")
+)
+flags.DEFINE_integer("batch_rand", batch_rand, 
+    ("batch size of random")
+)
+flags.DEFINE_integer("n_run", n_run, 
+    ("number of active query launch")
+)
+flags.DEFINE_boolean("is_search_params", True, 
+  ("search estimator or not")
+)
 
 
 flags.DEFINE_boolean(
     "is_test_separate", False, # # True, False
-    ("Whether or not the test file was prepared separately.")
-)
+    ("Whether or not the test file was prepared separately."))
 flags.DEFINE_boolean(
     "is_clf", False,
     ("Performing classification or regression model")
 )
-flags.DEFINE_boolean(
-    "is_search_params", True,
-    ("search estimator or not")
-)
+
 flags.DEFINE_string(
     "test_prefix", "Fe10-Fe22", # # Ga, M3_Mo, Fe10-Fe22
     ("The prefix of train, test separating files")
@@ -116,11 +131,7 @@ flags.DEFINE_float(
     ("Can be float or integer.  Float indicates percentage of training data "
      "to use in the initial warmstart model")
 )
-flags.DEFINE_float(
-    "batch_size", 0.05,
-    ("Can be float or integer.  Float indicates batch size as a percentage "
-     "of mlkrning data size.") # # number of updated data points to the model
-)
+
 flags.DEFINE_integer("trials", 1,
                      "Number of curves to create using different seeds")
 flags.DEFINE_integer("seed", 1, "Seed to use for rng and random state")

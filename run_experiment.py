@@ -71,7 +71,7 @@ def get_savefile():
 def get_savedir():
 	s_dir = str(os.path.join(
 			FLAGS.save_dir,
-			"_".join([FLAGS.dataset, FLAGS.sampling_method,
+			"/".join([FLAGS.dataset, FLAGS.sampling_method,
 						FLAGS.score_method, FLAGS.embedding_method, 
 						FLAGS.mae_update_threshold])))
 

@@ -83,9 +83,6 @@ def query_and_learn(FLAGS,
 		unlbl_file, unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
 		is_save_query, csv_save_dir, tsne_file, is_plot):
 	active_p = 1.0
-	batch_size = 10
-	batch_outstand = 10
-	batch_rand = 10
 	plt_mode = "2D" # 3D, 2D, 3D_patch
 	# is_load_pre_trained = False
 
@@ -117,9 +114,7 @@ def query_and_learn(FLAGS,
 	query_data["unlbl_index"] = unlbl_index
 	# # end save querying data 
 
-	# m, c = exp_params["m"], exp_params["c"]
-	m, c = 0.1, 0.1
-	csv_saveat = csv_save_dir + "/m{0}_c{1}.csv".format(m, c)
+	csv_saveat = csv_save_dir + "/query.csv"
 
 	# # update train, test by selected inds
 	_x_train, _y_train, _unlbl_X, embedding_model = est_alpha_updated(
@@ -131,6 +126,7 @@ def query_and_learn(FLAGS,
 		estimator=estimator) # # in the past: selected_inds (update by all database)
 
 	# # fit with whole
+	print(_x_train, _y_train)
 	estimator.fit(_x_train, _y_train)
 
 	unlbl_y_pred = estimator.predict(_unlbl_X)
@@ -140,12 +136,9 @@ def query_and_learn(FLAGS,
 			"eval_acc": None, "X_test": None, 
 			"y_test": None, "y": None, "verbose": True,
 			"y_star": min(_y_train)}
-	N_unlbl = _unlbl_X.shape[0]
-	n_sample = min(batch_size, N_unlbl)
-		
 
 	# # 1. update by D_{Q}
-	new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, n_sample,
+	new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, FLAGS.batch_size,
 						list(selected_inds_copy), **select_batch_inputs)
 	selected_inds_copy.extend(new_batch)
 	if is_save_query:
@@ -159,7 +152,7 @@ def query_and_learn(FLAGS,
 	argsort_y_pred = np.argsort(unlbl_y_pred)
 	outstand_idx = [k for k in argsort_y_pred if k not in selected_inds_copy]
 	assert outstand_idx != []
-	outstand_list = outstand_idx[:batch_outstand]
+	outstand_list = outstand_idx[:FLAGS.batch_outstand]
 	lim_outstand_list = max(unlbl_y_pred[outstand_list])
 
 	if is_save_query:
@@ -171,8 +164,8 @@ def query_and_learn(FLAGS,
 	max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
 	# # 3. select by D_{rand}
-	the_rest = list(set(range(N_unlbl)) - set(selected_inds_copy))
-	random_list = random.sample(the_rest, batch_rand)
+	the_rest = list(set(range(_unlbl_X.shape[0])) - set(selected_inds_copy))
+	random_list = random.sample(the_rest, FLAGS.batch_rand)
 
 	if is_save_query:
 		query_random = np.array([None] * len(unlbl_index))
@@ -400,7 +393,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 	selected_inds_to_estimator = []
 	last_feedback = None
 
-	for next_query_idx in range(1, 100):  # 51
+	for next_query_idx in range(1, FLAGS.n_run):  # 51
 		if next_query_idx == 1:
 			curr_lbl_num_id = None
 		queried_idxes = range(1, next_query_idx)
@@ -408,7 +401,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 		# # queried_idxes is None mean all we investigate at initial step
 		if next_query_idx != 1:
 			# queried files
-			queried_files = [unlbl_dir + "/query_{}".format(k) + "/m0.1_c0.1.csv" for k in queried_idxes]
+			queried_files = [unlbl_dir + "/query_{}".format(k) + "/query.csv" for k in queried_idxes]
 			# queried_files = [unlbl_dir + "/query_{}".format(next_query_idx) + "/m0.1_c0.1.csv"]
 
 			# # get calculated  
@@ -529,7 +522,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 		"""
 
 		# # 2. put this_queried_files to database for querying results
-		this_queried_files = [unlbl_dir+"/query_{}".format(next_query_idx)+"/m0.1_c0.1.csv"]
+		this_queried_files = [unlbl_dir+"/query_{}".format(next_query_idx)+"/query.csv"]
 		# # get calculated  
 		# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
 		valid_Xyid = get_queried_data(queried_files=this_queried_files, 

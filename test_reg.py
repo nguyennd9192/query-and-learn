@@ -2,7 +2,7 @@
 
 
 from utils import utils
-from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression
+from utils.uncertainty_regression import *
 from utils.embedding_space import EmbeddingSpace
 from utils.mixture_of_experts import *
 from sklearn.metrics import r2_score
@@ -51,6 +51,25 @@ def test_ensemble(X, y):
 	print("ens_reg best params: ", ens_reg.estimator.get_params())
 	print("score on train: ", ens_reg.estimator.score(X, y))
 	print("score on test: ", r2)
+
+
+def test_knn(X, y):
+	X_train, y_train, X_test, y_test = get_train_test(X, y)
+	model = UncertainKNearestNeighbor(random_state=1, 
+        cv=3, search_param=True,  verbose=False)
+
+	model.fit(X_train, y_train)
+	y_pred = model.predict(X_test, get_variance=False)
+
+	var = model.predict_proba(X_test)
+	r2 = r2_score(y_pred, y_test)
+	mae = mean_absolute_error(y_pred, y_test)
+
+	print("UncertainKNearestNeighbor best params: ", model.estimator.get_params())
+	print("score on train: ", model.estimator.score(X, y))
+	print("var test: ", var)
+
+	print("score on test: ", mae)
 
 
 def test_MoE(X, y):
@@ -143,6 +162,7 @@ def test_mlkr(X, y):
 
 
 if __name__ == "__main__":
+
 	data_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data"
 	test_prefix = "Fe10-Fe22"
 	dataset = "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d"+"/train_"+test_prefix
@@ -152,7 +172,7 @@ if __name__ == "__main__":
 
 	# interested_cols = range(10, 13)
 	# X = X[:, interested_cols]
-	test_mlkr(X, y)
+	test_knn(X, y)
 
 
 

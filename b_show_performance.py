@@ -86,6 +86,11 @@ def show_performance(ith_trial):
 	print ("save_at: ", save_at)
 if __name__ == "__main__":
 	FLAGS(sys.argv)
-	for sm in ["uniform", "exploitation", "margin", "expected_improvement"]:
-		FLAGS.sampling_method = sm
-		show_performance(ith_trial="000")
+
+	pr_file = sys.argv[-1]
+	kwargs = load_pickle(filename=pr_file)
+	FLAGS.score_method = kwargs["score_method"]
+	FLAGS.sampling_method =	kwargs["sampling_method"]
+	FLAGS.embedding_method = kwargs["embedding_method"]
+
+	show_performance(ith_trial="000")

@@ -37,7 +37,7 @@ from utils.general_lib import load_pickle
 from utils.kernel_block_solver import BlockKernelSolver
 from utils.small_cnn import SmallCNN
 from utils.allconv import AllConv
-from utils.uncertainty_regression import UncertainGaussianProcess, UncertainEnsembleRegression
+from utils.uncertainty_regression import *
 from utils.mixture_of_experts import NN_estimator
 
 class Logger(object):
@@ -225,20 +225,25 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
 
   nn_libs = ["fully_connected", "moe", "LeNet"]
   if method=="u_gp":
-    model = UncertainGaussianProcess(random_state=1, cv=5, n_times=3,
+    model = UncertainGaussianProcess(random_state=1, cv=10, 
               search_param=is_search_params, verbose=False, mt_kernel=None) 
     return model
 
   if method=="u_gp_mt" and mt_kernel is not None:
-    model = UncertainGaussianProcess(random_state=1, cv=5, n_times=3,
+    model = UncertainGaussianProcess(random_state=1, cv=10, 
               search_param=is_search_params, verbose=False, mt_kernel=mt_kernel) 
     return model
 
   if method=="e_krr":
     model = UncertainEnsembleRegression(random_state=1, 
         n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
-        cv=5, n_times=3, score_method="kr", search_param=is_search_params, # # GaussianProcess
+        cv=10, score_method="kr", search_param=is_search_params, # # GaussianProcess
         verbose=False)
+    return model
+
+  if method=="u_knn":
+    model = UncertainKNearestNeighbor(random_state=1, 
+        cv=10, search_param=is_search_params, verbose=False)
     return model
 
 

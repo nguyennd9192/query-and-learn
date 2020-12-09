@@ -19,7 +19,8 @@ axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
 
 
-def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index, estimator_update_by):
+def load_Xy_query(unlbl_dir, unlbl_job, qid, 
+	unlbl_X, unlbl_y, unlbl_index, estimator_update_by, embedding_model):
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
 	if qid == 1:
 		selected_inds = []
@@ -27,12 +28,16 @@ def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index, esti
 		all_query = None
 	else:
 		queried_idxes = range(1, qid)
-		queried_files = [unlbl_dir + "/query_{}".format(k) + "/m0.1_c0.1.csv" for k in queried_idxes]
+		queried_files = [unlbl_dir + "/query_{}".format(k) + "/query.csv" for k in queried_idxes]
 		print ("n queried files:", len(queried_files))
+		# # query only original ofm, transform later
 		valid_Xyid = get_queried_data(queried_files=queried_files, 
 			database_results=database_results, 
 			unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-			coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst)
+			coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
+			embedding_model="org_space")
+
+
 		# # alocate representation, label and id of labeled data
 		dq_X, dq_y, dq_idx = valid_Xyid[0]
 		os_X, os_y, os_idx = valid_Xyid[1]
@@ -72,7 +77,8 @@ def load_Xy_query(unlbl_dir, unlbl_job, qid, unlbl_X, unlbl_y, unlbl_index, esti
 	this_qid_Xy = get_queried_data(queried_files=this_qid_file, 
 		database_results=database_results, 
 		unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-		coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst)
+		coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
+		embedding_model=FLAGS.embedding_model)
 
 	return unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy
 
@@ -192,7 +198,7 @@ def show_trace(ith_trial):
 			for k in estimator_update_by:
 				unlbl_dir += k
 
-	qids = range(1, 78)
+	qids = range(1, FLAGS.n_run)
 	# qids = [1]
 	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
 	est_files = [unlbl_dir+"/query_{0}/pre_trained_est.pkl".format(qid) for qid in qids]
@@ -235,7 +241,6 @@ def show_trace(ith_trial):
 			embedding_method=FLAGS.embedding_method,
 			mae_update_threshold=FLAGS.mae_update_threshold,
 			estimator=estimator) 
-
 
 
 		dq_X, dq_y, dq_idx = this_qid_Xy[0]
@@ -330,18 +335,17 @@ def show_trace(ith_trial):
 			pass
 
 
-	var_rst_df.fillna(0, inplace=True)
-	error_rst_df.fillna(0, inplace=True)
+		var_rst_df.fillna(0, inplace=True)
+		error_rst_df.fillna(0, inplace=True)
 
-	print (tmp_df)
-	# ax = joypy.joyplot(tmp_df, by="qid", column="error")
-	# ax.grid(which='both', linestyle='-.')
-	# ax.grid(which='minor', alpha=0.2)
-	# plt.title(get_basename(save_fig))
-	# plt.savefig(save_fig.replace(".pdf","_joy.pdf"), transparent=False)
+		# ax = joypy.joyplot(tmp_df, by="qid", column="error")
+		# ax.grid(which='both', linestyle='-.')
+		# ax.grid(which='minor', alpha=0.2)
+		# plt.title(get_basename(save_fig))
+		# plt.savefig(save_fig.replace(".pdf","_joy.pdf"), transparent=False)
 
-	plot_heatmap(matrix=var_rst_df.values, vmin=None, vmax=None, save_file=var_save_at.replace(".csv", ".pdf"), cmap="jet")
-	plot_heatmap(matrix=error_rst_df.values, vmin=-0.5, vmax=0.5, save_file=error_save_at.replace(".csv", ".pdf"), cmap="bwr")
+		plot_heatmap(matrix=var_rst_df.values, vmin=None, vmax=None, save_file=var_save_at.replace(".csv", ".pdf"), cmap="jet")
+		plot_heatmap(matrix=error_rst_df.values, vmin=-0.5, vmax=0.5, save_file=error_save_at.replace(".csv", ".pdf"), cmap="bwr")
 
 
 

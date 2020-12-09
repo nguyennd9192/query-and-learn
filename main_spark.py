@@ -22,10 +22,9 @@ def create_params_grid():
 
 	sampling_methods = [
 		"uniform", "exploitation", "margin", "expected_improvement"]
-	score_methods = ["u_gp_mt", "u_gp", #  "e_krr",
-		# "fully_connected",	"ml-gp", "ml-knn"
+	score_methods = ["u_gp_mt", "u_gp", "u_knn" #  "e_krr",
+			# "fully_connected", "ml-gp", "ml-knn"
 		]
-
 	embedding_methods = ["org_space", "MLKR", "LFDA", "LMNN"]
 
 	all_kwargs = list(product(sampling_methods, score_methods, embedding_methods))
@@ -39,11 +38,12 @@ def create_params_grid():
 	ntask_per_batch = int(max_cpus / cpus_per_task)
 
 	nbatch = int(n_tasks/ntask_per_batch)
-	makedirs(MainDir+"/code/batch_list/tmps.txt")
+	makedirs(MainDir+"/data/batch_list/tmps.txt")
 
+	print ("n_tasks: ", n_tasks)
 	for batch_ith in range(nbatch):
 
-		shrun_file = open(MainDir+"/code/batch_list/batch_run_{0}.sh".format(batch_ith),"w") 
+		shrun_file = open(MainDir+"/data/batch_list/batch_run_{0}.sh".format(batch_ith),"w") 
 		shrun_file.write("#!/bin/bash \n")
 		shrun_file.write("#SBATCH --ntasks={0}\n".format(ntask_per_batch))
 		shrun_file.write("#SBATCH --output=./output_{0}.txt\n".format(batch_ith))
@@ -69,7 +69,7 @@ def create_params_grid():
 			makedirs(param_file)
 			dump_pickle(data=kwargs, filename=param_file)
 
-			sh_file = MainDir+"/code/sh/{0}_{1}_{2}.sh".format(sampling_method, score_method, embedding_method)
+			sh_file = MainDir+"/data/sh/{0}_{1}_{2}.sh".format(sampling_method, score_method, embedding_method)
 			makedirs(sh_file)
 
 			with open(sh_file, "w") as f:

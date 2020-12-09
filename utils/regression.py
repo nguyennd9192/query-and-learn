@@ -13,33 +13,20 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
 
 from sklearn.externals.joblib import parallel_backend
-
+from sklearn.neighbors import KNeighborsRegressor
 class RegressionFactory(object): 
     
   @staticmethod
   def get_regression(method, kernel='rbf', alpha=1, gamma=1, 
-      search_param=False, X=None, y=None, cv=3, n_times=3,
+      search_param=False, X=None, y=None, cv=3, 
       mt_kernel=None):
     method = method.strip().lower()
     if method == "kr":
         if search_param:
           # alpha, gamma, scores_mean, scores_std = RegressionFactory.kernel_ridge_parameter_search(
           #       X=X, y_obs=y, kernel=kernel, n_folds=cv, n_times=n_times)
-          n_steps = 10
-
-          alpha_lb = -2
-          alpha_ub = 2
-          alphas = np.logspace(alpha_lb, alpha_ub, n_steps)
-
-          gamma_lb = -2
-          gamma_ub = 2
-          gammas = np.logspace(gamma_lb, gamma_ub, n_steps)
-          param_grid = {"alpha": alphas, "gamma": gammas}
-
-          md_selection = GridSearchCV(KernelRidge(kernel=kernel), param_grid=param_grid,
-                cv=cv,n_jobs=4, scoring="neg_mean_absolute_error") # # scoring
-          md_selection.fit(X,y)
-          model = md_selection.best_estimator_
+          model, md_selection = RegressionFactory.kernel_ridge_cv(X=X, y_obs=y, 
+                      kernel=kernel, cv=10)
         else:
           model = KernelRidge(kernel=kernel, alpha=alpha, gamma=gamma)
         return model, md_selection
@@ -47,10 +34,18 @@ class RegressionFactory(object):
     elif method == "gp":
         if search_param:
           model, md_selection = RegressionFactory.gaussian_process_cv_with_noise(
-              X=X, y_obs=y, cv=cv, n_random=n_times, mt_kernel=mt_kernel)
+              X=X, y_obs=y, cv=cv, mt_kernel=mt_kernel)
         else:          
           default_kernel = RegressionFactory.gp_kernel(c=1.0, l=100, n=100)
           model = GaussianProcessRegressor(alpha=0.01, kernel=default_kernel)
+          md_selection = None
+        model.fit(X, y)
+
+    elif method == "u_knn":
+        if search_param:
+          model, md_selection = RegressionFactory.knn_cv(X=X, y_obs=y, cv=cv)
+        else:
+          model = KNeighborsRegressor(n_neighbors=10, metric="minkowski")
           md_selection = None
         model.fit(X, y)
     # elif method == "mlkr":
@@ -176,12 +171,31 @@ class RegressionFactory(object):
 
     return alpha, gamma, scores_mean[best_index], scores_std[best_index]
 
+  def kernel_ridge_cv(X, y_obs, kernel, cv=10):
+    n_steps = 10
+
+    alpha_lb = -2
+    alpha_ub = 2
+    alphas = np.logspace(alpha_lb, alpha_ub, n_steps)
+
+    gamma_lb = -2
+    gamma_ub = 2
+    gammas = np.logspace(gamma_lb, gamma_ub, n_steps)
+    param_grid = {"alpha": alphas, "gamma": gammas}
+
+    GridSearch = GridSearchCV(KernelRidge(kernel=kernel), param_grid=param_grid,
+          cv=cv, n_jobs=-1, scoring="neg_mean_absolute_error") # # scoring
+    GridSearch.fit(X,y)
+    best_model = GridSearch.best_estimator_
+    return best_model, GridSearch
+
+
   def gp_kernel(c, l, n):
     tmp = ConstantKernel(constant_value=c)*RBF(length_scale=l) + WhiteKernel(noise_level=n)
     return tmp
 
   @staticmethod
-  def gaussian_process_cv_with_noise(X, y_obs, cv=10, n_random=10, mt_kernel=None):
+  def gaussian_process_cv_with_noise(X, y_obs, cv=10, mt_kernel=None):
     n_steps = 5
     rbf_length_lb = -4
     rbf_length_ub = 1
@@ -198,56 +212,48 @@ class RegressionFactory(object):
     alpha_lb = -5
     alpha_ub = 1
     alphas = np.logspace(alpha_lb, alpha_ub, n_steps)
-    # param_grid = {'alpha':  
-    # 'kernel__k1__k1__constant_value': np.logspace(-2, 2, 3), 
-    # 'kernel__k1__k2__length_scale': np.logspace(-2, 2, 3), 
-    # 'kernel__k2__noise_level':  np.logspace(-2, 1, 3), 
-    # }
 
-    # best_gpr = GridSearchCV(gp,cv=3,param_grid=param_grid,n_jobs=2)
     if mt_kernel is None:
-      # # we perform grid search with both kernel length and noise
+      # # grid search with kernel length and noise
       param_grid = {"alpha": alphas,
-          "kernel": [RegressionFactory.gp_kernel(1.0, l, n) 
-                # for c in consts 
-                for l in rbf_lengths for n in noises]}
+                    "kernel": [RegressionFactory.gp_kernel(1.0, l, n) 
+                    for l in rbf_lengths for n in noises]}
     else:
+      # # grid search with kernel length only
       param_grid = {"alpha": alphas,
-          "kernel": [RegressionFactory.gp_kernel(1.0, l, mt_kernel)
-                for l in rbf_lengths]}
-    # if cv == -1: 
-    #   cv = 20 # # len(y_obs) - 5
+                    "kernel": [RegressionFactory.gp_kernel(1.0, l, mt_kernel)
+                    for l in rbf_lengths]}
+
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
-                cv=cv,n_jobs=1, scoring="neg_mean_absolute_error") # # scoring
+                cv=cv, n_jobs=-1, scoring="neg_mean_absolute_error") # # scoring
 
     with parallel_backend('threading'):
       GridSearch.fit(X, y_obs)
+    best_model = GridSearch.best_estimator_
+    return best_model, GridSearch
 
-      
-    best_gpr = GridSearch.best_estimator_
 
-    return best_gpr, GridSearch
+  def knn_cv(X, y_obs, cv=10):
 
-  def mlkr_cv_with_noise(X, y_obs, cv=10, n_random=10):
+    metric_list = ["minkowski", "euclidean", "chebyshev"]
 
-    inits = ["auto", "pca", "identity", "random"]
+    n_steps = 10
 
-    ncp_lb = 1
-    ncp_ub = 10
-    n_components = range(ncp_lb, ncp_ub)
+    n_inst = X.shape[0]
+    neighbor_lb = 1
+    neighbor_ub = int(n_inst / 2)
+    n_neighbors_list = range(neighbor_lb, neighbor_ub, int(neighbor_ub / n_steps))
 
-    param_grid = {"n_components": n_components,
-        "init": inits}
-    # if cv == -1: 
-    #   cv = 20 # # len(y_obs) - 5
-    model = mkl.MLKR()
+    param_grid = {"n_neighbors": n_neighbors_list,
+        "metric": metric_list}
+
+    model = KNeighborsRegressor()
+
     GridSearch = GridSearchCV(model,param_grid=param_grid,
-                cv=cv,n_jobs=1, scoring="neg_mean_absolute_error")
-
+                cv=cv, n_jobs=-1, scoring="neg_mean_absolute_error")
 
     with parallel_backend('threading'):
       GridSearch.fit(X, y_obs)
-
 
     best_model = GridSearch.best_estimator_
     return best_model, GridSearch
