@@ -12,65 +12,8 @@ batch_outstand = 20
 batch_rand = 20 
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand))
 
-# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-ALdir = "/home/nguyen/work/active-learning"
-
-database_dir = ALdir + "/data/standard"
-coarse_db_dir = ALdir + "/data/coarse_relax"
-fine_db_dir = ALdir + "/data/fine_relax"
-
-std_file = database_dir+"/summary.csv"
-coarse_file = coarse_db_dir+"/summary.csv"
-fine_file = fine_db_dir+"/summary.csv"
-
-# # # data base storage
-database_jobs = [
-  "mix/query_1.csv",  "mix/supp_2.csv", "mix/supp_3.csv", "mix/supp_4.csv",  
-  "mix/supp_5.csv", "mix/supp_6.csv", "mix/supp_7.csv", "mix/supp_8.csv",
-  "mix/supp_9.csv", "mix/supp_10.csv",
-          # "mix_2-24/query_1.csv"
-          ]
-database_results = [database_dir+"/"+k for k in database_jobs]
-fine_db_rst = [fine_db_dir+"/"+k for k in database_jobs]
-coarse_db_rst = [coarse_db_dir+"/"+k for k in database_jobs]
-
-if os.path.isfile(std_file) and os.path.isfile(coarse_file) and os.path.isfile(fine_file):
-  db_results = pd.read_csv(std_file, index_col="index_reduce")
-  crs_db_results = pd.read_csv(coarse_file, index_col="index_reduce")
-  fine_db_results = pd.read_csv(fine_file, index_col="index_reduce")
-  print ("Done reading database.")
-else:
-  # # standard result
-  frames = [pd.read_csv(k, index_col=0) for k in database_results]
-  db_results = pd.concat(frames)
-  index_reduce = [get_basename(k) for k in db_results.index]
-  db_results["index_reduce"] = index_reduce
-  db_results.set_index('index_reduce', inplace=True)
-
-  # # coarse, fine db
-  crs_frames = [pd.read_csv(k, index_col=0) for k in coarse_db_rst]
-  crs_db_results = pd.concat(crs_frames)
-  crs_db_results = crs_db_results.dropna()
-  index_reduce = [get_basename(k) for k in crs_db_results.index]
-  crs_db_results["index_reduce"] = index_reduce
-  crs_db_results.set_index('index_reduce', inplace=True)
-
-
-  fine_frames = [pd.read_csv(k, index_col=0) for k in fine_db_rst]
-  fine_db_results = pd.concat(fine_frames)
-  fine_db_results = fine_db_results.dropna()
-  index_reduce = [get_basename(k) for k in fine_db_results.index]
-  fine_db_results["index_reduce"] = index_reduce
-  fine_db_results.set_index('index_reduce', inplace=True)
-
-  db_results.to_csv(std_file)
-  crs_db_results.to_csv(coarse_file)
-  fine_db_results.to_csv(fine_file)
-
-print ("crs_db_results: ", len(crs_db_results))
-print ("fine_db_results: ", len(fine_db_results))
-print ("db_results: ", len(db_results))
-
+ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+# ALdir = "/home/nguyen/work/active-learning"
 
 
 result_dropbox_dir = ALdir + "/results"
@@ -87,13 +30,13 @@ flags.DEFINE_string("sampling_method", "margin",
 flags.DEFINE_string(
     "score_method", "u_knn", # # u_gp, u_knn, e_krr, u_knn
     ("Method to use to calculate accuracy.")
-)  
+)
 flags.DEFINE_string(
     "embedding_method", "MLKR", # # org_space, MLKR, LFDA, LMNN
     ("Method to transform space.")
 ) 
 flags.DEFINE_string(
-    "mae_update_threshold", "0.3", # # 0.3, 1.0, update_all
+    "mae_update_threshold", "0.1", # # 0.0, 0.3, 1.0, update_all
     ("mean absolute error to update dq to estimator")
 ) 
 

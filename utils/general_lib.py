@@ -1,11 +1,17 @@
 
-import os, glob, ntpath, pickle, functools, copy
+
+import os, glob, ntpath, pickle, functools, copy, sys
+sc_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+for ld, subdirs, files in os.walk(sc_dir):
+  if os.path.isdir(ld) and ld not in sys.path:
+    sys.path.append(ld)
 import pandas as pd
 import numpy as np
 from tensorflow.io import gfile
 from params import *
-from utils.embedding_space import EmbeddingSpace
+from embedding_space import EmbeddingSpace
 from sklearn.preprocessing import MinMaxScaler
+
 def release_mem(fig):
 	fig.clf()
 	plt.close()
@@ -37,8 +43,11 @@ def merge_two_dicts(x, y):
 		return z
 
 def filter_array(x, y):
+	# for i in y:
+	# 	if type(i) != np.float64:
+	# 		print (i, type(i))
 	nan_x = np.isnan(x)
-	nan_y = np.isnan(y)
+	nan_y = np.isnan(np.array(y).astype(np.float64))
 	nan_id = nan_x + nan_y
 	return x[~nan_id], y[~nan_id]
 
@@ -93,23 +102,26 @@ def est_alpha_updated(X_train, y_train,
 			y_train = np.concatenate((y_train, y_test[selected_inds]), axis=0)
 			assert X_test[selected_inds].all() != None
 
+	# # normalize
+	scaler = MinMaxScaler().fit(X_train)
+	X_train = scaler.transform(X_train)
+	X_test = scaler.transform(X_test)
+
 	# # transform to embedding or not
 	if embedding_method != "org_space":
 		model = EmbeddingSpace(embedding_method=embedding_method)
 
 		if embedding_method == "LMNN":
-			_y_train = np.round(y_train, 1)
+			_y_train = np.round(y_train, 1).reshape(len(y_train), 1) #.astype(str)
+			# print ("_y_train", _y_train)
+			# print ("_y_train", len(set(_y_train)))
+
 		else:
 			_y_train = copy.copy(y_train)
 
 		model.fit(X_train=X_train, y_train=_y_train)
 		X_train = model.transform(X_val=X_train, get_min_dist=False)
 		X_test = model.transform(X_val=X_test, get_min_dist=False)
-
-	# # normalize
-	scaler = MinMaxScaler().fit(X_train)
-	X_train = scaler.transform(X_train)
-	X_test = scaler.transform(X_test)
 
 	return X_train, y_train, X_test, model
 
@@ -151,7 +163,7 @@ def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=No
 	else:
 		target_y = None
 		# print ("None index:", id_qr_cvt, len(db_results.index))
-	return (id_qr, id_qr_cvt, target_y)
+	return id_qr, id_qr_cvt, target_y
 
 
 
@@ -201,7 +213,7 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
 		_idx = np.array(data[valid_id, 0])
 
 		_X = np.array(unlbl_X[[np.where(unlbl_index==k)[0][0] for k in _idx], :])
-		if embedding_model != "org_space":
+		if type(embedding_model) is not str:
 			_X = embedding_model.transform(X_val=_X, get_min_dist=False)
 		valid_Xyid.append((_X, _y, _idx))
 	

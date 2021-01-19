@@ -25,19 +25,19 @@ def create_params_grid():
 	score_methods = ["u_gp", "u_knn", "e_krr"
 			# "fully_connected", "ml-gp", "ml-knn"
 		]
-	embedding_methods = ["org_space", "MLKR", "LFDA", "LMNN"]
+	embedding_methods = ["org_space", "MLKR", "LFDA"]  # LMNN
 
 	all_kwargs = list(product(sampling_methods, score_methods, embedding_methods))
 	n_tasks = len(all_kwargs)
 	MainDir = copy.copy(ALdir)
 
+	ncores_per_cpu = 32 # fix
 	ncpus_reserve = 9
 	cpus_per_task = 16
-	ncores_per_cpu = 32 # fix
 	max_cpus = ncpus_reserve*ncores_per_cpu # # ncpus take * ncores per cpu
 	ntask_per_batch = int(max_cpus / cpus_per_task)
 
-	nbatch = int(n_tasks/ntask_per_batch)
+	nbatch = int(n_tasks/ntask_per_batch) + 1
 	makedirs(MainDir+"/data/batch_list/tmps.txt")
 
 	print ("n_tasks: ", n_tasks)
@@ -47,14 +47,17 @@ def create_params_grid():
 
 		shrun_file = open(MainDir+"/data/batch_list/batch_run_{0}.sh".format(batch_ith),"w") 
 		shrun_file.write("#!/bin/bash \n")
-		shrun_file.write("#SBATCH --ntasks={0}\n".format(ntask_per_batch))
 		shrun_file.write("#SBATCH --output=./output_{0}.txt\n".format(batch_ith))
-		
 		shrun_file.write("#SBATCH --cpus-per-task={}\n".format(cpus_per_task))
 		# shrun_file.write("#SBATCH --mem-per-cpu=8000\n")
 
 		init_kw = batch_ith*ntask_per_batch
 		last_kw = (batch_ith+1)*ntask_per_batch
+
+		# # filter the rest
+		if last_kw > n_tasks:
+			last_kw = copy.copy(n_tasks)
+		shrun_file.write("#SBATCH --ntasks={0}\n".format(int(last_kw - init_kw)))
 
 		for kw in all_kwargs[init_kw:last_kw]:
 			sampling_method, score_method, embedding_method = kw[0], kw[1], kw[2]
@@ -77,7 +80,7 @@ def create_params_grid():
 				f.write("python a_rank_unlbl.py {0}\n".format(param_file))
 				f.write("python e_autism_modeling.py {0}\n".format(param_file))
 
-			shrun_file.write("srun --ntasks=1 --nodes=1 sh {0} &\n".format(sh_file))
+			shrun_file.write("srun --ntasks=1 --nodes=1 sh {0} \n".format(sh_file)) 
 		shrun_file.write("wait")
 		shrun_file.close()
 

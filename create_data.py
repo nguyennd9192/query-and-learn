@@ -17,13 +17,12 @@
 Downloads datasets using scikit datasets and can also parse csv file
 to save into pickle format.
 """
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 from io import BytesIO
-import os, glob
+import os, glob, sys
 import pickle
 from io import StringIO
 import tarfile
@@ -42,19 +41,27 @@ from sklearn.datasets import fetch_20newsgroups_vectorized
 from sklearn.datasets import fetch_openml
 from sklearn.datasets import load_breast_cancer
 from sklearn.datasets import load_iris
-import sklearn.datasets.rcv1
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 
+# sc_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+# for ld, subdirs, files in os.walk(sc_dir):
+#   if os.path.isdir(ld) and ld not in sys.path:
+#     sys.path.append(ld)
+
 from absl import app
 from absl import flags
-from general_lib import makedirs, get_subdirs, get_basename
+from utils.general_lib import *
 from features import OFMFeature
 
-flags.DEFINE_string('save_dir', '/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data',
-                    'Where to save outputs')
-flags.DEFINE_string('datasets', '',
-                    'Which datasets to download, comma separated.')
+from preprocess_data import query_db
+
+# flags.DEFINE_string('save_dir', '/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data',
+#                     'Where to save outputs')
+# flags.DEFINE_string('datasets', '',
+#                     'Which datasets to download, comma separated.')
+
+
 FLAGS = flags.FLAGS
 
 
@@ -166,53 +173,54 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   return data_train, data_test
 
 
-def get_unlbl_data(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
+def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
   df = pd.read_csv(lbldata, index_col=0)
   df = df.dropna()
   pv, tv = get_pv_tv(df, pv, tv, rmvs)
   
-  all_unlbl = []
-  # unlbl_jobs = ["Sm-Fe9-Al1-Ga2", "Sm-Fe9-Al2-Ga1", 
-  #       "Sm-Fe9-Co1-Ga2", "Sm-Fe9-Co2-Ga1", 
-  #       "Sm-Fe9-Cu1-Ga2", "Sm-Fe9-Cu2-Ga1", 
-  #       "Sm-Fe9-Mo1-Ga2", "Sm-Fe9-Mo2-Ga1", 
-  #       "Sm-Fe9-Ti1-Ga2", "Sm-Fe9-Ti2-Ga1", 
-  #       "Sm-Fe9-Zn1-Ga2", "Sm-Fe9-Zn2-Ga1", 
-  #       "Sm-Fe10-Al1-Ga1", "Sm-Fe10-Co1-Ga1", 
-  #       "Sm-Fe10-Cu1-Ga1", "Sm-Fe10-Mo1-Ga1", 
-  #       "Sm-Fe10-Ti1-Ga1", "Sm-Fe10-Zn1-Ga1"]
-  # unlbl_jobs = ["mix/" + k for k in unlbl_jobs]
-  # for job in unlbl_jobs:
-  #   listdir = glob.glob("{0}/{1}/{2}/*.*".format(unlbl_data_dir, job, ft_type)) # os.listdir(current_dir)    
-  #   all_unlbl = np.concatenate((all_unlbl, listdir))
-
+  test_data = []
+  
   # # point to datadir of Volume6TB
   unlbl_jobs = get_subdirs(unlbl_data_dir)
   print("unlbl_jobs", unlbl_jobs)
   for job in unlbl_jobs:
     listdir = glob.glob("{0}/{1}/*.*".format(job, ft_type)) # os.listdir(current_dir)    
-    all_unlbl = np.concatenate((all_unlbl, listdir))
-  print(len(all_unlbl))
+    test_data = np.concatenate((test_data, listdir))
+  print(len(test_data))
   # with open(struct_dir_file) as file:
   #   struct_reprs = file.read().splitlines()
 
   data = []
-  for struct_repr in all_unlbl:
+  for struct_repr in test_data:
     with open(struct_repr, "rb") as tmp_f:
       struct_repr_obj = pickle.load(tmp_f,encoding='latin1') #
       data.append(struct_repr_obj)
 
+  # # get X
   feature = np.array([file.__getattribute__('feature') for file in data])
   feature_names = np.array(data[0].__getattribute__('feature_name'))
 
-  tmp_df = pd.DataFrame(feature, columns=feature_names, index=all_unlbl)
+  # # get vasp calc data
+  db_results, crs_db_results, fine_db_results = query_db()
+  # # map index to database
+  data_map = list(map(functools.partial(id_qr_to_database, db_results=db_results,
+        crs_db_results=crs_db_results, fine_db_results=fine_db_results), test_data))
+  # # get y
+  y_obs = np.array(data_map)[:, -1]
+  test_index = np.array(data_map)[:, 1]
+
+
+  tmp_df = pd.DataFrame(feature, columns=feature_names, index=test_index)
+  X = tmp_df[pv].values 
+
+  assert X.shape[0] == y_obs.shape[0]
+
+  tmp_df[tv] = y_obs
   tmp_df.to_csv(unlbl_data_dir+'.csv')
   print("Save at:", unlbl_data_dir)
-  X = tmp_df[pv].values
 
-  unlbl_data = Dataset(X=X, y=np.array([None]*X.shape[0]), index=all_unlbl)
+  unlbl_data = Dataset(X=X, y=y_obs, index=test_index)
   # dump_data(unlbl_data, unlbl_data_dir+'.pkl')
-  print (X.shape)
 
 def get_wikipedia_talk_data():
   """Get wikipedia talk dataset.
@@ -465,16 +473,12 @@ def main(argv):
               # (input_dir + 'all_Ga*ofm1_no_d*energy_substance_pa.csv', 
               #   'ofm_subs_Ga123', 'energy_substance_pa'),
               # (input_dir + 'latbx_ofm1.csv', 
-              #   'latbx_ofm1', 'formation_energy')
+              #   'latbx_ofm1', 'formation_energy') 
 
               (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
                 '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d', 
                 'energy_substance_pa', ["atoms", "magmom_pa"])
               ]
-
-  if FLAGS.datasets:
-    subset = FLAGS.datasets.split(',')
-    datasets = [d for d in datasets if d[1] in subset]
 
   is_prepare_train_data = False
   is_prepare_unlbl_data = True
@@ -488,7 +492,7 @@ def main(argv):
     if is_prepare_train_data:
       get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
     if is_prepare_unlbl_data:
-      get_unlbl_data(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
+      get_SmFe12_test(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
         unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix" # mix_2-24, mix
         )
       

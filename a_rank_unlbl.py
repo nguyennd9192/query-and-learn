@@ -23,9 +23,10 @@ from matplotlib import gridspec
 from matplotlib.backends.backend_agg import FigureCanvas
 import cv2 as cv
 from scipy.interpolate import griddata
-from deformation import read_deformation
+from preprocess_data import read_deformation
 from sklearn.metrics import r2_score, mean_absolute_error, accuracy_score, precision_recall_fscore_support
 
+from itertools import product
 
 
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
@@ -62,16 +63,21 @@ def process_dimensional_reduction(unlbl_X):
 	# processing.similarity_matrix = unlbl_X
 	# X_trans, _, a, b = processing.tsne(**config_tsne)
 	if is_mds:
-		config_mds = dict({"n_components":2, "metric":True, "n_init":4, "max_iter":300, "verbose":0,
-				"eps":0.001, "n_jobs":None, "random_state":None, "dissimilarity":'precomputed'})
+		config_mds = dict({"n_components":2, "metric":True, "n_init":4, 
+			"max_iter":300, "verbose":0,
+				"eps":0.001, "n_jobs":None, "random_state":None, 
+				"dissimilarity":'precomputed'})
 		cosine_distance = 1 - cosine_similarity(unlbl_X)
 		processing.similarity_matrix = cosine_distance
 		X_trans, _ = processing.mds(**config_mds)
 
 	if is_isomap:
-		config_isomap = dict({"n_neighbors":5, "n_components":2, "eigen_solver":'auto', "tol":0, 
-				"max_iter":None, "path_method":'auto', "neighbors_algorithm":'auto', "n_jobs":None,
-				"metric":"l1"})
+		config_isomap = dict({"n_neighbors":5, "n_components":2, 
+			"eigen_solver":'auto', "tol":0, 
+			"max_iter":None, "path_method":'auto',
+			"neighbors_algorithm":'auto', 
+			"n_jobs":None,
+			"metric":"l1"})
 		processing.similarity_matrix = unlbl_X
 		X_trans, a, b = processing.iso_map(**config_isomap)
 	return X_trans
@@ -126,6 +132,7 @@ def query_and_learn(FLAGS,
 		estimator=estimator) # # in the past: selected_inds (update by all database)
 
 	# # fit with whole
+	# estimator.estimator = None # # force grid-search cv
 	estimator.fit(_x_train, _y_train)
 
 	unlbl_y_pred = estimator.predict(_unlbl_X)
@@ -321,7 +328,7 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 		estimator=estimator
 		)
 
-	if embedding_model != "empty":
+	if type(embedding_model) is not str:
 		X_rnd = embedding_model.transform(X_val=X_rnd, get_min_dist=False)
 	estimator.fit(X_train_udt, y_train_udt)
 	y_rnd_pred = estimator.predict(X_rnd)
@@ -351,11 +358,7 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 	makedirs(save_at)
 	plt.savefig(save_at, transparent=False)
 	print ("Save at: ", save_at)
-
-
 	return feedback_val
-
-
 
 def map_unlbl_data(ith_trial, FLAGS):
 	is_save_query = True
@@ -560,17 +563,41 @@ def map_unlbl_data(ith_trial, FLAGS):
 
 
 if __name__ == "__main__":
+
 	FLAGS(sys.argv)
+	is_param_test = False
+	is_spark_run = True
 
-	pr_file = sys.argv[-1]
-	kwargs = load_pickle(filename=pr_file)
-	FLAGS.score_method = kwargs["score_method"]
-	FLAGS.sampling_method =	kwargs["sampling_method"]
-	FLAGS.embedding_method = kwargs["embedding_method"]
- 	# #
-	print ("FLAGS", FLAGS.score_method)
+	if is_spark_run:
+		pr_file = sys.argv[-1]
+		kwargs = load_pickle(filename=pr_file)
+		FLAGS.score_method = kwargs["score_method"]
+		FLAGS.sampling_method =	kwargs["sampling_method"]
+		FLAGS.embedding_method = kwargs["embedding_method"]
+		map_unlbl_data(ith_trial="000", FLAGS=FLAGS)
 
-	# rank_unlbl_data(ith_trial="000") # 014 for u_gp
 
-	map_unlbl_data(ith_trial="000", FLAGS=FLAGS)
+	# # test only
+	if is_param_test:
+		sampling_methods = [
+			"uniform", "exploitation", "margin", "expected_improvement"]
+		score_methods = ["u_gp", "u_knn", "e_krr"
+				# "fully_connected", "ml-gp", "ml-knn"
+			]
+		embedding_methods = ["org_space", "MLKR", "LFDA", "LMNN"]
+		all_kwargs = list(product(sampling_methods, score_methods, embedding_methods))
+
+		for kw in all_kwargs:
+			sampling_method, score_method, embedding_method = kw[0], kw[1], kw[2]
+			FLAGS.score_method = score_method
+			FLAGS.sampling_method = sampling_method
+			FLAGS.embedding_method = embedding_method
+			FLAGS.n_run = 2 # # work only with test params
+
+			print ("score_method", FLAGS.score_method)
+			print ("sampling_method", FLAGS.sampling_method)
+			print ("embedding_method", FLAGS.embedding_method)
+
+			# rank_unlbl_data(ith_trial="000") # 014 for u_gp
+			map_unlbl_data(ith_trial="000", FLAGS=FLAGS)
 

@@ -10,7 +10,12 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.collections import LineCollection
 
 import matplotlib as mpl
-from utils.general_lib import get_basename
+from general_lib import get_basename
+
+from matplotlib.colors import Normalize
+
+
+
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
 size_text = 10
@@ -274,14 +279,15 @@ def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None,
 	if color_array is None:
 		main_ax.scatter(x, y, s=80, alpha=0.8, marker=marker, c=color, edgecolor="white")
 	else:
+		cnorm = Normalize(vmin=min(color_array), vmax=max(color_array) )
 		main_plot = main_ax.scatter(x, y, s=80, alpha=0.8, marker=marker, 
-			c=color_array, cmap='viridis',
+			c=color_array, cmap='BuPu',
 			edgecolor="white")
 		fig.colorbar(main_plot, ax=main_ax)
 		# main_ax.colorbar()
 
-	main_ax.axvline(x=xvline, linestyle='-.', color='black')
-	main_ax.axhline(y=yhline, linestyle='-.', color='black')
+	# main_ax.axvline(x=xvline, linestyle='-.', color='black')
+	# main_ax.axhline(y=yhline, linestyle='-.', color='black')
 
 	main_ax.set_xlabel(x_label, **axis_font)
 	main_ax.set_ylabel(y_label, **axis_font)
@@ -938,7 +944,7 @@ def test_half_filled():
 
 	print (r)
 
-def plot_heatmap(matrix, vmin, vmax, save_file, cmap):
+def plot_heatmap(matrix, vmin, vmax, save_file, cmap, lines=None, title=None):
 	if vmax is None:
 		vmax = np.max(matrix)
 	if vmin is None:
@@ -952,7 +958,16 @@ def plot_heatmap(matrix, vmin, vmax, save_file, cmap):
 			vmax=vmax, vmin=vmin)
 
 	makedirs(save_file)
-	plt.title(get_basename(save_file))
+	if title is None:
+		plt.title(get_basename(save_file))
+	else:
+		plt.title(title)
+
+	if lines is not None:
+		ax.hlines(lines, *ax.get_xlim(), colors="white")
+		ax.vlines(lines, *ax.get_ylim(), colors="white")
+
+
 	plt.savefig(save_file, transparent=False)
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)

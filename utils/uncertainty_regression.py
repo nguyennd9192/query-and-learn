@@ -24,9 +24,9 @@ import numpy as np
 import scipy.linalg as linalg
 from scipy.sparse.linalg import spsolve
 from sklearn import metrics
-from utils.regression import RegressionFactory, CV_predict_score
+from regression import RegressionFactory, CV_predict_score
 from sklearn.preprocessing import MinMaxScaler
-from utils.combination_generator import CombinationGeneratorFactory
+from combination_generator import CombinationGeneratorFactory
 from scipy import stats
 
 
@@ -76,7 +76,7 @@ class UncertainEnsembleRegression(object):
       self.GridSearchCV = GridSearchCV
       self.estimator = estimator
     self.estimator.fit(X_train, y_train)
-    return estimator
+    return self.estimator
 
   def predict(self, X_val, get_pred_vals=False):
     indices = list(range(len(self.y_train)))
@@ -161,8 +161,7 @@ class UncertainEnsembleRegression(object):
         search_param=self.search_param, X=X, y=y,  
         cv=self.cv) 
 
-    if self.GridSearchCV is None and y is not None:
-      r2, r2_std, mae, mae_std = CV_predict_score(estimator, X, y, 
+    r2, r2_std, mae, mae_std = CV_predict_score(estimator, X, y, 
                 n_folds=3, n_times=3, score_type='r2')
     return mae
 
@@ -190,10 +189,9 @@ class UncertainGaussianProcess(object):
 
     self.X_train = X_train
     self.y_train = y_train
-
-    if self.estimator is None: # # for not always search parameters:
-    # if self.estimator is None or self.search_param: # # either self.estimator is None or search_param is True-> require search
-      estimator, GridSearchCV = RegressionFactory.get_regression(method="gp", 
+    if self.estimator is None:
+      estimator, GridSearchCV = RegressionFactory.get_regression(
+          method=self.name, 
           kernel=self.kernel, alpha=None, gamma=None, # # rbf
           search_param=self.search_param, X=X_train, y=y_train,  
           cv=self.cv, mt_kernel=self.mt_kernel) # mt_kernel=self.mt_kernel
@@ -203,7 +201,8 @@ class UncertainGaussianProcess(object):
     return self.estimator
 
   def predict(self, X_val, get_variance=False):
-    y_val_pred, y_val_pred_std = self.estimator.predict(X_val, return_std=True, return_cov=False)
+    y_val_pred, y_val_pred_std = self.estimator.predict(X_val, 
+      return_std=True, return_cov=False)
     if get_variance:
       return y_val_pred, y_val_pred_std
     else:
@@ -246,8 +245,7 @@ class UncertainKNearestNeighbor(object):
   def __init__(self, 
         name,
         random_state=1, 
-        cv=3, search_param=False,
-):
+        cv=3, search_param=False,):
     self.name = name
     self.search_param = search_param
     self.cv = cv
@@ -260,7 +258,6 @@ class UncertainKNearestNeighbor(object):
     # # just return estimator with best param with X_train, y_train
     np.random.seed(self.random_state)
     n_features = X_train.shape[1]
-
 
     self.X_train = X_train
     self.y_train = y_train
@@ -314,7 +311,7 @@ class UncertainKNearestNeighbor(object):
 
   def best_score_(self, X=None, y=None):
     estimator, GridSearchCV = RegressionFactory.get_regression(
-        method=self.name, alpha=None, gamma=None, # # rbf, cosine
+        method="u_knn", alpha=None, gamma=None, # # rbf, cosine
         search_param=self.search_param, X=X, y=y,  
         cv=self.cv) 
     r2, r2_std, mae, mae_std = CV_predict_score(

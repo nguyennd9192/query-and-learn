@@ -13,6 +13,7 @@ from scipy.stats import norm
 from sklearn.neighbors import KernelDensity
 from matplotlib.collections import PolyCollection
 import matplotlib.gridspec as grid_spec
+from sklearn.metrics import pairwise 
 
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
@@ -183,6 +184,8 @@ def show_trace(ith_trial):
 	n_trval = len(X_trval)
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job, result_file=result_file)
+	n_unlbl = len(unlbl_index)
+
 	
 	# estimator_update_by = ["DQ"]
 	estimator_update_by = ["DQ"] # , "RND", "OS"
@@ -222,7 +225,14 @@ def show_trace(ith_trial):
 	ax = fig.add_subplot(1, 1, 1)
 	tmp_df = pd.DataFrame(columns=["error", "qid"])
 
+	color_array = []
+
+	line_query = []
+
+
+
 	for qid, eval_file, est_file in zip(qids, eval_files, est_files):
+
 		# # get all_query, selected_inds and update unlbl_y
 		unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy = load_Xy_query(
 			unlbl_dir=unlbl_dir, unlbl_job=unlbl_job, qid=qid, 
@@ -235,6 +245,8 @@ def show_trace(ith_trial):
 		# 		selected_inds=selected_inds_to_estimator)
 		estimator = load_pickle(est_file)
 
+		# # _x_train = X_trval[selected_inds_to_estimator]
+		# # all _x_train, _y_train, _unlbl_X have been transformed if needed
 		_x_train, _y_train, _unlbl_X, embedding_model = est_alpha_updated(
 			X_train=X_trval, y_train=y_trval, 
 			X_test=unlbl_X, y_test=unlbl_y, 
@@ -249,8 +261,9 @@ def show_trace(ith_trial):
 		rnd_X, rnd_y, rnd_idx = this_qid_Xy[2]
 		
 		print ("qid:", qid, "_x_train.shape", _x_train.shape)
+		print ("mae_update_threshold", FLAGS.mae_update_threshold)
 		data = load_pickle(eval_file)
-		estimator.fit(_x_train, _y_train)
+		# estimator.fit(_x_train, _y_train)
 
 		dict_values = data["DQ"]
 		idx_qr, y_qr, y_qr_pred = dict_values["idx_qr"], dict_values["y_qr"], dict_values["y_qr_pred"]
@@ -268,15 +281,52 @@ def show_trace(ith_trial):
 		X_test = copy.copy(unlbl_X_filter)
 		y_test = copy.copy(unlbl_y_filter)
 		idx_test = copy.copy(unlbl_idx_filter)
-
-		if embedding_model != "empty":
+		if type(embedding_model) is not str:
 			X_test = embedding_model.transform(X_val=X_test, get_min_dist=False)
 
+			# # prepare learned distance matrix
 
-		y_pred = estimator.predict(X_test)
-		y_test, y_pred = filter_array(y_test, y_pred)
+			_unlbl_dist = pairwise.euclidean_distances(_unlbl_X)
+			metric_df = pd.DataFrame(_unlbl_dist, index=unlbl_index, columns=unlbl_index)
 
-		try:
+			# rearrange_inds = np.concatenate([selected_inds, list(set(list(range(n_unlbl))) - set(selected_inds_to_estimator))]).astype(int)
+			# rearrange_inds = list(rearrange_inds)
+
+			# rearrange_name = unlbl_index[rearrange_inds]
+			# metric_df = metric_df.reindex(rearrange_name)
+			# metric_df = metric_df[rearrange_name]
+
+
+
+			save_file = save_file = unlbl_dir+"/query_{0}/{1}_dist.png".format(qid, FLAGS.embedding_method)
+			metric_df.to_csv(save_file.replace(".png", ".csv"))
+			
+			line_query.append(len(selected_inds))
+			plot_heatmap(matrix=metric_df.values, 
+					vmin=None, vmax=None, save_file=save_file, 
+					cmap="jet", title=save_file.replace(ALdir, ""),
+					lines=line_query)
+
+			assert _x_train.shape[1] == X_test.shape[1]
+
+		if False:	
+			# # plot only embedding methods
+			if _x_train.shape[1] == 2:
+				save_file = unlbl_dir+"/query_{0}/{1}".format(qid, FLAGS.embedding_method)
+				new_c = [qid] * (_x_train.shape[0] - len(color_array))
+				color_array += new_c
+				scatter_plot_2(x=_x_train[:, 0], y=_x_train[:, 1], 
+					color_array=color_array, xvline=None, yhline=None, 
+					sigma=None, mode='scatter', lbl=None, name=None, 
+					x_label='x', y_label='y', 
+					save_file=save_file, interpolate=False, color='blue', 
+					preset_ax=None, linestyle='-.', marker='o')
+
+
+
+			y_pred = estimator.predict(X_test)
+			y_test, y_pred = filter_array(y_test, y_pred)
+
 
 			assert y_test.shape == y_pred.shape
 			r2 = r2_score(y_test, y_pred)
@@ -306,7 +356,6 @@ def show_trace(ith_trial):
 				tmp_df.loc[indexes[i], "qid"] = qid
 
 
-
 			# # end plot
 			var = estimator.predict_proba(X_test)
 
@@ -320,32 +369,29 @@ def show_trace(ith_trial):
 			
 			ax.grid(which='both', linestyle='-.')
 			ax.grid(which='minor', alpha=0.2)
-			plt.title(get_basename(save_fig))
+			plt.title(unlbl_dir.replace(ALdir, ""))
 			# ax.set_yscale('log')
 
 			plt.savefig(save_fig, transparent=False)
-		except Exception as e:
-			pass
 
+			var_rst_df.fillna(0, inplace=True)
+			error_rst_df.fillna(0, inplace=True)
 
-		var_rst_df.fillna(0, inplace=True)
-		error_rst_df.fillna(0, inplace=True)
+			# ax = joypy.joyplot(tmp_df, by="qid", column="error")
+			# ax.grid(which='both', linestyle='-.')
+			# ax.grid(which='minor', alpha=0.2)
+			# plt.title(get_basename(save_fig))
+			# plt.savefig(save_fig.replace(".pdf","_joy.pdf"), transparent=False)
 
-		# ax = joypy.joyplot(tmp_df, by="qid", column="error")
-		# ax.grid(which='both', linestyle='-.')
-		# ax.grid(which='minor', alpha=0.2)
-		# plt.title(get_basename(save_fig))
-		# plt.savefig(save_fig.replace(".pdf","_joy.pdf"), transparent=False)
-
-		plot_heatmap(matrix=var_rst_df.values, vmin=None, vmax=None, save_file=var_save_at.replace(".csv", ".pdf"), cmap="jet")
-		plot_heatmap(matrix=error_rst_df.values, vmin=-0.5, vmax=0.5, save_file=error_save_at.replace(".csv", ".pdf"), cmap="bwr")
+			plot_heatmap(matrix=var_rst_df.values, vmin=None, vmax=None, save_file=var_save_at.replace(".csv", ".pdf"), cmap="jet")
+			plot_heatmap(matrix=error_rst_df.values, vmin=-0.5, vmax=0.5, save_file=error_save_at.replace(".csv", ".pdf"), cmap="bwr")
 
 
 
 def error_dist(ith_trial):
 	unlbl_job = "mix" # mix, "mix_2-24"
-	# estimator_update_by = ["DQ"]
-	estimator_update_by = None
+
+	# estimator_update_by = None
 
 	result_dir = get_savedir()
 	filename = get_savefile()
@@ -354,14 +400,17 @@ def error_dist(ith_trial):
 
 	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
 		unlbl_job=unlbl_job, result_file=result_file)
+
+	estimator_update_by = ["DQ"] # , "RND", "OS"
+	if len(estimator_update_by) < 3:
+		for k in estimator_update_by:
+			unlbl_dir += k
+
 	if FLAGS.score_method == "u_gp_mt":
 		mt_kernel = 0.001 # 0.001, 1.0
 		fix_update_coeff = 1
 		unlbl_dir += "_mt{}".format(mt_kernel)
-	elif FLAGS.score_method == "u_gp" and estimator_update_by is not None:
-		if len(estimator_update_by) < 3:
-			for k in estimator_update_by:
-				unlbl_dir += k
+
 	
 	error_save_at = unlbl_dir + "/autism/error.csv"
 	var_save_at = unlbl_dir + "/autism/var.csv"
@@ -403,6 +452,27 @@ def error_dist(ith_trial):
 	# print("Save at:", save_fig)
 
 
+
+# def rotate_matrix(df_matrix):
+# 	values_matrix = df_matrix.values
+# 	features = df_matrix.columns.values
+# 	values_matrix = np.rot90(values_matrix)
+# 	df_result = pd.DataFrame(values_matrix, columns=features)
+# 	df_result.index = features[::-1]
+# 	return df_result
+
+# def plot_heatmap(df_matrix, title, fig_name, output_dir="", ivl=None, df_mapping=None):
+# 	if not ivl is None:
+# 		tmp_data = []
+# 		for label in ivl:
+# 			tmp_data.append(df_matrix.loc[label])
+# 		optimize_df = pd.DataFrame(tmp_data)
+# 		optimize_df = optimize_df.reindex(ivl, axis=1)
+# 		optimize_df = rotate_matrix(optimize_df)
+
+
+
+
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 	
@@ -413,7 +483,9 @@ if __name__ == "__main__":
 	FLAGS.embedding_method = kwargs["embedding_method"]
 
 	show_trace(ith_trial="000")
-	error_dist(ith_trial="000")
+	# error_dist(ith_trial="000")
+
+
 
 	# is_label_mix = False
 	# for sm in ["margin"]: # "uniform",  "exploitation", "expected_improvement", "margin"

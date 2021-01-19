@@ -25,8 +25,11 @@ def get_train_test(X, y):
 
 def test_gaussian_process(X, y):
 	X_train, y_train, X_test, y_test = get_train_test(X, y)
-	gp = UncertainGaussianProcess(random_state=1, cv=10, n_times=3,
-				search_param=True, verbose=False)
+	gp = UncertainGaussianProcess(
+      name="u_gp", random_state=1, 
+      cv=10, search_param=True, 
+      mt_kernel=None)
+	print ("gp:", gp)
 	gp.fit(X_train, y_train)
 	
 	y_pred = gp.predict(X_test, get_variance=False)
@@ -168,11 +171,11 @@ if __name__ == "__main__":
 	dataset = "11*10*23-21_CuAlZnTiMoGa___ofm1_no_d"+"/train_"+test_prefix
 	X, y, index = utils.get_mldata(data_dir, dataset)
 	# test_ensemble(X, y)
-	# test_gaussian_process(X, y)
+	test_gaussian_process(X, y)
 
 	# interested_cols = range(10, 13)
 	# X = X[:, interested_cols]
-	test_knn(X, y)
+	# test_knn(X, y)
 
 
 

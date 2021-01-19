@@ -17,13 +17,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import copy
-import os
-import pickle
-import sys
+import copy, os, pickle, sys, scipy
+
+# sc_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+# for ld, subdirs, files in os.walk(sc_dir):
+#   if os.path.isdir(ld) and ld not in sys.path:
+#     sys.path.append(ld)
 
 import numpy as np
-import scipy
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.kernel_ridge import KernelRidge

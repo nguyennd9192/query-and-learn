@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import warnings
+from joblib import parallel_backend
+
 from sklearn.metrics import r2_score, mean_absolute_error, accuracy_score, precision_recall_fscore_support
 
 from sklearn.model_selection import KFold
@@ -11,9 +13,12 @@ from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler, StandardScaler, sc
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
-
-from sklearn.externals.joblib import parallel_backend
 from sklearn.neighbors import KNeighborsRegressor
+
+
+from sklearn.utils._testing import ignore_warnings
+from sklearn.exceptions import ConvergenceWarning
+
 class RegressionFactory(object): 
     
   @staticmethod
@@ -67,7 +72,7 @@ class RegressionFactory(object):
     #         md_selection = None
     #     best_mlkr.fit(X, y)
 
-        return model, md_selection
+    return model, md_selection
 
   @staticmethod
   def CV_predict(model, X, y, n_folds=3, n_times=3, is_gp=False):
@@ -195,9 +200,10 @@ class RegressionFactory(object):
     return tmp
 
   @staticmethod
+  @ignore_warnings(category=ConvergenceWarning)
   def gaussian_process_cv_with_noise(X, y_obs, cv=10, mt_kernel=None):
     n_steps = 5
-    rbf_length_lb = -4
+    rbf_length_lb = -3
     rbf_length_ub = 1
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
 
@@ -205,12 +211,12 @@ class RegressionFactory(object):
     const_ub = 2
     consts = np.logspace(const_lb, const_ub, n_steps)
 
-    noise_lb = -3
-    noise_ub = 0
+    noise_lb = -2
+    noise_ub = 1
     noises = np.logspace(noise_lb, noise_ub, n_steps)
 
-    alpha_lb = -5
-    alpha_ub = 1
+    alpha_lb = -2
+    alpha_ub = 2
     alphas = np.logspace(alpha_lb, alpha_ub, n_steps)
 
     if mt_kernel is None:
@@ -227,9 +233,10 @@ class RegressionFactory(object):
     GridSearch = GridSearchCV(GaussianProcessRegressor(),param_grid=param_grid,
                 cv=cv, n_jobs=-1, scoring="neg_mean_absolute_error") # # scoring
 
-    with parallel_backend('threading'):
-      GridSearch.fit(X, y_obs)
+    # with parallel_backend('threading'):
+    GridSearch.fit(X, y_obs)
     best_model = GridSearch.best_estimator_
+
     return best_model, GridSearch
 
 
