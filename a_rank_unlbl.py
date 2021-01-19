@@ -29,6 +29,10 @@ from sklearn.metrics import r2_score, mean_absolute_error, accuracy_score, preci
 from itertools import product
 
 
+import warnings
+warnings.filterwarnings("ignore")
+
+
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 									 **kwargs):
 		n_active = int(mixture * N)
@@ -409,10 +413,10 @@ def map_unlbl_data(ith_trial, FLAGS):
 			# # get calculated  
 			# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
 			# print ("queried_files", queried_files)
-			valid_Xyid = get_queried_data(queried_files=queried_files, database_results=database_results, 
-				unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-				coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
+			valid_Xyid = get_queried_data(queried_files=queried_files, 
+				unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 				embedding_model=embedding_model)
+
 			# # alocate representation, label and id of labeled data
 			dq_X, dq_y, dq_idx = valid_Xyid[0]
 			os_X, os_y, os_idx = valid_Xyid[1]
@@ -447,10 +451,6 @@ def map_unlbl_data(ith_trial, FLAGS):
 			dt2estimator = np.concatenate(tmp).ravel()
 			selected_inds_to_estimator = [np.where(unlbl_index==k)[0][0] for k in dt2estimator]
 
-			# unlbl_index = np.delete(unlbl_index, curr_lbl_num_id)
-			# unlbl_X = np.delete(unlbl_X, curr_lbl_num_id, axis=0)
-			# unlbl_y = np.delete(unlbl_y, curr_lbl_num_id, axis=0)
-			unlbl_y[selected_inds] = all_unlbl_y
 
 			# print ("unlbl_X shape in: ", next_query_idx, "queried: ", unlbl_X.shape)
 			# print ("selected_inds: ", next_query_idx, "queried: ", len(selected_inds))
@@ -527,11 +527,9 @@ def map_unlbl_data(ith_trial, FLAGS):
 		this_queried_files = [unlbl_dir+"/query_{}".format(next_query_idx)+"/query.csv"]
 		# # get calculated  
 		# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
-		valid_Xyid = get_queried_data(queried_files=this_queried_files, 
-			database_results=database_results, 
-			unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-			coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
-			embedding_model=embedding_model)
+		valid_Xyid = get_queried_data(queried_files=queried_files, 
+				unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+				embedding_model=embedding_model)
 		# # alocate representation, label and id of labeled data
 
 		this_dq_X, this_dq_y, this_dq_idx = valid_Xyid[0]

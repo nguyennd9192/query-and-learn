@@ -166,9 +166,18 @@ def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=No
 	return id_qr, id_qr_cvt, target_y
 
 
+def id_qr(qr, y, index):
+	if qr in index:
+		idx = index.index(id_qr)
+		value = y[idx]
+	else:
+		value = None
+	return value
 
-def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
-			coarse_db_rst, fine_db_rst, embedding_model):
+
+
+def get_queried_data(queried_files, unlbl_X, unlbl_y, unlbl_index,
+			 embedding_model):
 	"""
 	database_results: *.csv of all vasp calculated data, normally in the standard step
 	queried_files: all queried files
@@ -184,12 +193,9 @@ def get_queried_data(queried_files, database_results, unlbl_X, unlbl_index,
 		this_df = pd.read_csv(qf, index_col=0)
 		dq, os, rnd = get_qrindex(df=this_df)
 
-		dq_cvt = map(functools.partial(id_qr_to_database, db_results=db_results,
-			crs_db_results=crs_db_results, fine_db_results=fine_db_results), dq)
-		os_cvt = map(functools.partial(id_qr_to_database, db_results=db_results,
-			crs_db_results=crs_db_results, fine_db_results=fine_db_results), os)
-		rnd_cvt = map(functools.partial(id_qr_to_database, db_results=db_results,
-			crs_db_results=crs_db_results, fine_db_results=fine_db_results), rnd)
+		dq_cvt = map(functools.partial(id_qr, y=unlbl_y, index=unlbl_index), dq)
+		os_cvt = map(functools.partial(id_qr, y=unlbl_y, index=unlbl_index), os)
+		rnd_cvt = map(functools.partial(id_qr, y=unlbl_y, index=unlbl_index), rnd)
 
 		# dqs = merge_two_dicts(dqs, dq_cvt)
 		# dq_cvt = list(map(id_qr_to_database, arg1))
