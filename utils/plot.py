@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.collections import LineCollection
 
 import matplotlib as mpl
-from general_lib import get_basename
+from utils.general_lib import get_basename
 
 from matplotlib.colors import Normalize
 

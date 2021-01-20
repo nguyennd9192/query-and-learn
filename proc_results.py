@@ -7,10 +7,11 @@ import pandas as pd
 import cv2 as cv
 
 from params import *
-from run_experiment import get_savedir, get_savefile, get_data_from_flags, get_train_test, get_othere_cfg
 from utils.utils import load_pickle
 # from utils.plot import scatter_plot, makedirs, get_color_112, get_marker_112, process_name, ax_scatter
 from utils.plot import *
+from utils.general_lib import *
+
 from matplotlib.backends.backend_agg import FigureCanvas
 from sklearn.preprocessing import normalize
 from matplotlib import gridspec

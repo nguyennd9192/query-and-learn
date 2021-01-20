@@ -9,6 +9,12 @@ import pandas as pd
 import numpy as np
 from tensorflow.io import gfile
 from params import *
+
+try:
+	from utils import utils # # ignore in call create_data
+except:
+	pass
+
 from embedding_space import EmbeddingSpace
 from sklearn.preprocessing import MinMaxScaler
 
@@ -74,6 +80,32 @@ def dump_flags(data, filename):
 	FLAGS.append_flags_into_file(filename)
 
 
+
+def get_savedir(ith_trial):
+	s_dir = str(os.path.join(
+			FLAGS.save_dir,
+			"/".join([FLAGS.dataset, FLAGS.sampling_method,
+						FLAGS.score_method, FLAGS.embedding_method, 
+						FLAGS.mae_update_threshold])))
+	filename = get_savefile()
+	result_file = s_dir + "/trial_" + ith_trial +".pkl"
+	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
+
+	if FLAGS.score_method == "u_gp_mt":
+		mt_kernel = 1.0 # 1.0, 0.001
+		fix_update_coeff = 1
+		unlbl_dir += "_mt{}".format(mt_kernel)
+
+	# # to mark whether update estimator by DQ only or DQ vs RND
+	# # "" is update all
+	estimator_update_by = FLAGS.estimator_update_by ["DQ"] # , "RND", "OS"
+	if len(estimator_update_by) < 3:
+		for k in estimator_update_by:
+			unlbl_dir += k
+
+	return unlbl_dir
+
+
 def get_qrindex(df):
 	update_DQ_str = df.loc[df["query2update_DQ"]=="query2update_DQ", "unlbl_index"].to_list()
 	outstand_str = df.loc[df["query_outstanding"]=="query_outstanding", "unlbl_index"].to_list()
@@ -126,23 +158,28 @@ def est_alpha_updated(X_train, y_train,
 	return X_train, y_train, X_test, model
 
 
-def load_unlbl_data(unlbl_job, result_file):
-	# # round data
-	# round1 = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/with_standard_ene/mix/rand1___ofm1_no_d.csv"
-	# round1_df = pd.read_csv(round1, index_col=0)
+def load_unlbl_data():
 
-	# # read load unlbl data
-	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
-	data = load_pickle(unlbl_file+".pkl")
-	unlbl_X = data["data"]
-	unlbl_y = data["target"]
-	unlbl_index = data["index"]
-	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
-	return unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir
+	# # read_load train data
+	if FLAGS.is_test_separate:
+		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/train_"+FLAGS.test_prefix)
+		X_sept_test, y_sept_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)
+		print("Success in reading separated test set.")
+	else:
+		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset)
+		X_sept_test, y_sept_test, index_test = None, None, None
 
+		# # read load unlbl data
+		unlbl_file = ALdir+FLAGS.data_target
+		data = load_pickle(unlbl_file+".pkl")
 
-def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=None):
-	# id_qr = arg[0]
+		X_sept_test = data["data"]
+		y_sept_test = data["target"]
+		index_test = data["index"]
+	# return unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir
+	return X, y, index, X_sept_test, y_sept_test, index_test
+
+def norm_id(id_qr):
 	feature_dir = "/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/"
 	assert feature_dir in id_qr
 	id_qr_cvt = id_qr.replace(feature_dir, "")
@@ -151,6 +188,13 @@ def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=No
 
 	id_qr_cvt = id_qr_cvt.replace("ofm1_no_d/", "").replace(".ofm1_no_d", "")
 	id_qr_cvt = id_qr_cvt.replace("/", '-_-')
+	return id_qr_cvt
+
+def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=None):
+	# # Still use in create_data
+	# id_qr = arg[0]
+
+	id_qr_cvt = norm_id(id_qr)
 
 	if id_qr_cvt in db_results.index:
 		target_y = db_results.loc[id_qr_cvt, "energy_substance_pa"]
@@ -168,11 +212,11 @@ def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=No
 
 def id_qr(qr, y, index):
 	if qr in index:
-		idx = index.index(id_qr)
+		idx = np.where(index==qr)[0][0]
 		value = y[idx]
 	else:
 		value = None
-	return value
+	return (qr, value)
 
 
 

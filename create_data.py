@@ -116,10 +116,9 @@ def get_ofm_data(filename, pv, tv, rmvs):
   # # revise here
   stb_thres = 0.0603 # # found in 200318_note1
   # y = np.array(['stable' if i < stb_thres else 'unstable' for i in fe])
-  y = fe
-  print ("N stable", len(np.where(y =="stable")[0]))
-  print ("N unstable", len(np.where(y =="unstable")[0]))
-  data = Dataset(X=X, y=y, index=df.index)
+  # print ("N stable", len(np.where(fe =="stable")[0]))
+  # print ("N unstable", len(np.where(fe =="unstable")[0]))
+  data = Dataset(X=X, y=fe, index=df.index)
   return data
 
 
@@ -173,7 +172,7 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   return data_train, data_test
 
 
-def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
+def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
   df = pd.read_csv(lbldata, index_col=0)
   df = df.dropna()
   pv, tv = get_pv_tv(df, pv, tv, rmvs)
@@ -186,7 +185,6 @@ def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
   for job in unlbl_jobs:
     listdir = glob.glob("{0}/{1}/*.*".format(job, ft_type)) # os.listdir(current_dir)    
     test_data = np.concatenate((test_data, listdir))
-  print(len(test_data))
   # with open(struct_dir_file) as file:
   #   struct_reprs = file.read().splitlines()
 
@@ -205,22 +203,31 @@ def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, ft_type="ofm1_no_d"):
   # # map index to database
   data_map = list(map(functools.partial(id_qr_to_database, db_results=db_results,
         crs_db_results=crs_db_results, fine_db_results=fine_db_results), test_data))
+
+  
+  # id_qr, y=unlbl_y, index=unlbl_index
+
   # # get y
   y_obs = np.array(data_map)[:, -1]
   test_index = np.array(data_map)[:, 1]
 
 
   tmp_df = pd.DataFrame(feature, columns=feature_names, index=test_index)
-  X = tmp_df[pv].values 
-
-  assert X.shape[0] == y_obs.shape[0]
-
   tmp_df[tv] = y_obs
-  tmp_df.to_csv(unlbl_data_dir+'.csv')
-  print("Save at:", unlbl_data_dir)
+  tmp_df = tmp_df.dropna()
+  
+  X_filter = tmp_df[pv].values 
+  y_filter = tmp_df[tv].values 
+  index_filter = tmp_df.index
 
-  unlbl_data = Dataset(X=X, y=y_obs, index=test_index)
-  # dump_data(unlbl_data, unlbl_data_dir+'.pkl')
+  assert X_filter.shape[0] == y_filter.shape[0]
+
+  tmp_df.to_csv(saveat+'.csv')
+  print("Save at:", saveat, y_filter.shape[0], y_obs.shape[0])
+
+
+  unlbl_data = Dataset(X=X_filter, y=y_filter, index=index_filter)
+  dump_data(unlbl_data, saveat+'.pkl')
 
 def get_wikipedia_talk_data():
   """Get wikipedia talk dataset.
@@ -359,7 +366,7 @@ def dump_data(data, filename):
 
 def get_mldata(dataset, is_test_separate=False, prefix=None):
   # Use scikit to grab datasets and save them save_dir.
-  save_dir = FLAGS.save_dir
+  save_dir = ALdir+"/data"
 
   # if not gfile.exists(save_dir):
   #   gfile.mkdir(save_dir)
@@ -383,7 +390,8 @@ def get_mldata(dataset, is_test_separate=False, prefix=None):
     if "ofm" in dataset[1]:
       # # read ofm data:
       # print ("Process here")
-      data = get_ofm_data(filename=dataset[0], pv=None, tv=dataset[2], rmvs=dataset[3])
+      data = get_ofm_data(filename=dataset[0], 
+        pv=None, tv=dataset[2], rmvs=dataset[3])
 
     else:
       if dataset[0][-3:] == 'csv':
@@ -472,16 +480,17 @@ def main(argv):
 
               # (input_dir + 'all_Ga*ofm1_no_d*energy_substance_pa.csv', 
               #   'ofm_subs_Ga123', 'energy_substance_pa'),
-              # (input_dir + 'latbx_ofm1.csv', 
-              #   'latbx_ofm1', 'formation_energy') 
+              (input_dir + 'latbx_ofm1.csv', 
+                'latbx_ofm1', 'formation_energy', []) 
 
-              (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
-                '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d', 
-                'energy_substance_pa', ["atoms", "magmom_pa"])
+              # # for SmFe12
+              # (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
+              #   '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d', 
+              #   'energy_substance_pa', ["atoms", "magmom_pa"])
               ]
 
-  is_prepare_train_data = False
-  is_prepare_unlbl_data = True
+  is_prepare_train_data = True
+  is_Sm12 = False
 
   for d in datasets:
     print(d[1])
@@ -491,9 +500,10 @@ def main(argv):
     # # separate test set
     if is_prepare_train_data:
       get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
-    if is_prepare_unlbl_data:
+    if is_Sm12:
       get_SmFe12_test(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
-        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix" # mix_2-24, mix
+        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix", # mix_2-24, mix
+        saveat=input_dir+"/SmFe12/mix"
         )
       
 

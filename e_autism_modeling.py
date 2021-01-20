@@ -20,7 +20,7 @@ axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
 
 
-def load_Xy_query(unlbl_dir, unlbl_job, qid, 
+def load_Xy_query(unlbl_dir, qid, 
 	unlbl_X, unlbl_y, unlbl_index, estimator_update_by):
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
 	if qid == 1:
@@ -170,22 +170,11 @@ def generate_verts(df_data, err_cols, save_fig):
 
 
 def show_trace(ith_trial):
-	unlbl_job = "mix" # mix, "mix_2-24"
-
-	result_dir = get_savedir()
-	filename = get_savefile()
-	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
-	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
-	# unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
+	result_dir, unlbl_dir = get_savedir()
+	X_trval, y_trval, index_trval, unlbl_X, unlbl_y, unlbl_index = get_data_from_flags()
 
 
-	# # load label and un_label
-	X_trval, y_trval, index_trval, X_test, y_test, test_idx = get_data_from_flags()
-	n_trval = len(X_trval)
-	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
-		unlbl_job=unlbl_job, result_file=result_file)
 	n_unlbl = len(unlbl_index)
-
 	
 	# estimator_update_by = ["DQ"]
 	estimator_update_by = ["DQ"] # , "RND", "OS"
@@ -235,7 +224,7 @@ def show_trace(ith_trial):
 
 		# # get all_query, selected_inds and update unlbl_y
 		unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy = load_Xy_query(
-			unlbl_dir=unlbl_dir, unlbl_job=unlbl_job, qid=qid, 
+			unlbl_dir=unlbl_dir, qid=qid, 
 			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 			estimator_update_by=estimator_update_by)
 
@@ -389,17 +378,10 @@ def show_trace(ith_trial):
 
 
 def error_dist(ith_trial):
-	unlbl_job = "mix" # mix, "mix_2-24"
-
 	# estimator_update_by = None
+	result_dir, unlbl_dir = get_savedir()
+	X_trval, y_trval, index_trval, unlbl_X, unlbl_y, unlbl_index = get_data_from_flags()
 
-	result_dir = get_savedir()
-	filename = get_savefile()
-	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
-	unlbl_file = ALdir+"/data/SmFe12/unlabeled_data/"+unlbl_job 
-
-	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
-		unlbl_job=unlbl_job, result_file=result_file)
 
 	estimator_update_by = ["DQ"] # , "RND", "OS"
 	if len(estimator_update_by) < 3:

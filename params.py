@@ -22,7 +22,9 @@ pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
 
 # python rank_unlbl.py§
-flags.DEFINE_string("dataset", "SmFe12_init", "Dataset name")  # 11*10*23-21_CuAlZnTiMoGa___ofm1_no_d
+flags.DEFINE_string("data_init", "/data/SmFe12/SmFe12_init", "Dataset name")  # SmFe12/mix
+flags.DEFINE_string("data_target", "/data/SmFe12/mix", "Dataset name")  # 
+
 flags.DEFINE_string("sampling_method", "margin", 
                   # uniform, exploitation, margin, expected_improvement
                     ("Name of sampling method to use, can be any defined in "
@@ -40,6 +42,11 @@ flags.DEFINE_string(
     ("mean absolute error to update dq to estimator")
 ) 
 
+flags.DEFINE_string(
+    "update_by", "DQ", # # DQ_RND_OS
+    ("mean absolute error to update dq to estimator")
+) 
+
 flags.DEFINE_integer("batch_size", batch_size, 
     ("batch size of DQ")
 )
@@ -52,7 +59,7 @@ flags.DEFINE_integer("batch_rand", batch_rand,
 flags.DEFINE_integer("n_run", n_run, 
     ("number of active query launch")
 )
-flags.DEFINE_boolean("is_search_params", True, 
+flags.DEFINE_boolean("is_search_params", False, 
   ("search estimator or not")
 )
 

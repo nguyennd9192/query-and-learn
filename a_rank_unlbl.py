@@ -4,13 +4,14 @@ import sys, pickle, functools, json, copy, random, re
 import numpy as np 
 from params import *
 from absl import app
-from run_experiment import get_savedir, get_savefile, get_data_from_flags, get_train_test, get_othere_cfg
 from utils.utils import load_pickle
 from utils.general_lib import *
 
 from utils import utils
 from sampling_methods.constants import AL_MAPPING
 from sampling_methods.constants import get_AL_sampler
+from sampling_methods.constants import get_wrapper_AL_mapping
+
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics.pairwise import cosine_similarity
 from proc_results import read_exp_params, params2text
@@ -31,6 +32,8 @@ from itertools import product
 
 import warnings
 warnings.filterwarnings("ignore")
+
+get_wrapper_AL_mapping()
 
 
 def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
@@ -90,7 +93,7 @@ def process_dimensional_reduction(unlbl_X):
 def query_and_learn(FLAGS, 
 		selected_inds, selected_inds_to_estimator,
 		estimator, X_trval, y_trval, index_trval, 
-		unlbl_file, unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
+		unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
 		is_save_query, csv_save_dir, tsne_file, is_plot):
 	active_p = 1.0
 	plt_mode = "2D" # 3D, 2D, 3D_patch
@@ -120,7 +123,6 @@ def query_and_learn(FLAGS,
 
 	# # save querying data 
 	query_data = dict()
-	query_data["unlbl_file"] = unlbl_file
 	query_data["unlbl_index"] = unlbl_index
 	# # end save querying data 
 
@@ -199,7 +201,7 @@ def query_and_learn(FLAGS,
 		size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
 		# # name, color, marker for plot
 		plot_index = np.concatenate((unlbl_index, index_trval), axis=0)
-		name = [k.replace(unlbl_file, "") for k in plot_index]
+		name = [k.replace(ALdir, "") for k in plot_index]
 		family = [get_family(k) for k in plot_index]
 
 		list_cdict = np.array([get_color_112(k) for k in name])
@@ -323,7 +325,7 @@ def evaluation_map(FLAGS, X_train, y_train, index_trval,
 	dtname = "DQ_to_RND"
 	X_dq, y_dq, idx_dq = DQ	
 	X_rnd, y_rnd, idx_rnd = RND	
-
+	print ("here", X_train.shape, y_train.shape, X_dq.shape, y_dq.shape)
 	X_train_udt, y_train_udt, _, embedding_model = est_alpha_updated(
 		X_train=X_train, y_train=y_train, 
 		X_test=X_dq, y_test=y_dq, selected_inds=range(len(y_dq)),
@@ -370,30 +372,14 @@ def map_unlbl_data(ith_trial, FLAGS):
 
 	unlbl_job = "mix" # mix, "mix_2-24"
 
-	result_dir = get_savedir()
-	filename = get_savefile()
-	result_file = result_dir + "/" + filename + "_" + ith_trial +".pkl"
-	# all_results = load_pickle(result_file)
+	savedir = get_savedir()
 
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
-	X_trval, y_trval, index_trval, X_test_csv, y_test_csv, test_idx_csv = get_data_from_flags()
+	X_trval, y_trval, index_trval, unlbl_X, unlbl_y, unlbl_index = get_data_from_flags()
 	n_trval = len(X_trval)
-	
-	# deformations = read_deformation(qr_indexes=index_trval)
-	unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(
-		unlbl_job=unlbl_job,  result_file=result_file)
 
-	if FLAGS.score_method == "u_gp_mt":
-		mt_kernel = 1.0 # 1.0, 0.001
-		fix_update_coeff = 1
-		unlbl_dir += "_mt{}".format(mt_kernel)
 
-	# # to mark whether update estimator by DQ only or DQ vs RND
-	# # "" is update all
-	estimator_update_by = ["DQ"] # , "RND", "OS"
-	if len(estimator_update_by) < 3:
-		for k in estimator_update_by:
-			unlbl_dir += k
+
 
 	selected_inds = []
 	selected_inds_to_estimator = []
@@ -407,8 +393,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 		# # queried_idxes is None mean all we investigate at initial step
 		if next_query_idx != 1:
 			# queried files
-			queried_files = [unlbl_dir + "/query_{}".format(k) + "/query.csv" for k in queried_idxes]
-			# queried_files = [unlbl_dir + "/query_{}".format(next_query_idx) + "/m0.1_c0.1.csv"]
+			queried_files = [savedir + "/query_{}".format(k) + "/query.csv" for k in queried_idxes]
 
 			# # get calculated  
 			# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
@@ -462,7 +447,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 			if next_query_idx == 1:
 				update_coeff = 1.0
 			else:
-				kernel_cfg_file = unlbl_dir+"/query_{}".format(next_query_idx-1) + "/kernel_cfg.txt"
+				kernel_cfg_file = savedir+"/query_{}".format(next_query_idx-1) + "/kernel_cfg.txt"
 				update_coeff = np.loadtxt(kernel_cfg_file)				
 			estimator = utils.get_model(
 				FLAGS.score_method, FLAGS.seed, 
@@ -488,11 +473,11 @@ def map_unlbl_data(ith_trial, FLAGS):
 
 
 		# # 3. prepare sampler
-		uniform_sampler = AL_MAPPING["uniform"](unlbl_X_sampler, unlbl_y, FLAGS.seed)
+		uniform_sampler = AL_MAPPING['uniform'](unlbl_X_sampler, unlbl_y, FLAGS.seed)
 		sampler = get_AL_sampler(FLAGS.sampling_method)
 		sampler = sampler(unlbl_X_sampler, unlbl_y, FLAGS.seed)
 		
-		ith_query_storage = unlbl_dir+"/query_{}".format(next_query_idx)
+		ith_query_storage = savedir+"/query_{}".format(next_query_idx)
 		est_file = ith_query_storage + "/pre_trained_est.pkl"
 		
 		# # tsne
@@ -509,14 +494,14 @@ def map_unlbl_data(ith_trial, FLAGS):
 			selected_inds_to_estimator=selected_inds_to_estimator,
 			estimator=estimator,
 			X_trval=X_trval, y_trval=y_trval, index_trval=index_trval,
-			unlbl_file=unlbl_file, unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 			sampler=sampler, uniform_sampler=uniform_sampler, 
 			is_save_query=is_save_query, csv_save_dir=ith_query_storage, tsne_file=tsne_file,
 			is_plot=False)
 		makedirs(est_file)
 		pickle.dump(estimator, gfile.GFile(est_file, 'w'))
 
-		save_at = unlbl_dir+"/query_{}".format(next_query_idx)+"/query_performance.pdf"
+		save_at = savedir+"/query_{}".format(next_query_idx)+"/query_performance.pdf"
 		eval_data_file = ith_query_storage+"/eval_query_{}.pkl".format(next_query_idx) 
 		
 		"""
@@ -524,10 +509,10 @@ def map_unlbl_data(ith_trial, FLAGS):
 		"""
 
 		# # 2. put this_queried_files to database for querying results
-		this_queried_files = [unlbl_dir+"/query_{}".format(next_query_idx)+"/query.csv"]
+		this_queried_files = [savedir+"/query_{}".format(next_query_idx)+"/query.csv"]
 		# # get calculated  
 		# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
-		valid_Xyid = get_queried_data(queried_files=queried_files, 
+		valid_Xyid = get_queried_data(queried_files=this_queried_files, 
 				unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 				embedding_model=embedding_model)
 		# # alocate representation, label and id of labeled data
@@ -554,7 +539,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 				update_coeff = fix_update_coeff
 	 
 			last_feedback = copy.copy(feedback_val)
-			tmp = unlbl_dir+"/query_{}".format(next_query_idx) + "/kernel_cfg.txt"
+			tmp = savedir+"/query_{}".format(next_query_idx) + "/kernel_cfg.txt"
 			np.savetxt(tmp, [update_coeff])
 		# break
 
