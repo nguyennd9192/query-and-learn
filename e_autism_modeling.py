@@ -176,18 +176,7 @@ def show_trace(ith_trial):
 
 	n_unlbl = len(unlbl_index)
 	
-	# estimator_update_by = ["DQ"]
-	estimator_update_by = ["DQ"] # , "RND", "OS"
-	if len(estimator_update_by) < 3:
-		for k in estimator_update_by:
-			unlbl_dir += k
-
-	if FLAGS.score_method == "u_gp_mt":
-		mt_kernel = 1.0 # 0.001, 1.0
-		fix_update_coeff = 1
-		unlbl_dir += "_mt{}".format(mt_kernel)
 	
-		
 
 	qids = range(1, FLAGS.n_run)
 	# qids = [1]
@@ -209,7 +198,6 @@ def show_trace(ith_trial):
 	
 	color = "blue"
 
-	all_error = []
 	fig = plt.figure(figsize=(10, 8))
 	ax = fig.add_subplot(1, 1, 1)
 	tmp_df = pd.DataFrame(columns=["error", "qid"])
@@ -236,7 +224,7 @@ def show_trace(ith_trial):
 
 		# # _x_train = X_trval[selected_inds_to_estimator]
 		# # all _x_train, _y_train, _unlbl_X have been transformed if needed
-		_x_train, _y_train, _unlbl_X, embedding_model = est_alpha_updated(
+		_x_train, _y_train, unlbl_X_sampler, embedding_model = est_alpha_updated(
 			X_train=X_trval, y_train=y_trval, 
 			X_test=unlbl_X, y_test=unlbl_y, 
 			selected_inds=selected_inds_to_estimator,
@@ -254,49 +242,22 @@ def show_trace(ith_trial):
 		data = load_pickle(eval_file)
 		# estimator.fit(_x_train, _y_train)
 
-		dict_values = data["DQ"]
-		idx_qr, y_qr, y_qr_pred = dict_values["idx_qr"], dict_values["y_qr"], dict_values["y_qr_pred"]
 		
-		rest_index = []
-		for j, idx in enumerate(unlbl_index):
-			if j not in selected_inds:
-				rest_index.append(idx)
-		filter_data = get_all_unlb_y(
-				database_results=database_results, 
-				unlbl_X=unlbl_X, unlbl_index=np.array(rest_index),
-				coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst)
-		unlbl_X_filter, unlbl_y_filter, unlbl_idx_filter = filter_data[0], filter_data[1], filter_data[2]
-
-		X_test = copy.copy(unlbl_X_filter)
-		y_test = copy.copy(unlbl_y_filter)
-		idx_test = copy.copy(unlbl_idx_filter)
-		if type(embedding_model) is not str:
-			X_test = embedding_model.transform(X_val=X_test, get_min_dist=False)
-
-			# # prepare learned distance matrix
-
-			_unlbl_dist = pairwise.euclidean_distances(_unlbl_X)
-			metric_df = pd.DataFrame(_unlbl_dist, index=unlbl_index, columns=unlbl_index)
-
-			# rearrange_inds = np.concatenate([selected_inds, list(set(list(range(n_unlbl))) - set(selected_inds_to_estimator))]).astype(int)
-			# rearrange_inds = list(rearrange_inds)
-
-			# rearrange_name = unlbl_index[rearrange_inds]
-			# metric_df = metric_df.reindex(rearrange_name)
-			# metric_df = metric_df[rearrange_name]
 
 
+		assert unlbl_X_sampler.shape[0] == unlbl_X.shape[0]
+		_unlbl_dist = pairwise.euclidean_distances(unlbl_X_sampler)
+		metric_df = pd.DataFrame(_unlbl_dist, index=unlbl_index, columns=unlbl_index)
 
-			save_file = save_file = unlbl_dir+"/query_{0}/{1}_dist.png".format(qid, FLAGS.embedding_method)
-			metric_df.to_csv(save_file.replace(".png", ".csv"))
-			
-			line_query.append(len(selected_inds))
-			plot_heatmap(matrix=metric_df.values, 
-					vmin=None, vmax=None, save_file=save_file, 
-					cmap="jet", title=save_file.replace(ALdir, ""),
-					lines=line_query)
+		save_file = save_file = unlbl_dir+"/query_{0}/{1}_dist.png".format(qid, FLAGS.embedding_method)
+		metric_df.to_csv(save_file.replace(".png", ".csv"))
+		
+		line_query.append(len(selected_inds))
+		plot_heatmap(matrix=metric_df.values, 
+				vmin=None, vmax=None, save_file=save_file, 
+				cmap="jet", title=save_file.replace(ALdir, ""),
+				lines=line_query)
 
-			assert _x_train.shape[1] == X_test.shape[1]
 
 		if False:	
 			# # plot only embedding methods
@@ -321,7 +282,6 @@ def show_trace(ith_trial):
 			r2 = r2_score(y_test, y_pred)
 			mae = mean_absolute_error(y_test, y_pred)
 			error = np.abs(y_test-y_pred)
-			all_error.append( error )
 
 			# # to plot
 
@@ -339,7 +299,7 @@ def show_trace(ith_trial):
 
 
 
-			indexes = ["{0}_{1}".format(k, qid) for k in unlbl_idx_filter]
+			indexes = ["{0}_{1}".format(k, qid) for k in unlbl_idx]
 			for i in range(len(indexes)):
 				tmp_df.loc[indexes[i], "error"] = np.log(error[i])
 				tmp_df.loc[indexes[i], "qid"] = qid

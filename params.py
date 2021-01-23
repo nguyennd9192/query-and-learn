@@ -22,28 +22,31 @@ pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
 
 # python rank_unlbl.py§
-flags.DEFINE_string("data_init", "/data/SmFe12/SmFe12_init", "Dataset name")  # SmFe12/mix
-flags.DEFINE_string("data_target", "/data/SmFe12/mix", "Dataset name")  # 
+flags.DEFINE_string("data_init", "SmFe12/SmFe12_init", "Dataset name")  # SmFe12/mix
+flags.DEFINE_string("data_target", "SmFe12/mix", "Dataset name")  # 
 
+# # # obtain from args
 flags.DEFINE_string("sampling_method", "margin", 
                   # uniform, exploitation, margin, expected_improvement
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
 flags.DEFINE_string(
-    "score_method", "u_knn", # # u_gp, u_knn, e_krr, u_knn
-    ("Method to use to calculate accuracy.")
-)
+    "score_method", "u_gp", # # u_gp, u_knn, e_krr, u_knn
+    ("Method to use to calculate accuracy."))
 flags.DEFINE_string(
     "embedding_method", "MLKR", # # org_space, MLKR, LFDA, LMNN
-    ("Method to transform space.")
-) 
+    ("Method to transform space."))
+# # # 
+flags.DEFINE_boolean("is_search_params", False, 
+  ("search estimator or not")
+)
+
 flags.DEFINE_string(
     "mae_update_threshold", "0.1", # # 0.0, 0.3, 1.0, update_all
     ("mean absolute error to update dq to estimator")
 ) 
-
 flags.DEFINE_string(
-    "update_by", "DQ", # # DQ_RND_OS
+    "estimator_update_by", "DQ", # # DQ_RND_OS
     ("mean absolute error to update dq to estimator")
 ) 
 
@@ -59,13 +62,8 @@ flags.DEFINE_integer("batch_rand", batch_rand,
 flags.DEFINE_integer("n_run", n_run, 
     ("number of active query launch")
 )
-flags.DEFINE_boolean("is_search_params", False, 
-  ("search estimator or not")
-)
-
-
 flags.DEFINE_boolean(
-    "is_test_separate", False, # # True, False
+    "is_test_separate", True, 
     ("Whether or not the test file was prepared separately."))
 flags.DEFINE_boolean(
     "is_clf", False,

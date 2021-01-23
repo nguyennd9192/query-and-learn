@@ -250,7 +250,7 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 		release_mem(fig=fig)
 
 
-def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None, 
+def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	x_label='x', y_label='y', 
 	save_file=None, interpolate=False, color='blue', 
@@ -288,6 +288,13 @@ def scatter_plot_2(x, y, color_array=None, xvline=None, yhline=None,
 
 	# main_ax.axvline(x=xvline, linestyle='-.', color='black')
 	# main_ax.axhline(y=yhline, linestyle='-.', color='black')
+
+
+	if z_values is not None:
+		grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), method='cubic')
+		plt.imshow(grid_interpolate.T, extent=(min(x):max(x),min(y):max(y)), origin='lower')
+
 
 	main_ax.set_xlabel(x_label, **axis_font)
 	main_ax.set_ylabel(y_label, **axis_font)

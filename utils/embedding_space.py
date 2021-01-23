@@ -3,7 +3,7 @@ from sklearn import neighbors
 import metric_learn as mkl
 import numpy as np
 from sklearn.metrics import pairwise_distances
-
+from plot import scatter_plot_2
 
 class EmbeddingSpace(object):
 	def __init__(self, embedding_method):
@@ -52,5 +52,42 @@ class EmbeddingSpace(object):
 	# 	  return var_norm.ravel()
 	# 	else:
 	# 	  return variance.reshape(-1, 1)
+
+
+class InversableEmbeddingSpace(object):
+	def __init__(self, invs_emb_method="umap"):
+		self.invs_emb_method = invs_emb_method
+		if invs_emb_method == "umap":
+			mapper = umap.UMAP(random_state=42)
+		self.mapper = mapper
+
+
+	def fit(self, X_train, y_train, save_at=None):
+
+		self.mapper.fit(X_train)
+		X_train_embedded = self.mapper.transform(X_train)
+
+		self.X_train_embedded = X_train_embedded
+		if save_at is not None:
+			scatter_plot_2(x=X_train_embedded[:, 0], y=X_train_embedded[:, 1], 
+					color_array=None, xvline=None, yhline=None, 
+					sigma=None, mode='scatter', lbl=None, name=None, 
+					x_label='x', y_label='y', 
+					save_file=save_at, interpolate=False, color='blue', 
+					preset_ax=None, linestyle='-.', marker='o')
+
+
+	def transform(self, X_val, get_min_dist=False):
+		X_val_transform = self.mapper.transform(X_val)
+		if get_min_dist:
+			distances = pairwise_distances(X_val, self.X_train)
+			max_distances = np.min(distances, axis=1)
+			return X_val_transform, max_distances
+		return X_val_transform
+
+	def invs_transform(self, X_test):
+		inv_transformed_points = mapper.inverse_transform(X_test)
+
+
 
 

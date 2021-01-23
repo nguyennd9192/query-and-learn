@@ -84,12 +84,11 @@ def dump_flags(data, filename):
 def get_savedir(ith_trial):
 	s_dir = str(os.path.join(
 			FLAGS.save_dir,
-			"/".join([FLAGS.dataset, FLAGS.sampling_method,
+			"/".join([FLAGS.data_init, FLAGS.sampling_method,
 						FLAGS.score_method, FLAGS.embedding_method, 
 						FLAGS.mae_update_threshold])))
-	filename = get_savefile()
 	result_file = s_dir + "/trial_" + ith_trial +".pkl"
-	unlbl_dir = result_file.replace(".pkl","")+"/"+unlbl_job
+	unlbl_dir = result_file.replace(".pkl","/")
 
 	if FLAGS.score_method == "u_gp_mt":
 		mt_kernel = 1.0 # 1.0, 0.001
@@ -98,7 +97,7 @@ def get_savedir(ith_trial):
 
 	# # to mark whether update estimator by DQ only or DQ vs RND
 	# # "" is update all
-	estimator_update_by = FLAGS.estimator_update_by ["DQ"] # , "RND", "OS"
+	estimator_update_by = str(FLAGS.estimator_update_by).split('_') # , "RND", "OS"
 	if len(estimator_update_by) < 3:
 		for k in estimator_update_by:
 			unlbl_dir += k
@@ -106,26 +105,31 @@ def get_savedir(ith_trial):
 	return unlbl_dir
 
 
-def get_qrindex(df):
-	update_DQ_str = df.loc[df["query2update_DQ"]=="query2update_DQ", "unlbl_index"].to_list()
-	outstand_str = df.loc[df["query_outstanding"]=="query_outstanding", "unlbl_index"].to_list()
-	random_str = df.loc[df["query_random"]=="query_random", "unlbl_index"].to_list()
+def get_qrindex(df, qid):
+	dq = 	"query2update_DQ_{}".format(qid)
+	os = 	"query_outstanding_{}".format(qid)
+	rnd = 	"query_random_{}".format(qid)
+
+
+
+	update_DQ_str = df.loc[df[dq]==dq, "unlbl_index"].to_list()
+	outstand_str = df.loc[df[os]==os, "unlbl_index"].to_list()
+	random_str = df.loc[df[rnd]==rnd, "unlbl_index"].to_list()
 	return update_DQ_str, outstand_str, random_str
 
 
 def est_alpha_updated(X_train, y_train, 
 				X_test, y_test, selected_inds, 
-				embedding_method,
-				mae_update_threshold, estimator):
+				estimator):
 	# # 1. filter 
 	# # hold or dimiss
 	model = "empty"
 	if selected_inds != []:
-		if mae_update_threshold != "update_all":
+		if FLAGS.mae_update_threshold != "update_all":
 			tmp_X = copy.copy(X_test[selected_inds])
 			tmp_y = copy.copy(y_test[selected_inds])
 			mae = estimator.best_score_(X=tmp_X, y=tmp_y)
-			if mae > float(mae_update_threshold):
+			if mae > float(FLAGS.mae_update_threshold):
 				selected_inds = None
 
 		# # update X_train, y_train by selected_inds
@@ -140,10 +144,9 @@ def est_alpha_updated(X_train, y_train,
 	X_test = scaler.transform(X_test)
 
 	# # transform to embedding or not
-	if embedding_method != "org_space":
-		model = EmbeddingSpace(embedding_method=embedding_method)
-
-		if embedding_method == "LMNN":
+	if FLAGS.embedding_method != "org_space":
+		model = EmbeddingSpace(embedding_method=FLAGS.embedding_method)
+		if FLAGS.embedding_method == "LMNN":
 			_y_train = np.round(y_train, 1).reshape(len(y_train), 1) #.astype(str)
 			# print ("_y_train", _y_train)
 			# print ("_y_train", len(set(_y_train)))
@@ -158,26 +161,14 @@ def est_alpha_updated(X_train, y_train,
 	return X_train, y_train, X_test, model
 
 
-def load_unlbl_data():
-
+def load_data():
 	# # read_load train data
 	if FLAGS.is_test_separate:
-		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/train_"+FLAGS.test_prefix)
-		X_sept_test, y_sept_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset+"/test_"+FLAGS.test_prefix)
-		print("Success in reading separated test set.")
-	else:
-		X, y, index = utils.get_mldata(FLAGS.data_dir, FLAGS.dataset)
-		X_sept_test, y_sept_test, index_test = None, None, None
+		print (FLAGS.data_dir, FLAGS.data_init)
+		X_train, y_train, index_train = utils.get_mldata(FLAGS.data_dir, FLAGS.data_init)
+		X_test, y_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.data_target)
 
-		# # read load unlbl data
-		unlbl_file = ALdir+FLAGS.data_target
-		data = load_pickle(unlbl_file+".pkl")
-
-		X_sept_test = data["data"]
-		y_sept_test = data["target"]
-		index_test = data["index"]
-	# return unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir
-	return X, y, index, X_sept_test, y_sept_test, index_test
+	return X_train, y_train, index_train, X_test, y_test, index_test
 
 def norm_id(id_qr):
 	feature_dir = "/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/"
@@ -220,7 +211,7 @@ def id_qr(qr, y, index):
 
 
 
-def get_queried_data(queried_files, unlbl_X, unlbl_y, unlbl_index,
+def get_queried_data(qids, queried_files, unlbl_X, unlbl_y, unlbl_index,
 			 embedding_model):
 	"""
 	database_results: *.csv of all vasp calculated data, normally in the standard step
@@ -233,9 +224,9 @@ def get_queried_data(queried_files, unlbl_X, unlbl_y, unlbl_index,
 	oss = []
 	rnds = []
 
-	for qf in queried_files:
+	for qid, qf in zip(qids, queried_files):
 		this_df = pd.read_csv(qf, index_col=0)
-		dq, os, rnd = get_qrindex(df=this_df)
+		dq, os, rnd = get_qrindex(df=this_df, qid=qid)
 
 		dq_cvt = map(functools.partial(id_qr, y=unlbl_y, index=unlbl_index), dq)
 		os_cvt = map(functools.partial(id_qr, y=unlbl_y, index=unlbl_index), os)
