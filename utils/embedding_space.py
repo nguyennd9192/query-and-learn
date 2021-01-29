@@ -4,6 +4,7 @@ import metric_learn as mkl
 import numpy as np
 from sklearn.metrics import pairwise_distances
 from plot import scatter_plot_2
+import umap
 
 class EmbeddingSpace(object):
 	def __init__(self, embedding_method):
@@ -70,6 +71,7 @@ class InversableEmbeddingSpace(object):
 		self.X_train_embedded = X_train_embedded
 		if save_at is not None:
 			scatter_plot_2(x=X_train_embedded[:, 0], y=X_train_embedded[:, 1], 
+					z_values=y_train,
 					color_array=None, xvline=None, yhline=None, 
 					sigma=None, mode='scatter', lbl=None, name=None, 
 					x_label='x', y_label='y', 

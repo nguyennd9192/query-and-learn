@@ -125,18 +125,20 @@ def est_alpha_updated(X_train, y_train,
 	# # hold or dimiss
 	model = "empty"
 	if selected_inds != []:
-		if FLAGS.mae_update_threshold != "update_all":
-			tmp_X = copy.copy(X_test[selected_inds])
-			tmp_y = copy.copy(y_test[selected_inds])
-			mae = estimator.best_score_(X=tmp_X, y=tmp_y)
-			if mae > float(FLAGS.mae_update_threshold):
-				selected_inds = None
-
 		# # update X_train, y_train by selected_inds
 		if selected_inds is not None:
 			X_train = np.concatenate((X_train, X_test[selected_inds]), axis=0)
 			y_train = np.concatenate((y_train, y_test[selected_inds]), axis=0)
 			assert X_test[selected_inds].all() != None
+
+		# if FLAGS.mae_update_threshold != "update_all":
+		# 	estimator.fit(X_train, y_train)
+		# 	errors = estimator.predict(X_train)
+		# 	for ith, err in zip(errors):
+		# 		if err > FLAGS.mae_update_threshold:
+		# 			X_train.remove(ith)
+		# 			y_train.remove(ith)
+
 
 	# # normalize
 	scaler = MinMaxScaler().fit(X_train)

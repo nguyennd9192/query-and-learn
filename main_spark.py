@@ -21,7 +21,9 @@ def main_spark():
 def create_params_grid():
 
 	sampling_methods = [
-		"uniform", "exploitation", "margin", "expected_improvement"]
+		"uniform", "exploitation", "margin", "expected_improvement",
+		"MarginExplSpace"
+		]
 	score_methods = ["u_gp", "u_knn", "e_krr"
 			# "fully_connected", "ml-gp", "ml-knn"
 		]

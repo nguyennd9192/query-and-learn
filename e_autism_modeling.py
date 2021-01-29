@@ -2,7 +2,7 @@ from params import *
 from utils.plot import *
 
 import sys, pickle, functools, json, copy
-from run_experiment import get_savedir, get_savefile, get_data_from_flags
+# from run_experiment import get_savedir, get_savefile, get_data_from_flags
 import matplotlib.pyplot as plt
 from utils.general_lib import *
 import numpy as np

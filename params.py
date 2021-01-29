@@ -21,7 +21,7 @@ color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue", "DQ_
 pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
 
-# python rank_unlbl.py§
+# python rank_unlbl.py
 flags.DEFINE_string("data_init", "SmFe12/SmFe12_init", "Dataset name")  # SmFe12/mix
 flags.DEFINE_string("data_target", "SmFe12/mix", "Dataset name")  # 
 

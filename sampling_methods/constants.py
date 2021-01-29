@@ -31,18 +31,24 @@ def get_base_AL_mapping():
   # # new build
   from sampling_methods.exploitation import Exploitation
   from sampling_methods.expected_improvement import ExpectedImprovement
+  from sampling_methods.margin_expl_space import MarginExplSpace
 
+  # # revise
   AL_MAPPING['margin'] = MarginAL
+
+
   AL_MAPPING['informative_diverse'] = InformativeClusterDiverseSampler
   AL_MAPPING['hierarchical'] = HierarchicalClusterAL
   AL_MAPPING['uniform'] = UniformSampling
   AL_MAPPING['margin_cluster_mean'] = RepresentativeClusterMeanSampling
   AL_MAPPING['graph_density'] = GraphDensitySampler
   AL_MAPPING['kcenter'] = kCenterGreedy
+
+
+  # # new build
   AL_MAPPING['exploitation'] = Exploitation
   AL_MAPPING['expected_improvement'] = ExpectedImprovement
-
-
+  AL_MAPPING['MarginExplSpace'] = MarginExplSpace 
 
 
 def get_all_possible_arms():

@@ -13,6 +13,7 @@ import matplotlib as mpl
 from utils.general_lib import get_basename
 
 from matplotlib.colors import Normalize
+from scipy.interpolate import griddata
 
 
 
@@ -264,17 +265,17 @@ def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=No
 	x_hist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
 	
 
-
-	main_ax = sns.kdeplot(x, y,
-			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
-			 cmap='Oranges',
-			 shade=True, shade_lowest=True,
-			 fontsize=10, ax=main_ax, linewidths=1,
-			 vertical=True)
-	# main_ax.legend(lbl, 
-	# 	loc='lower left', fontsize=18,
-	# 	bbox_to_anchor=(1.05, 1.05, ),  borderaxespad=0)
-	plt.title(lbl, **title_font)
+	if z_values is None:
+		main_ax = sns.kdeplot(x, y,
+				 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+				 cmap='Oranges',
+				 shade=True, shade_lowest=True,
+				 fontsize=10, ax=main_ax, linewidths=1,
+				 vertical=True)
+		# main_ax.legend(lbl, 
+		# 	loc='lower left', fontsize=18,
+		# 	bbox_to_anchor=(1.05, 1.05, ),  borderaxespad=0)
+		plt.title(lbl, **title_font)
 
 	if color_array is None:
 		main_ax.scatter(x, y, s=80, alpha=0.8, marker=marker, c=color, edgecolor="white")
@@ -289,15 +290,16 @@ def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=No
 	# main_ax.axvline(x=xvline, linestyle='-.', color='black')
 	# main_ax.axhline(y=yhline, linestyle='-.', color='black')
 
+	main_ax.set_xlabel(x_label, **axis_font)
+	main_ax.set_ylabel(y_label, **axis_font)
 
 	if z_values is not None:
 		grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
 		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), method='cubic')
-		plt.imshow(grid_interpolate.T, extent=(min(x):max(x),min(y):max(y)), origin='lower')
+		main_ax.imshow(grid_interpolate.T, extent=(min(x),max(x),min(y),max(y)), origin='lower')
 
 
-	main_ax.set_xlabel(x_label, **axis_font)
-	main_ax.set_ylabel(y_label, **axis_font)
+
 	if name is not None:
 		for i in range(len(x)):
 			# only for lattice_constant problem, 1_Ag-H, 10_Ag-He
@@ -334,6 +336,8 @@ def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=No
 	x1 = l1.get_xydata()[:,0]
 	y1 = l1.get_xydata()[:,1]
 	y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
+
+
 
 	plt.setp(x_hist.get_xticklabels(), visible=False)
 	plt.setp(y_hist.get_yticklabels(), visible=False)

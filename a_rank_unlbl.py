@@ -29,6 +29,8 @@ from preprocess_data import read_deformation
 from sklearn.metrics import r2_score, mean_absolute_error, accuracy_score, precision_recall_fscore_support
 
 from itertools import product
+from embedding_space import InversableEmbeddingSpace
+
 
 
 import warnings
@@ -54,23 +56,20 @@ def select_batch(sampler, uniform_sampler, mixture, N, already_selected,
 		batch_PL, p = uniform_sampler.select_batch(**kwargs)
 		return batch_AL + batch_PL, acq_val
 
-def process_dimensional_reduction(unlbl_X):
-	# # tsne
-	is_tsne = False
-	is_mds = True
-	is_isomap = False # True
-
+def process_dimensional_reduction(unlbl_X, method):
 	processing = Preprocessing()
-	# config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
-	# 	"early_exaggeration":1000.0, # same meaning as n_cluster
-	# 	"learning_rate":1000.0, "n_iter":1000,
-	# 	 "n_iter_without_progress":300, "min_grad_norm":1e-07, 
-	# 	 "metric":'euclidean', "init":'random',
-	# 	 "verbose":0, "random_state":None, "method":'barnes_hut', 
-	# 	 "angle":0.5, "n_jobs":None})
-	# processing.similarity_matrix = unlbl_X
-	# X_trans, _, a, b = processing.tsne(**config_tsne)
-	if is_mds:
+	if method == "tsne":
+		config_tsne = dict({"n_components":2, "perplexity":500.0,  # same meaning as n_neighbors
+			"early_exaggeration":1000.0, # same meaning as n_cluster
+			"learning_rate":1000.0, "n_iter":1000,
+			 "n_iter_without_progress":300, "min_grad_norm":1e-07, 
+			 "metric":'euclidean', "init":'random',
+			 "verbose":0, "random_state":None, "method":'barnes_hut', 
+			 "angle":0.5, "n_jobs":None})
+		processing.similarity_matrix = unlbl_X
+		X_trans, _, a, b = processing.tsne(**config_tsne)
+
+	if method == "mds":
 		config_mds = dict({"n_components":2, "metric":True, "n_init":4, 
 			"max_iter":300, "verbose":0,
 				"eps":0.001, "n_jobs":None, "random_state":None, 
@@ -79,7 +78,7 @@ def process_dimensional_reduction(unlbl_X):
 		processing.similarity_matrix = cosine_distance
 		X_trans, _ = processing.mds(**config_mds)
 
-	if is_isomap:
+	if method == "isomap":
 		config_isomap = dict({"n_neighbors":5, "n_components":2, 
 			"eigen_solver":'auto', "tol":0, 
 			"max_iter":None, "path_method":'auto',
@@ -95,7 +94,7 @@ def query_and_learn(FLAGS, qid,
 		selected_inds, selected_inds_to_estimator,
 		estimator, X_train, y_train, index_train, 
 		unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
-		is_save_query, savedir, tsne_file, is_plot):
+		is_save_query, savedir, tsne_file, is_plot, perform_ax, perform_fig):
 	active_p = 1.0
 	# is_load_pre_trained = False
 	csv_saveat = savedir+"/query_{0}/query_{0}.csv".format(qid)	
@@ -104,7 +103,13 @@ def query_and_learn(FLAGS, qid,
 	makedirs(fig_saveat)
 
 	selected_inds_copy = copy.copy(selected_inds)
+	
 	query_data = dict()
+	if is_save_query:
+		last_query = np.array([None] * len(unlbl_index))
+		last_query[selected_inds] = "last_query_{}".format(qid)
+		query_data["last_query_{}".format(qid)] = last_query
+
 
 	query_data["unlbl_index"] = unlbl_index
 	# # end save querying data 
@@ -176,6 +181,7 @@ def query_and_learn(FLAGS, qid,
 	if is_save_query:
 		query_data["var_{}".format(qid)] = var
 		query_data["err_{}".format(qid)] = error
+		print ("query_data: ", query_data)
 		query_df = pd.DataFrame().from_dict(query_data)
 		makedirs(csv_saveat)
 		query_df.to_csv(csv_saveat)
@@ -184,24 +190,23 @@ def query_and_learn(FLAGS, qid,
 	print ("=======")
 
 
-	fig = plt.figure(figsize=(10, 8))
-	ax = fig.add_subplot(1, 1, 1)
+
 	flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
 				  linestyle='none', markeredgecolor='k')
-	bplot = ax.boxplot(x=error, vert=True, #notch=True, 
+	bplot = perform_ax.boxplot(x=error, vert=True, #notch=True, 
 		sym='ro', # whiskerprops={'linewidth':2},
 		positions=[qid], patch_artist=True,
 		widths=0.1, meanline=True, flierprops=flierprops,
 		showfliers=True, showbox=True, showmeans=False,
 		autorange=True, bootstrap=5000)
-	ax.text(qid, mae, round(mae, 2),
+	perform_ax.text(qid, mae, round(mae, 2),
 		horizontalalignment='center', size=14, 
 		color="red", weight='semibold')
 	patch = bplot['boxes'][0]
 	patch.set_facecolor("blue")
 
-	ax.grid(which='both', linestyle='-.')
-	ax.grid(which='minor', alpha=0.2)
+	perform_ax.grid(which='both', linestyle='-.')
+	perform_ax.grid(which='minor', alpha=0.2)
 	plt.title(fig_saveat.replace(ALdir, ""))
 	plt.savefig(fig_saveat, transparent=False)
 
@@ -376,7 +381,9 @@ def evaluation_map(FLAGS, X_train, y_train, index_train,
 	plt.tight_layout(pad=1.1)
 
 	makedirs(save_at)
-	plt.savefig(save_at, transparent=False)
+	fig.savefig(save_at, transparent=False)
+	release_mem(fig)
+
 	print ("Save at: ", save_at)
 
 	return feedback_val
@@ -394,6 +401,8 @@ def map_unlbl_data(ith_trial, FLAGS):
 	selected_inds_to_estimator = []
 	last_feedback = None
 
+	perform_fig = plt.figure(figsize=(10, 8))
+	perform_ax = perform_fig.add_subplot(1, 1, 1)
 	for qid in range(1, FLAGS.n_run): 
 		queried_idxes = list(range(1, qid))
 		# # read load queried data
@@ -457,6 +466,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 			X_train=X_train, y_train=y_train, 
 			X_test=unlbl_X, y_test=unlbl_y, 
 			selected_inds=selected_inds,
+			# method=update_all,
 			estimator=estimator)
 
 
@@ -484,7 +494,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 			sampler=sampler, uniform_sampler=uniform_sampler, 
 			is_save_query=is_save_query, savedir=savedir, tsne_file=tsne_file,
-			is_plot=False)
+			is_plot=False, perform_ax=perform_ax, perform_fig=perform_fig)
 		makedirs(est_file)
 		pickle.dump(estimator, gfile.GFile(est_file, 'w'))
 
@@ -525,7 +535,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 				lines=None)
 
 		# # interpolation
-		if _x_train.shape[1] == 2:
+		if FLAGS.embedding_method == "MLKR":
 			scatter_plot_2(x=_x_train[:, 0], y=_x_train[:, 1], 
 					z_values=_y_train,
 					color_array=_y_train, xvline=None, yhline=None, 
@@ -566,7 +576,6 @@ if __name__ == "__main__":
 		FLAGS.sampling_method =	kwargs["sampling_method"]
 		FLAGS.embedding_method = kwargs["embedding_method"]
 		map_unlbl_data(ith_trial="000", FLAGS=FLAGS)
-
 
 	# # test only
 	if is_param_test:
