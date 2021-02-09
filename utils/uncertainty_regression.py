@@ -204,7 +204,7 @@ class UncertainGaussianProcess(object):
     y_val_pred, y_val_pred_std = self.estimator.predict(X_val, 
       return_std=True, return_cov=False)
     if get_variance:
-      return y_val_pred, y_val_pred_std
+      return y_val_pred, y_val_pred_std 
     else:
       return y_val_pred
 

@@ -137,7 +137,7 @@ class RegressionFactory(object):
 
     if (n_folds <= 0) or (n_folds > n_instance):
         n_folds = n_instance
-        n_times = 1
+        n_times = 1 
 
     # Start
     for i in range(n_rounds):

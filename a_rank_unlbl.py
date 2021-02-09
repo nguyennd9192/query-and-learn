@@ -6,13 +6,12 @@ from params import *
 from absl import app
 from utils.utils import load_pickle
 from utils.general_lib import *
-
+ 
 from utils import utils
 from sampling_methods.constants import AL_MAPPING
 from sampling_methods.constants import get_AL_sampler
 from sampling_methods.constants import get_wrapper_AL_mapping
 
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import pairwise 
 
 from proc_results import read_exp_params, params2text
@@ -95,7 +94,6 @@ def query_and_learn(FLAGS, qid,
 		estimator, X_train, y_train, index_train, 
 		unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
 		is_save_query, savedir, tsne_file, is_plot, perform_ax, perform_fig):
-	active_p = 1.0
 	# is_load_pre_trained = False
 	csv_saveat = savedir+"/query_{0}/query_{0}.csv".format(qid)	
 	fig_saveat = savedir + "/autism/error_dist.pdf"
@@ -129,14 +127,15 @@ def query_and_learn(FLAGS, qid,
 	unlbl_y_pred = estimator.predict(_unlbl_X)
 	query_data["unlbl_y_pred_{}".format(qid)] = unlbl_y_pred
 
-	select_batch_inputs = {"model": estimator, "labeled": None, 
+	select_batch_inputs = {"model": copy.copy(estimator), "labeled": None, 
 			"eval_acc": None, "X_test": None, 
 			"y_test": None, "y": None, "verbose": True,
 			"y_star": min(_y_train)}
 
 	# # 1. update by D_{Q}
-	new_batch, acq_val = select_batch(sampler, uniform_sampler, active_p, FLAGS.batch_size,
-						list(selected_inds_copy), **select_batch_inputs)
+	new_batch, acq_val = select_batch(sampler=sampler, uniform_sampler=uniform_sampler, 
+						mixture=FLAGS.active_p, N=FLAGS.batch_size,
+						already_selected=list(selected_inds_copy), **select_batch_inputs)
 	selected_inds_copy.extend(new_batch)
 	if is_save_query:
 		query2update_DQ = np.array([None] * len(unlbl_index))
@@ -161,8 +160,8 @@ def query_and_learn(FLAGS, qid,
 	max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
 	# # 3. select by D_{rand}
-	the_rest = list(set(range(_unlbl_X.shape[0])) - set(selected_inds_copy))
-	random_list = random.sample(the_rest, FLAGS.batch_rand)
+	the_non_qr = list(set(range(_unlbl_X.shape[0])) - set(selected_inds_copy))
+	random_list = random.sample(the_non_qr, FLAGS.batch_rand)
 	selected_inds_copy.extend(random_list)
 
 	if is_save_query:
@@ -172,28 +171,31 @@ def query_and_learn(FLAGS, qid,
 
 	# # measure error of all others
 	assert unlbl_y_pred.shape == unlbl_y.shape
-	r2 = r2_score(unlbl_y, unlbl_y_pred)
-	mae = mean_absolute_error(unlbl_y, unlbl_y_pred)
-	error = np.abs(unlbl_y-unlbl_y_pred)
 
+	error = np.abs(unlbl_y - unlbl_y_pred)	
 	# # end plot
 	var = estimator.predict_proba(_unlbl_X)
 	if is_save_query:
 		query_data["var_{}".format(qid)] = var
 		query_data["err_{}".format(qid)] = error
-		print ("query_data: ", query_data)
 		query_df = pd.DataFrame().from_dict(query_data)
 		makedirs(csv_saveat)
 		query_df.to_csv(csv_saveat)
 
-	print ("r2:", round(r2, 3), "mae:",  round(mae, 3))
-	print ("=======")
 
+	# # test error
+	# # selected_inds_to_estimator or selected_inds
+	non_qr_ids = list(set(range(unlbl_X.shape[0])) - set(selected_inds))
+	non_qr_y_pred = unlbl_y_pred[non_qr_ids]
+	non_qr_y = unlbl_y[non_qr_ids]
+	non_qr_error = np.abs(non_qr_y - non_qr_y_pred)	
 
+	# r2 = r2_score(non_qr_y, non_qr_y_pred)
+	mae = mean_absolute_error(non_qr_y, non_qr_y_pred)
 
 	flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
 				  linestyle='none', markeredgecolor='k')
-	bplot = perform_ax.boxplot(x=error, vert=True, #notch=True, 
+	bplot = perform_ax.boxplot(x=non_qr_error, vert=True, #notch=True, 
 		sym='ro', # whiskerprops={'linewidth':2},
 		positions=[qid], patch_artist=True,
 		widths=0.1, meanline=True, flierprops=flierprops,
@@ -211,93 +213,179 @@ def query_and_learn(FLAGS, qid,
 	plt.savefig(fig_saveat, transparent=False)
 
 
-	if is_plot:
-		plt_mode = "2D" # 3D, 2D, 3D_patch
-		# # AL points ~ smallest min margin ~ biggest apparent points
-		if FLAGS.sampling_method == "margin":
-			acq_val[np.isinf(acq_val)] = np.max(acq_val)
-	
-		scaler = MinMaxScaler()
-		size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
-		# # name, color, marker for plot
-		plot_index = np.concatenate((unlbl_index, index_train), axis=0)
-		name = [k.replace(ALdir, "") for k in plot_index]
-		family = [get_family(k) for k in plot_index]
+	plt_mode = "2D" # 3D, 2D, 3D_patch
+	# # AL points ~ smallest min margin ~ biggest apparent points
+	if FLAGS.sampling_method == "margin":
+		acq_val[np.isinf(acq_val)] = np.max(acq_val)
 
-		list_cdict = np.array([get_color_112(k) for k in name])
-		marker_array = np.array([get_marker_112(k) for k in family])
-		alphas = np.array([0.3] * len(plot_index))
-		alphas[selected_inds_copy] = 1.0 
-		alphas[len(unlbl_index):] = 1.0
+	scaler = MinMaxScaler()
+	size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
+	# # name, color, marker for plot
+	plot_index = np.concatenate((unlbl_index, index_train), axis=0)
+	name = [k.replace(ALdir, "") for k in plot_index]
+	family = [get_family(k) for k in plot_index]
+
+	list_cdict = np.array([get_color_112(k) for k in name])
+	marker_array = np.array([get_marker_112(k) for k in family])
+	alphas = np.array([0.3] * len(plot_index))
+	alphas[selected_inds_copy] = 1.0 
+	alphas[len(unlbl_index):] = 1.0
+
+	# # plot MLKR space
+	if FLAGS.embedding_method != "org_space":
+		# # concatenate data points train test
+		xy = np.concatenate((_unlbl_X, _x_train), axis=0)
+		# # selected array as +
+		ytrain_pred = estimator.predict(_x_train)
+
+		y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred), axis=0)
+		y_all_obs = np.concatenate((unlbl_y, _y_train), axis=0)
+		error_all = y_all_pred - y_all_obs
+
+		# # merge var all
+		var_train = estimator.predict_proba(_x_train)
+		var_all = np.concatenate((var, var_train), axis=0)  
+		this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
+		marker_array[non_qr_ids] = "+"
 
 
-		lim_acq_val = min(acq_val[new_batch])
+		data = dict()
+		data["x_embedd"] = xy[:, 0]
+		data["y_embedd"] = xy[:, 1]
+		data["index"] = plot_index
+		data["y_obs"] = y_all_obs
+		data["y_pred"] = y_all_pred
+		data["error"] = error_all
+		data["var"] = var_all
+		data["marker"] = marker_array
+		plt_df = pd.DataFrame().from_dict(query_data)
+		this_df_dir = this_fig_dir.replace(".pdf", ".csv")
+		makedirs(this_df_dir)
+		plt_df.to_csv(this_df_dir)
 
-		z =  np.concatenate((unlbl_y_pred, y_train)) # unlbl_y_pred, min_margin
-		x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
-		y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
-		xi, yi = np.meshgrid(x1,y1)
-		# interpolate
-		zi = griddata((x,y),z,(xi,yi),method='nearest')
-		if plt_mode == "3D_patch":
-			xi, yi, zi = x, y, z
-		ax = ax_surf(xi=xi, yi=yi, zi=zi, label="pred_val", mode=plt_mode)
 
-		# # tSNE map
-		csv_save_dir += "/"+plt_mode
-		save_figat = csv_save_dir+"/cmap_unlbl_rank_unlbl_y_pred.pdf"
-		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
-			 x_label="tSNE axis 1", y_label="tSNE axis 2",
-			 alphas=alphas, save_at=save_figat, plt_mode=plt_mode)
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=error_all,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=None,
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=this_fig_dir.replace(".pdf", "_error.pdf"),
+			interpolate=False, 
+			preset_ax=None, linestyle='-.', marker=marker_array)
+
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=y_all_obs,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=None,
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=this_fig_dir.replace(".pdf", "_yobs.pdf"),
+			interpolate=False, 
+			preset_ax=None, linestyle='-.', marker=marker_array)
+
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=y_all_pred,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=None,
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=this_fig_dir.replace(".pdf", "_ypred.pdf"),
+			interpolate=False, 
+			preset_ax=None, linestyle='-.', marker=marker_array)
+
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=var_all,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=None,
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=this_fig_dir.replace(".pdf", "_yvar.pdf"),
+			interpolate=False, 
+			preset_ax=None, linestyle='-.', marker=marker_array)
+
+
+
+
+		# lim_acq_val = min(acq_val[new_batch])
+
+		# z =  np.concatenate((unlbl_y_pred, y_train)) # unlbl_y_pred, min_margin
+		# x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
+		# y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
+		# xi, yi = np.meshgrid(x1,y1)
+		# # interpolate
+		# zi = griddata((x,y),z,(xi,yi),method='neanon_qr')
+		# if plt_mode == "3D_patch":
+		# 	xi, yi, zi = x, y, z
+		# ax = ax_surf(xi=xi, yi=yi, zi=zi, label="pred_val", mode=plt_mode)
+
+		# # # tSNE map
+		# csv_save_dir += "/"+plt_mode
+		# save_figat = csv_save_dir+"/cmap_unlbl_rank_unlbl_y_pred.pdf"
+		# ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
+		# 	 x_label="tSNE axis 1", y_label="tSNE axis 2",
+		# 	 alphas=alphas, save_at=save_figat, plt_mode=plt_mode)
 		
-		# # new plot
-		ax2 = ax_surf(xi=xi, yi=yi, zi=zi, label="pred_val", mode=plt_mode)
-		list_cdict2 = np.array(copy.copy(list_cdict))
-		marker_array2 = np.array(copy.copy(marker_array))
-		mask = np.full(len(list_cdict2),False,dtype=bool)
-		mask[selected_inds_copy] = True # # for selected ids
-		mask[-len(index_train):] = True # # for obs dataset
-		list_cdict2[~mask] = dict({"grey":"full"})
-		marker_array2[~mask] = "o"
+		# # # new plot
+		# ax2 = ax_surf(xi=xi, yi=yi, zi=zi, label="pred_val", mode=plt_mode)
+		# list_cdict2 = np.array(copy.copy(list_cdict))
+		# marker_array2 = np.array(copy.copy(marker_array))
+		# mask = np.full(len(list_cdict2),False,dtype=bool)
+		# mask[selected_inds_copy] = True # # for selected ids
+		# mask[-len(index_train):] = True # # for obs dataset
+		# list_cdict2[~mask] = dict({"grey":"full"})
+		# marker_array2[~mask] = "o"
 
-		ax_scatter(ax=ax2, x=x, y=y, marker=marker_array2, 
-			list_cdict=list_cdict2,
-			x_label="tSNE axis 1", y_label="tSNE axis 2",
-			alphas=alphas, plt_mode=plt_mode,
-			save_at=save_figat.replace(".pdf", "2.pdf"))
+		# ax_scatter(ax=ax2, x=x, y=y, marker=marker_array2, 
+		# 	list_cdict=list_cdict2,
+		# 	x_label="tSNE axis 1", y_label="tSNE axis 2",
+		# 	alphas=alphas, plt_mode=plt_mode,
+		# 	save_at=save_figat.replace(".pdf", "2.pdf"))
 		
-		# # acp_val map
-		lim_acq_val = min(acq_val[new_batch])
-		z =  np.concatenate((acq_val, [0]*len(y_train))) # unlbl_y_pred, min_margin
-		x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
-		y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
-		xi, yi = np.meshgrid(x1,y1)
+		# # # acp_val map
+		# lim_acq_val = min(acq_val[new_batch])
+		# z =  np.concatenate((acq_val, [0]*len(y_train))) # unlbl_y_pred, min_margin
+		# x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
+		# y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
+		# xi, yi = np.meshgrid(x1,y1)
 		
-		# interpolate
-		zi = griddata((x,y),z,(xi,yi),method='nearest')
-		if plt_mode == "3D_patch":
-			xi, yi, zi = x, y, z
+		# # interpolate
+		# zi = griddata((x,y),z,(xi,yi),method='neanon_qr')
+		# if plt_mode == "3D_patch":
+		# 	xi, yi, zi = x, y, z
 
-		ax = ax_surf(xi=xi, yi=yi, zi=zi, 
-			label="acp_val", mode=plt_mode)
-		# plt.show()
+		# ax = ax_surf(xi=xi, yi=yi, zi=zi, 
+		# 	label="acp_val", mode=plt_mode)
+		# # plt.show()
 
-		# # tSNE map
-		ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
-			 x_label="tSNE axis 1", y_label="tSNE axis 2",
-			 alphas=alphas, plt_mode=plt_mode,
-			 save_at=save_figat.replace("unlbl_y_pred", "acq_val"))
-		try:
-			scatter_plot_5(x=acq_val, y=unlbl_y_pred, list_cdict=list_cdict, 
-				xvlines=[lim_acq_val], yhlines=[lim_outstand_list], 
-				sigma=None, mode='scatter', lbl=None, name=None, 
-				s=80, alphas=alphas, title=None,
-				x_label=sampler.name, y_label='unlbl_y_pred', 
-				save_file=save_figat.replace(".pdf", "_2.pdf"),
-				interpolate=False, 
-				preset_ax=None, linestyle='-.', marker=marker_array)
-		except Exception as e:
-			pass
+		# # # tSNE map
+		# ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
+		# 	 x_label="tSNE axis 1", y_label="tSNE axis 2",
+		# 	 alphas=alphas, plt_mode=plt_mode,
+		# 	 save_at=save_figat.replace("unlbl_y_pred", "acq_val"))
+		# try:
+		# 	scatter_plot_5(x=acq_val, y=unlbl_y_pred, list_cdict=list_cdict, 
+		# 		xvlines=[lim_acq_val], yhlines=[lim_outstand_list], 
+		# 		sigma=None, mode='scatter', lbl=None, name=None, 
+		# 		s=80, alphas=alphas, title=None,
+		# 		x_label=sampler.name, y_label='unlbl_y_pred', 
+		# 		save_file=save_figat.replace(".pdf", "_2.pdf"),
+		# 		interpolate=False, 
+		# 		preset_ax=None, linestyle='-.', marker=marker_array)
+		# except Exception as e:
+		# 	pass
 
 	return _x_train, _y_train, estimator, embedding_model
 
@@ -316,6 +404,7 @@ def evaluation_map(FLAGS, X_train, y_train, index_train,
 	ax = fig.add_subplot(grid[:3, :], xticklabels=[])
 	y_star_ax = fig.add_subplot(grid[3:5, :], sharex=ax)
 	ninst_ax = fig.add_subplot(grid[-1:, :], sharex=ax)
+
 
 	flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
 			  linestyle='none', markeredgecolor='k')
@@ -350,7 +439,7 @@ def evaluation_map(FLAGS, X_train, y_train, index_train,
 	X_train_udt, y_train_udt, _, embedding_model = est_alpha_updated(
 		X_train=X_train, y_train=y_train, 
 		X_test=X_dq, y_test=y_dq, selected_inds=range(len(y_dq)),
-		estimator=estimator
+		estimator=copy.copy(estimator)
 		)
 
 	if type(embedding_model) is not str:
@@ -388,11 +477,11 @@ def evaluation_map(FLAGS, X_train, y_train, index_train,
 
 	return feedback_val
 
-def map_unlbl_data(ith_trial, FLAGS):
+def map_unlbl_data(FLAGS):
 	is_save_query = True
 	is_load_estimator = False
 
-	savedir = get_savedir(ith_trial=ith_trial)
+	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
 
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
 	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index = load_data()
@@ -418,7 +507,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 			# print ("queried_files", queried_files)
 			all_query = get_queried_data(qids=queried_idxes, queried_files=queried_files, 
 				unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
-				embedding_model=embedding_model)
+				embedding_model="Not yet")
 			dq_X, dq_y, dq_idx = all_query[0]
 			os_X, os_y, os_idx = all_query[1]
 			rnd_X, rnd_y, rnd_idx = all_query[2]
@@ -455,7 +544,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 			mt_kernel = None
 
 		estimator = utils.get_model(
-			FLAGS.score_method, FLAGS.seed, 
+			FLAGS.score_method, FLAGS.ith_trial, 
 			FLAGS.is_search_params, n_shuffle=10000,
 			mt_kernel=mt_kernel)
 
@@ -465,15 +554,15 @@ def map_unlbl_data(ith_trial, FLAGS):
 		_, _, unlbl_X_sampler, _ = est_alpha_updated(
 			X_train=X_train, y_train=y_train, 
 			X_test=unlbl_X, y_test=unlbl_y, 
-			selected_inds=selected_inds,
+			selected_inds=selected_inds, 
 			# method=update_all,
 			estimator=estimator)
 
 
 		# # 3. prepare sampler
-		uniform_sampler = AL_MAPPING['uniform'](unlbl_X_sampler, unlbl_y, FLAGS.seed)
+		uniform_sampler = AL_MAPPING['uniform'](unlbl_X_sampler, unlbl_y, FLAGS.ith_trial)
 		sampler = get_AL_sampler(FLAGS.sampling_method)
-		sampler = sampler(unlbl_X_sampler, unlbl_y, FLAGS.seed)
+		sampler = sampler(unlbl_X_sampler, unlbl_y, FLAGS.ith_trial)
 		
 		est_file = savedir+"/query_{0}/pre_trained_est_{0}.pkl".format(qid)
 		
@@ -519,7 +608,7 @@ def map_unlbl_data(ith_trial, FLAGS):
 				all_query=this_query, sampler=sampler, 
 				uniform_sampler=uniform_sampler,
 				save_at=save_at, eval_data_file=eval_data_file,
-				estimator=estimator)
+				estimator=copy.copy(estimator))
 
 		# # create distance matrix
 		assert unlbl_X_sampler.shape[0] == unlbl_X.shape[0]
@@ -535,15 +624,21 @@ def map_unlbl_data(ith_trial, FLAGS):
 				lines=None)
 
 		# # interpolation
-		if FLAGS.embedding_method == "MLKR":
-			scatter_plot_2(x=_x_train[:, 0], y=_x_train[:, 1], 
+		if FLAGS.embedding_method != "org_space":
+			try:
+				scatter_plot_2(x=_x_train[:, 0], y=_x_train[:, 1], 
 					z_values=_y_train,
 					color_array=_y_train, xvline=None, yhline=None, 
 					sigma=None, mode='scatter', lbl=None, name=None, 
 					x_label='x', y_label='y', 
-					save_file=save_mkl.replace("_dist", "interpolation"), interpolate=False, color='blue', 
+					save_file=save_mkl.replace("_dist", "interpolation"), 
+					title=save_mkl.replace(ALdir, ""),
+					interpolate=False, color='blue', 
 					preset_ax=None, linestyle='-.', marker='o')
 
+			except:
+				pass
+			
 
 		# # create invese_trans
 		invs_trans = InversableEmbeddingSpace(invs_emb_method="umap")
@@ -575,7 +670,10 @@ if __name__ == "__main__":
 		FLAGS.score_method = kwargs["score_method"]
 		FLAGS.sampling_method =	kwargs["sampling_method"]
 		FLAGS.embedding_method = kwargs["embedding_method"]
-		map_unlbl_data(ith_trial="000", FLAGS=FLAGS)
+		FLAGS.active_p = kwargs["active_p"]
+		FLAGS.ith_trial = kwargs["ith_trial"]
+
+		map_unlbl_data(FLAGS=FLAGS)
 
 	# # test only
 	if is_param_test:
@@ -598,6 +696,6 @@ if __name__ == "__main__":
 			print ("sampling_method", FLAGS.sampling_method)
 			print ("embedding_method", FLAGS.embedding_method)
 
-			# rank_unlbl_data(ith_trial="000") # 014 for u_gp
-			map_unlbl_data(ith_trial="000", FLAGS=FLAGS)
+			# rank_unlbl_data() # 014 for u_gp
+			map_unlbl_data(FLAGS=FLAGS)
 

@@ -1,20 +1,23 @@
 
 from absl import flags 
 import pandas as pd
-import ntpath, os
+import ntpath, os, sys
+
+ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+# ALdir = "/home/nguyen/work/active-learning"
+for ld, subdirs, files in os.walk(ALdir):
+  if os.path.isdir(ld) and ld not in sys.path:
+    sys.path.append(ld)
 
 def get_basename(filename):
     head, tail = ntpath.split(filename)
     basename = os.path.splitext(tail)[0]
     return tail
-batch_size =  20
-batch_outstand = 20 
-batch_rand = 20 
-n_run = int(3024 / (batch_size + batch_outstand + batch_rand))
 
-ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-# ALdir = "/home/nguyen/work/active-learning"
-
+batch_size =  10
+batch_outstand = 10 
+batch_rand = 10 
+n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"
 color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue", "DQ_to_RND":"orange"})
@@ -22,34 +25,49 @@ pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
 
 # python rank_unlbl.py
-flags.DEFINE_string("data_init", "SmFe12/SmFe12_init", "Dataset name")  # SmFe12/mix
-flags.DEFINE_string("data_target", "SmFe12/mix", "Dataset name")  # 
+# # train/test for formation energy: SmFe12_fe/mix_fe 
+# # train/test for formation energy: SmFe12_magmom_pa/mix_magmom_pa
+
+flags.DEFINE_string("data_init", "SmFe12/SmFe12_fe", "Dataset train name")  # 
+flags.DEFINE_string("data_target", "SmFe12/mix_fe", "Dataset test name")  # 
 
 # # # obtain from args
+# # run parallel
 flags.DEFINE_string("sampling_method", "margin", 
                   # uniform, exploitation, margin, expected_improvement
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
-flags.DEFINE_string(
-    "score_method", "u_gp", # # u_gp, u_knn, e_krr, u_knn
-    ("Method to use to calculate accuracy."))
-flags.DEFINE_string(
-    "embedding_method", "MLKR", # # org_space, MLKR, LFDA, LMNN
-    ("Method to transform space."))
-# # # 
-flags.DEFINE_boolean("is_search_params", False, 
-  ("search estimator or not")
-)
 
-flags.DEFINE_string(
-    "mae_update_threshold", "0.1", # # 0.0, 0.3, 1.0, update_all
-    ("mean absolute error to update dq to estimator")
-) 
+# # run parallel
+flags.DEFINE_string("score_method", "u_gp", # # u_gp, u_knn, e_krr
+    ("Method to use to calculate accuracy."))
+
+# # run parallel
+flags.DEFINE_string("embedding_method", "MLKR", 
+    # # org_space, MLKR, LFDA, LMNN
+    ("Method to transform space."))
+
+# # run parallel
+flags.DEFINE_float("active_p", 0.7, 
+    ("Float value of active percentage in querying. 1 - active_p as uniform sampling"))
+
+# # run parallel
+flags.DEFINE_integer("ith_trial", 1,
+    ("Trial ith"))
+
+
+# # # 
+# # static
+flags.DEFINE_string("mae_update_threshold", "update_all", # # 0.0, 0.3, 1.0, update_all
+    ("mean absolute error to update dq to estimator"))
+
 flags.DEFINE_string(
     "estimator_update_by", "DQ", # # DQ_RND_OS
     ("mean absolute error to update dq to estimator")
 ) 
-
+flags.DEFINE_boolean("is_search_params", False, 
+  ("search estimator or not")
+)
 flags.DEFINE_integer("batch_size", batch_size, 
     ("batch size of DQ")
 )
@@ -82,7 +100,6 @@ flags.DEFINE_float(
 
 flags.DEFINE_integer("trials", 1,
                      "Number of curves to create using different seeds")
-flags.DEFINE_integer("seed", 1, "Seed to use for rng and random state")
 # TODO(lisha): add feature noise to simulate data outliers
 flags.DEFINE_string("confusions", "0.1", 
   "Percentage of labels to randomize") 

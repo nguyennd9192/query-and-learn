@@ -176,10 +176,9 @@ def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1
   df = pd.read_csv(lbldata, index_col=0)
   df = df.dropna()
   pv, tv = get_pv_tv(df, pv, tv, rmvs)
-  
+
+  # # point to datadir of Volume6TB then get all unlnl data
   test_data = []
-  
-  # # point to datadir of Volume6TB
   unlbl_jobs = get_subdirs(unlbl_data_dir)
   print("unlbl_jobs", unlbl_jobs)
   for job in unlbl_jobs:
@@ -202,11 +201,10 @@ def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1
   db_results, crs_db_results, fine_db_results = query_db()
   # # map index to database
   data_map = list(map(functools.partial(id_qr_to_database, db_results=db_results,
-        crs_db_results=crs_db_results, fine_db_results=fine_db_results), test_data))
+        crs_db_results=crs_db_results, fine_db_results=fine_db_results, tv=tv), test_data))
 
   
   # id_qr, y=unlbl_y, index=unlbl_index
-
   # # get y
   y_obs = np.array(data_map)[:, -1]
   test_index = np.array(data_map)[:, 1]
@@ -387,7 +385,7 @@ def get_mldata(dataset, is_test_separate=False, prefix=None):
 
   filename = os.path.join(save_dir, dataset[1]+'.pkl')
   if not gfile.exists(filename):
-    if "ofm" in dataset[1]:
+    if "ofm" in dataset[0]:
       # # read ofm data:
       # print ("Process here")
       data = get_ofm_data(filename=dataset[0], 
@@ -480,30 +478,36 @@ def main(argv):
 
               # (input_dir + 'all_Ga*ofm1_no_d*energy_substance_pa.csv', 
               #   'ofm_subs_Ga123', 'energy_substance_pa'),
-              (input_dir + 'latbx_ofm1.csv', 
-                'latbx_ofm1', 'formation_energy', []) 
+              # (input_dir + 'latbx_ofm1.csv', 
+              #   'latbx_ofm1', 'formation_energy', []) 
 
-              # # for SmFe12
+              # # # for SmFe12
+              # # for energy
               # (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
               #   '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d', 
-              #   'energy_substance_pa', ["atoms", "magmom_pa"])
+              #   'energy_substance_pa', ["atoms", "magmom_pa"]),
+              # # for magmom 
+              (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
+                'SmFe12_magmom_pa', 
+                'magmom_pa', ["atoms", "energy_substance_pa"]),
               ]
 
-  is_prepare_train_data = True
-  is_Sm12 = False
+  is_prepare_train_data = False
+  is_Sm12_test = True
 
   for d in datasets:
     print(d[1])
     # # non-separate test set
     # get_mldata(d)
-
+    tv = d[2]
+    rmvs = d[-1]
     # # separate test set
     if is_prepare_train_data:
       get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
-    if is_Sm12:
-      get_SmFe12_test(lbldata=d[0], pv=None, tv=d[2], rmvs=d[-1], 
+    if is_Sm12_test:
+      get_SmFe12_test(lbldata=d[0], pv=None, tv=tv, rmvs=rmvs, 
         unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix", # mix_2-24, mix
-        saveat=input_dir+"/SmFe12/mix"
+        saveat=input_dir+"/SmFe12/mix_{}".format(tv)
         )
       
 

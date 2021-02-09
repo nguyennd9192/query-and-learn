@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from params import *
 
 from utils.general_lib import *
@@ -7,8 +7,6 @@ from e_autism_modeling import show_trace, error_dist
 import copy
 from itertools import product
 def main_spark():
-
-
 
 	FLAGS.sampling_method = sm
 	FLAGS.score_method = es
@@ -24,17 +22,23 @@ def create_params_grid():
 		"uniform", "exploitation", "margin", "expected_improvement",
 		"MarginExplSpace"
 		]
-	score_methods = ["u_gp", "u_knn", "e_krr"
+	score_methods = ["u_gp", # "u_knn", # "e_krr"
 			# "fully_connected", "ml-gp", "ml-knn"
 		]
 	embedding_methods = ["org_space", "MLKR", "LFDA"]  # LMNN
 
-	all_kwargs = list(product(sampling_methods, score_methods, embedding_methods))
+	active_ps = [0.9 ] # , 0.9, 0.7, 0.5
+	ith_trials = [1, 2, 3]
+	# # 0.9: test with batch_size 10 10 10, eval by ignore selected_inds
+	# # 0.7: test with batch_size 30 30 30, eval by ignore selected_inds_to_estimator
+
+
+	all_kwargs = list(product(sampling_methods, score_methods, embedding_methods, active_ps, ith_trials))
 	n_tasks = len(all_kwargs)
 	MainDir = copy.copy(ALdir)
 
 	ncores_per_cpu = 32 # fix
-	ncpus_reserve = 9
+	ncpus_reserve = 8
 	cpus_per_task = 16
 	max_cpus = ncpus_reserve*ncores_per_cpu # # ncpus take * ncores per cpu
 	ntask_per_batch = int(max_cpus / cpus_per_task)
@@ -62,25 +66,30 @@ def create_params_grid():
 		shrun_file.write("#SBATCH --ntasks={0}\n".format(int(last_kw - init_kw)))
 
 		for kw in all_kwargs[init_kw:last_kw]:
-			sampling_method, score_method, embedding_method = kw[0], kw[1], kw[2]
+			sampling_method, score_method, embedding_method, active_p, ith_trial = kw[0], kw[1], kw[2], kw[3], kw[4]
 			kwargs = dict({})
 
 			# # update kwargs
 			kwargs["sampling_method"] = sampling_method
 			kwargs["score_method"] = score_method
 			kwargs["embedding_method"] = embedding_method
+			kwargs["active_p"] = active_p
+			kwargs["ith_trial"] = ith_trial
 
-			param_file = MainDir +"/data/params_grid/{0}_{1}_{2}.pkl".format(sampling_method, score_method, embedding_method)
+
+			param_file = MainDir +"/data/params_grid/{0}_{1}_{2}_{3}_{4}.pkl".format(sampling_method, 
+				score_method, embedding_method, active_p, ith_trial)
 			makedirs(param_file)
 			dump_pickle(data=kwargs, filename=param_file)
 
-			sh_file = MainDir+"/data/sh/{0}_{1}_{2}.sh".format(sampling_method, score_method, embedding_method)
+			sh_file = MainDir+"/data/sh/{0}_{1}_{2}_{3}_{4}.sh".format(sampling_method, 
+				score_method, embedding_method, active_p, ith_trial)
 			makedirs(sh_file)
 
 			with open(sh_file, "w") as f:
 				f.write("cd {0}\n".format(MainDir+"/code"))
 				f.write("python a_rank_unlbl.py {0}\n".format(param_file))
-				f.write("python e_autism_modeling.py {0}\n".format(param_file))
+				# f.write("python e_autism_modeling.py {0}\n".format(param_file))
 
 			shrun_file.write("srun --ntasks=1 --nodes=1 sh {0} \n".format(sh_file)) 
 		shrun_file.write("wait")

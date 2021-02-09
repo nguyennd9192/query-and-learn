@@ -1,14 +1,11 @@
 
 
 import os, glob, ntpath, pickle, functools, copy, sys
-sc_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-for ld, subdirs, files in os.walk(sc_dir):
-  if os.path.isdir(ld) and ld not in sys.path:
-    sys.path.append(ld)
+from params import *
+
 import pandas as pd
 import numpy as np
 from tensorflow.io import gfile
-from params import *
 
 try:
 	from utils import utils # # ignore in call create_data
@@ -86,8 +83,12 @@ def get_savedir(ith_trial):
 			FLAGS.save_dir,
 			"/".join([FLAGS.data_init, FLAGS.sampling_method,
 						FLAGS.score_method, FLAGS.embedding_method, 
-						FLAGS.mae_update_threshold])))
-	result_file = s_dir + "/trial_" + ith_trial +".pkl"
+						FLAGS.mae_update_threshold, str(FLAGS.active_p),
+						str(FLAGS.is_search_params)
+						])))
+
+
+	result_file = s_dir + "/trial_{}.pkl".format(ith_trial)
 	unlbl_dir = result_file.replace(".pkl","/")
 
 	if FLAGS.score_method == "u_gp_mt":
@@ -149,8 +150,8 @@ def est_alpha_updated(X_train, y_train,
 	if FLAGS.embedding_method != "org_space":
 		model = EmbeddingSpace(embedding_method=FLAGS.embedding_method)
 		if FLAGS.embedding_method == "LMNN":
-			_y_train = np.round(y_train, 1).reshape(len(y_train), 1) #.astype(str)
-			# print ("_y_train", _y_train)
+			_y_train = np.round(y_train, 1)#.reshape(len(y_train), 1) #.astype(str)
+			print ("_y_train", _y_train.shape)
 			# print ("_y_train", len(set(_y_train)))
 
 		else:
@@ -183,19 +184,20 @@ def norm_id(id_qr):
 	id_qr_cvt = id_qr_cvt.replace("/", '-_-')
 	return id_qr_cvt
 
-def id_qr_to_database(id_qr, db_results, crs_db_results=None, fine_db_results=None):
+def id_qr_to_database(id_qr, db_results, 
+		crs_db_results=None, fine_db_results=None, tv="energy_substance_pa"):
 	# # Still use in create_data
 	# id_qr = arg[0]
 
 	id_qr_cvt = norm_id(id_qr)
 
 	if id_qr_cvt in db_results.index:
-		target_y = db_results.loc[id_qr_cvt, "energy_substance_pa"]
+		target_y = db_results.loc[id_qr_cvt, tv]
 	elif id_qr_cvt in fine_db_results.index:
-		target_y = fine_db_results.loc[id_qr_cvt, "energy_substance_pa"]
+		target_y = fine_db_results.loc[id_qr_cvt, tv]
 		# print ("Add fine_relax results", target_y)
 	elif id_qr_cvt in crs_db_results.index:
-		target_y = crs_db_results.loc[id_qr_cvt, "energy_substance_pa"]
+		target_y = crs_db_results.loc[id_qr_cvt, tv]
 		# print ("Add coarse_relax results", target_y)
 	else:
 		target_y = None

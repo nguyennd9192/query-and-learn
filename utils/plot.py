@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import time, gc, os
+import time, gc, os, copy
 import pandas as pd
 import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D
@@ -14,7 +14,8 @@ from utils.general_lib import get_basename
 
 from matplotlib.colors import Normalize
 from scipy.interpolate import griddata
-
+from sklearn.preprocessing import MinMaxScaler
+import matplotlib.colors as colors
 
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
@@ -253,7 +254,7 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 
 def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
-	x_label='x', y_label='y', 
+	x_label='x', y_label='y', title=None,
 	save_file=None, interpolate=False, color='blue', 
 	preset_ax=None, linestyle='-.', marker='o'):
 
@@ -298,6 +299,7 @@ def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=No
 		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), method='cubic')
 		main_ax.imshow(grid_interpolate.T, extent=(min(x),max(x),min(y),max(y)), origin='lower')
 
+	plt.title(title, **title_font)
 
 
 	if name is not None:
@@ -622,7 +624,7 @@ def scatter_plot_4(x, y, color_array=None, xvlines=None, yhlines=None,
 	release_mem(fig=fig)
 
 
-def scatter_plot_5(x, y, list_cdict=None, xvlines=None, yhlines=None, 
+def scatter_plot_5(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	s=100, alphas=0.8, title=None,
 	x_label='x', y_label='y', 
@@ -638,30 +640,43 @@ def scatter_plot_5(x, y, list_cdict=None, xvlines=None, yhlines=None,
 	
 	sns.set_style(style='white') 
 
-	
-	main_ax = sns.kdeplot(x, y,
-			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
-			 cmap='Oranges',
-			 shade=True, shade_lowest=False,
-			 fontsize=10, ax=main_ax, linewidths=1,
-			 # vertical=True
-			 )
+	# main_ax = sns.kdeplot(x, y,
+	# 		 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+	# 		 cmap='Oranges',
+	# 		 shade=True, shade_lowest=False,
+	# 		 fontsize=10, ax=main_ax, linewidths=1,
+	# 		 # vertical=True
+	# 		 )
 
 	for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
-		if len(_cdict.keys()) == 1:
-			print ("this color:", _cdict.keys())
-			main_ax.scatter(_x, _y, s=s, 
-				marker=_m, c=list(_cdict.keys())[0], 
+		if _m == "+":
+			main_ax.scatter(_x, _y, s=5, 
+				marker=_m, c="black", 
 				alpha=_a, edgecolor="black")
-		else:
-			plt_half_filled(ax=main_ax, x=_x, y=_y, 
-				cdict=_cdict, alpha=_a
-				)
+		else: 
+			if len(_cdict.keys()) == 1:
+				main_ax.scatter(_x, _y, s=s, 
+					marker=_m, c=list(_cdict.keys())[0], 
+					alpha=_a, edgecolor="black")
+			else:
+				plt_half_filled(ax=main_ax, x=_x, y=_y, 
+					cdict=_cdict, alpha=_a
+					)
+
+	if z_values is not None:
+		grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), method='cubic')
+		main_plot = main_ax.imshow(grid_interpolate.T, 
+			extent=(min(x),max(x),min(y),max(y)), origin='lower',
+			cmap="jet")
+
+	fig.colorbar(main_plot, ax=main_ax)
 
 	for xvline in xvlines:
 	  main_ax.axvline(x=xvline, linestyle='-.', color='black')
 	for yhline in yhlines:
 	  main_ax.axhline(y=yhline, linestyle='-.', color='black')
+
 
 	main_ax.set_xlabel(x_label, **axis_font)
 	main_ax.set_ylabel(y_label, **axis_font)
@@ -696,6 +711,148 @@ def scatter_plot_5(x, y, list_cdict=None, xvlines=None, yhlines=None,
 	plt.setp(y_hist.get_yticklabels(), visible=False)
 	plt.tight_layout(pad=1.1)
 
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
+
+def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
+    '''
+    Function to offset the "center" of a colormap. Useful for
+    data with a negative min and positive max and you want the
+    middle of the colormap's dynamic range to be at zero.
+
+    Input
+    -----
+      cmap : The matplotlib colormap to be altered
+      start : Offset from lowest point in the colormap's range.
+          Defaults to 0.0 (no lower offset). Should be between
+          0.0 and `midpoint`.
+      midpoint : The new center of the colormap. Defaults to 
+          0.5 (no shift). Should be between 0.0 and 1.0. In
+          general, this should be  1 - vmax / (vmax + abs(vmin))
+          For example if your data range from -15.0 to +5.0 and
+          you want the center of the colormap at 0.0, `midpoint`
+          should be set to  1 - 5/(5 + 15)) or 0.75
+      stop : Offset from highest point in the colormap's range.
+          Defaults to 1.0 (no upper offset). Should be between
+          `midpoint` and 1.0.
+    '''
+    cdict = {
+        'red': [],
+        'green': [],
+        'blue': [],
+        'alpha': []
+    }
+
+    # regular index to compute the colors
+    reg_index = np.linspace(start, stop, 257)
+
+    # shifted index to match the data
+    shift_index = np.hstack([
+        np.linspace(0.0, midpoint, 128, endpoint=False), 
+        np.linspace(midpoint, 1.0, 129, endpoint=True)
+    ])
+
+    for ri, si in zip(reg_index, shift_index):
+        r, g, b, a = cmap(ri)
+
+        cdict['red'].append((si, r, r))
+        cdict['green'].append((si, g, g))
+        cdict['blue'].append((si, b, b))
+        cdict['alpha'].append((si, a, a))
+
+    newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
+    plt.register_cmap(cmap=newcmap)
+
+    return newcmap
+
+def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
+	sigma=None, mode='scatter', lbl=None, name=None, 
+	s=100, alphas=0.8, title=None,
+	x_label='x', y_label='y', 
+	save_file=None, interpolate=False, color='blue', 
+	preset_ax=None, linestyle='-.', marker='o'):
+
+	# org_x = copy.copy(x)
+	# org_y = copy.copy(y)
+
+	# XY = MinMaxScaler().fit_transform(np.array([org_x, org_y]).T)
+	# x = copy.copy(XY[:, 0]) 
+	# y = copy.copy(XY[:, 1]) 
+	# print (len(x))
+
+
+	fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+	grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+	main_ax = fig.add_subplot(grid[:,:])
+	
+	sns.set_style(style='white') 
+
+	# main_ax = sns.kdeplot(x, y,
+	# 		 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+	# 		 cmap='Oranges',
+	# 		 shade=True, shade_lowest=False,
+	# 		 fontsize=10, ax=main_ax, linewidths=1,
+	# 		 # vertical=True
+	# 		 )
+
+	for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
+		if _m == "+":
+			main_ax.scatter(_x, _y, s=5, 
+				marker=_m, c="black", 
+				alpha=_a, edgecolor="black")
+		else: 
+			if len(_cdict.keys()) == 1:
+				main_ax.scatter(_x, _y, s=s, 
+					marker=_m, c=list(_cdict.keys())[0], 
+					alpha=_a, edgecolor="black")
+			else:
+				plt_half_filled(ax=main_ax, x=_x, y=_y, 
+					cdict=_cdict, alpha=_a
+					)
+
+	if z_values is not None:
+		grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), method='cubic')
+
+		# max_ipl = 0.8*max([abs(np.nanmax(grid_interpolate.T)), abs(np.nanmin(grid_interpolate.T))])
+		# max_ipl = 2.2
+
+		# orig_cmap = mpl.cm.coolwarm
+		# shrunk_cmap = shiftedColorMap(orig_cmap, 
+		# 	start=np.nanmin(grid_interpolate.T), 
+		# 	midpoint=0.5, stop=np.nanmax(grid_interpolate.T), name='shrunk')
+		vmin = np.nanmin(grid_interpolate.T)
+		vmax = np.nanmax(grid_interpolate.T)
+
+		# norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+		norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+		z_plot = main_ax.imshow(grid_interpolate.T, 
+			extent=(min(x),max(x),min(y),max(y)), origin='lower',
+			cmap='seismic',
+			norm=norm, 
+			# vmin=-max_ipl, vmax=max_ipl, 
+			interpolation="nearest",
+			alpha=0.8)
+
+		fig.colorbar(z_plot, ax=main_ax)
+
+	# for xvline in xvlines:
+	#   main_ax.axvline(x=xvline, linestyle='-.', color='black')
+	# for yhline in yhlines:
+	#   main_ax.axhline(y=yhline, linestyle='-.', color='black')
+
+
+	main_ax.set_xlabel(x_label, **axis_font)
+	main_ax.set_ylabel(y_label, **axis_font)
+	if name is not None:
+		for i in range(len(x)):
+			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+
+	
+	plt.tight_layout(pad=1.1)
 	makedirs(save_file)
 	plt.savefig(save_file, transparent=False)
 	print ("Save at: ", save_file)
@@ -907,11 +1064,11 @@ def plt_half_filled(ax, x, y, cdict, alpha):
 	# print (small_ratio, big_ratio)
 	# print (small_color, big_color)
 	# if z is None:
-	HalfA = mpl.patches.Wedge((x, y), 0.01, alpha=alpha, 
+	HalfA = mpl.patches.Wedge((x, y), 2.0, alpha=alpha, 
 		theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
 		lw=1.5,
 		edgecolor="black")
-	HalfB = mpl.patches.Wedge((x, y), 0.02, alpha=alpha,
+	HalfB = mpl.patches.Wedge((x, y), 4.0, alpha=alpha,
 		theta1=angle1-rot,theta2=360-rot, facecolor=color2,
 		lw=1.5,
 		edgecolor="black")

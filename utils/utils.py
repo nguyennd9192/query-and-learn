@@ -204,7 +204,8 @@ def flip_label(y, percent_random):
   return y
 
 
-def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel=None):
+def get_model(method, seed=13, is_search_params=True, 
+  n_shuffle=10000, mt_kernel=None):
   """Construct sklearn model using either logistic regression or linear svm.
 
   Wraps grid search on regularization parameter over either logistic regression
@@ -227,21 +228,21 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
   nn_libs = ["fully_connected", "moe", "LeNet"]
   if method=="u_gp":
     model = UncertainGaussianProcess(
-      name=method, random_state=1, 
+      name=method, random_state=seed, 
       cv=10, search_param=is_search_params, 
       mt_kernel=None) 
     return model
 
   if method=="u_gp_mt" and mt_kernel is not None:
     model = UncertainGaussianProcess(name=method,
-      random_state=1, cv=10, 
+      random_state=seed, cv=10, 
       search_param=is_search_params, 
       mt_kernel=mt_kernel) 
     return model
 
   if method=="e_krr":
     model = UncertainEnsembleRegression(
-      name=method, random_state=1, 
+      name=method, random_state=seed, 
       n_shuffle=n_shuffle, alpha=0.1, gamma=0.1,
       cv=10, score_method="kr", search_param=is_search_params,
       )
@@ -249,7 +250,7 @@ def get_model(method, seed=13, is_search_params=True, n_shuffle=10000, mt_kernel
 
   if method=="u_knn":
     model = UncertainKNearestNeighbor(
-      name=method, random_state=1, 
+      name=method, random_state=seed, 
       cv=10, search_param=is_search_params)
     return model
 

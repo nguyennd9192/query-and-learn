@@ -18,7 +18,7 @@ class MarginAL(SamplingMethod):
 
     For binary classification, can just take the absolute distance to decision
     boundary for each point.
-    For regression, must impl
+    For regression, must impl 
 
     Args:
       model: scikit learn model with decision_function implemented
@@ -28,7 +28,7 @@ class MarginAL(SamplingMethod):
     Returns:
       indices of points selected to add using margin active learner
     """
-
+ 
     try:
       distances = model.decision_function(self.X)
     except:

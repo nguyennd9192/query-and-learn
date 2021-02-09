@@ -13,8 +13,8 @@ class EmbeddingSpace(object):
 			learn_metric = mkl.MLKR(n_components=2, init="auto")
 		elif embedding_method == "LFDA":
 			learn_metric = mkl.LFDA(n_components=2, 
-		 		k=10, embedding_type="orthonormalized") 
-		 	# weighted, orthonormalized
+		 		k=20, embedding_type="plain") 
+		 		# weighted, orthonormalized, plain
 		elif embedding_method == "LMNN":
 			learn_metric = mkl.LMNN(k=10, learn_rate=0.1,
 				n_components=3) 
