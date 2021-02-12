@@ -19,16 +19,17 @@ def main_spark():
 def create_params_grid():
 
 	sampling_methods = [
-		"uniform", "exploitation", "margin", "expected_improvement",
-		"MarginExplSpace"
+		"uniform", "exploitation", "margin", 
+		# "expected_improvement",
+		# "MarginExplSpace"
 		]
 	score_methods = ["u_gp", # "u_knn", # "e_krr"
 			# "fully_connected", "ml-gp", "ml-knn"
 		]
-	embedding_methods = ["org_space", "MLKR", "LFDA"]  # LMNN
+	embedding_methods = ["org_space", "MLKR"]  # LMNN, LFDA
 
 	active_ps = [0.9 ] # , 0.9, 0.7, 0.5
-	ith_trials = [1, 2, 3]
+	ith_trials = [1, 2, 3, 4, 5]
 	# # 0.9: test with batch_size 10 10 10, eval by ignore selected_inds
 	# # 0.7: test with batch_size 30 30 30, eval by ignore selected_inds_to_estimator
 
@@ -38,7 +39,7 @@ def create_params_grid():
 	MainDir = copy.copy(ALdir)
 
 	ncores_per_cpu = 32 # fix
-	ncpus_reserve = 8
+	ncpus_reserve = 9
 	cpus_per_task = 16
 	max_cpus = ncpus_reserve*ncores_per_cpu # # ncpus take * ncores per cpu
 	ntask_per_batch = int(max_cpus / cpus_per_task)

@@ -14,9 +14,9 @@ def get_basename(filename):
     basename = os.path.splitext(tail)[0]
     return tail
 
-batch_size =  10
-batch_outstand = 10 
-batch_rand = 10 
+batch_size =  30
+batch_outstand = 30 
+batch_rand = 30 
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"
@@ -48,7 +48,7 @@ flags.DEFINE_string("embedding_method", "MLKR",
     ("Method to transform space."))
 
 # # run parallel
-flags.DEFINE_float("active_p", 0.7, 
+flags.DEFINE_float("active_p", 0.9, 
     ("Float value of active percentage in querying. 1 - active_p as uniform sampling"))
 
 # # run parallel

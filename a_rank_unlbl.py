@@ -231,90 +231,118 @@ def query_and_learn(FLAGS, qid,
 	alphas[selected_inds_copy] = 1.0 
 	alphas[len(unlbl_index):] = 1.0
 
-	# # plot MLKR space
+	# # plot MLKR space or mds with original space
+	n_original_train = X_train.shape[0]
 	if FLAGS.embedding_method != "org_space":
 		# # concatenate data points train test
-		xy = np.concatenate((_unlbl_X, _x_train), axis=0)
-		# # selected array as +
-		ytrain_pred = estimator.predict(_x_train)
+		xy = np.concatenate((_unlbl_X, _x_train[:n_original_train]), axis=0)
+	else:
+		X_all = np.concatenate((unlbl_X, X_train))
+		xy = process_dimensional_reduction(X_all, method="mds")
+		xy *= 10000
+	# # selected array as +
+	ytrain_pred = estimator.predict(_x_train)
 
-		y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred), axis=0)
-		y_all_obs = np.concatenate((unlbl_y, _y_train), axis=0)
-		error_all = y_all_pred - y_all_obs
+	y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred[:n_original_train]), axis=0)
+	y_all_obs = np.concatenate((unlbl_y, _y_train[:n_original_train]), axis=0)
+	error_all = y_all_pred - y_all_obs
 
-		# # merge var all
-		var_train = estimator.predict_proba(_x_train)
-		var_all = np.concatenate((var, var_train), axis=0)  
-		this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
-		marker_array[non_qr_ids] = "+"
+	# # merge var all
+	var_train = estimator.predict_proba(_x_train)
+	var_all = np.concatenate((var, var_train[:n_original_train]), axis=0)  
+	this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
 
-
-		data = dict()
-		data["x_embedd"] = xy[:, 0]
-		data["y_embedd"] = xy[:, 1]
-		data["index"] = plot_index
-		data["y_obs"] = y_all_obs
-		data["y_pred"] = y_all_pred
-		data["error"] = error_all
-		data["var"] = var_all
-		data["marker"] = marker_array
-		plt_df = pd.DataFrame().from_dict(query_data)
-		this_df_dir = this_fig_dir.replace(".pdf", ".csv")
-		makedirs(this_df_dir)
-		plt_df.to_csv(this_df_dir)
+	marker_array[non_qr_ids] = "." 
+	# marker_array[selected_inds] = "o"
+	marker_array[new_batch] = "D"
+	marker_array[outstand_list] = "*"
 
 
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=error_all,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=None,
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=this_fig_dir.replace(".pdf", "_error.pdf"),
-			interpolate=False, 
-			preset_ax=None, linestyle='-.', marker=marker_array)
 
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=y_all_obs,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=None,
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=this_fig_dir.replace(".pdf", "_yobs.pdf"),
-			interpolate=False, 
-			preset_ax=None, linestyle='-.', marker=marker_array)
+	data = dict()
+	data["x_embedd"] = xy[:, 0]
+	data["y_embedd"] = xy[:, 1]
+	data["error"] = error_all
 
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=y_all_pred,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=None,
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=this_fig_dir.replace(".pdf", "_ypred.pdf"),
-			interpolate=False, 
-			preset_ax=None, linestyle='-.', marker=marker_array)
+	data["index"] = plot_index
+	data["y_obs"] = y_all_obs
+	data["y_pred"] = y_all_pred
+	data["var"] = var_all
+	data["marker"] = marker_array
+	print (len(marker_array), len(plot_index), len(var_all))
+	plt_df = pd.DataFrame().from_dict(data)
+	this_df_dir = this_fig_dir.replace(".pdf", "_plot.csv")
 
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=var_all,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=None,
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=this_fig_dir.replace(".pdf", "_yvar.pdf"),
-			interpolate=False, 
-			preset_ax=None, linestyle='-.', marker=marker_array)
+	makedirs(this_df_dir)
+	plt_df.to_csv(this_df_dir)
+
+	save_file=this_fig_dir.replace(".pdf", "_error.pdf")
+	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		z_values=error_all,
+		list_cdict=list_cdict, 
+		xvlines=[0.0], yhlines=[0.0], 
+		sigma=None, mode='scatter', lbl=None, name=None, 
+		s=60, alphas=alphas, 
+		title=save_file.replace(ALdir, ""),
+		x_label=FLAGS.embedding_method + "_dim_1",
+		y_label=FLAGS.embedding_method + "_dim_2", 
+		interpolate=False, cmap="seismic",
+		save_file=save_file,
+		preset_ax=None, linestyle='-.', marker=marker_array,
+		vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
+
+		)
+
+
+	save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
+	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		z_values=y_all_obs,
+		list_cdict=list_cdict, 
+		xvlines=[0.0], yhlines=[0.0], 
+		sigma=None, mode='scatter', lbl=None, name=None, 
+		s=60, alphas=alphas, 
+		title=save_file.replace(ALdir, ""),
+		x_label=FLAGS.embedding_method + "_dim_1",
+		y_label=FLAGS.embedding_method + "_dim_2", 
+		save_file=save_file,
+		interpolate=False, cmap="PiYG",
+		preset_ax=None, linestyle='-.', marker=marker_array,
+		vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+		)
+
+
+	save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
+	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		z_values=y_all_pred,
+		list_cdict=list_cdict, 
+		xvlines=[0.0], yhlines=[0.0], 
+		sigma=None, mode='scatter', lbl=None, name=None, 
+		s=60, alphas=alphas, 
+		title=save_file.replace(ALdir, ""),
+		x_label=FLAGS.embedding_method + "_dim_1",
+		y_label=FLAGS.embedding_method + "_dim_2", 
+		save_file=save_file,
+		interpolate=False,  cmap="PuOr",
+		preset_ax=None, linestyle='-.', marker=marker_array,
+		vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
+
+		)
+
+	save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
+	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		z_values=var_all,
+		list_cdict=list_cdict, 
+		xvlines=[0.0], yhlines=[0.0], 
+		sigma=None, mode='scatter', lbl=None, name=None, 
+		s=60, alphas=alphas, 
+		title=save_file.replace(ALdir, ""),
+		x_label=FLAGS.embedding_method + "_dim_1",
+		y_label=FLAGS.embedding_method + "_dim_2", 
+		save_file=save_file,
+		interpolate=False, cmap="PRGn",
+		preset_ax=None, linestyle='-.', marker=marker_array,
+		vmin=-0.01, vmax=1.0
+		)
 
 
 

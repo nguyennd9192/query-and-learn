@@ -16,10 +16,11 @@ from matplotlib.colors import Normalize
 from scipy.interpolate import griddata
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.colors as colors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
-title_font = {'fontname': 'serif', 'size': 14}
+title_font = {'fontname': 'serif', 'size': 8}
 size_text = 10
 alpha_point = 0.8
 size_point = 100
@@ -395,7 +396,7 @@ def get_marker_112(index):
 	if "1-11-1" in index:
 		m = "s"
 	if "1-10-2" in index:
-		m = "o"
+		m = "H"
 	if "1-9-3" in index:
 		m = "v"
 	if "2-23-1" in index:
@@ -768,26 +769,51 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
 
     return newcmap
 
+
+def colorbar(mappable):
+    ax = mappable.axes
+    fig = ax.figure
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.2)
+    return fig.colorbar(mappable, cax=cax, shrink=0.6)
+
+def myround(x, base=5):
+    return base * round(x/base)
+
 def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	s=100, alphas=0.8, title=None,
 	x_label='x', y_label='y', 
 	save_file=None, interpolate=False, color='blue', 
-	preset_ax=None, linestyle='-.', marker='o'):
+	preset_ax=None, linestyle='-.', marker='o',
+	cmap='seismic',
+	vmin=None, vmax=None
+	):
 
-	# org_x = copy.copy(x)
-	# org_y = copy.copy(y)
+	org_x = copy.copy(x)
+	org_y = copy.copy(y)
+	min_org_x, max_org_x = min(org_x), max(org_x)
+	min_org_y, max_org_y = min(org_y), max(org_y)
 
-	# XY = MinMaxScaler().fit_transform(np.array([org_x, org_y]).T)
+	x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * 200
+	y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * 200
+	x = x.T[0]
+	y = y.T[0]
+
+	tick_pos = [0.0, 50.0, 100.0, 150.0, 200.0]
+	tmp = np.arange(min_org_x, max_org_x, (max_org_x - min_org_x)/len(tick_pos))
+	xticklabels = [myround(k,5) for k in tmp]
+
+	tmp = np.arange(min_org_y, max_org_y, (max_org_y - min_org_y)/len(tick_pos))
+	yticklabels = [myround(k,5) for k in tmp]
 	# x = copy.copy(XY[:, 0]) 
 	# y = copy.copy(XY[:, 1]) 
+	# print (x)
 	# print (len(x))
 
+	fig, main_ax = plt.subplots(figsize=(9, 8), linewidth=1.0) # 
+	# grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
 
-	fig = plt.figure(figsize=(8, 8), linewidth=1.0)
-	grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
-	main_ax = fig.add_subplot(grid[:,:])
-	
 	sns.set_style(style='white') 
 
 	# main_ax = sns.kdeplot(x, y,
@@ -799,10 +825,15 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 	# 		 )
 
 	for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
-		if _m == "+":
+		if _m in ["o", "D", "*"]:
+			main_ax.scatter(_x, _y, s=s, 
+				marker=_m, c="white", 
+				alpha=1.0, edgecolor="red")
+		elif _m == ".":
+			# # for unlbl cases
 			main_ax.scatter(_x, _y, s=5, 
 				marker=_m, c="black", 
-				alpha=_a, edgecolor="black")
+				alpha=_a, edgecolor=None)
 		else: 
 			if len(_cdict.keys()) == 1:
 				main_ax.scatter(_x, _y, s=s, 
@@ -824,33 +855,40 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 		# shrunk_cmap = shiftedColorMap(orig_cmap, 
 		# 	start=np.nanmin(grid_interpolate.T), 
 		# 	midpoint=0.5, stop=np.nanmax(grid_interpolate.T), name='shrunk')
-		vmin = np.nanmin(grid_interpolate.T)
-		vmax = np.nanmax(grid_interpolate.T)
+		if vmin is None:
+			vmin = np.nanmin(grid_interpolate.T)
+		if vmax  is None:
+			vmax = np.nanmax(grid_interpolate.T)
 
 		# norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
 		norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
 		z_plot = main_ax.imshow(grid_interpolate.T, 
 			extent=(min(x),max(x),min(y),max(y)), origin='lower',
-			cmap='seismic',
+			cmap=cmap,
 			norm=norm, 
 			# vmin=-max_ipl, vmax=max_ipl, 
-			interpolation="nearest",
+			interpolation="hamming",
 			alpha=0.8)
+		# colorbar(z_plot)
+		fig.colorbar(z_plot, shrink=0.6)
 
-		fig.colorbar(z_plot, ax=main_ax)
 
 	# for xvline in xvlines:
 	#   main_ax.axvline(x=xvline, linestyle='-.', color='black')
 	# for yhline in yhlines:
 	#   main_ax.axhline(y=yhline, linestyle='-.', color='black')
-
-
+	main_ax.set_title(title, **title_font)
 	main_ax.set_xlabel(x_label, **axis_font)
 	main_ax.set_ylabel(y_label, **axis_font)
+
+	plt.xticks(tick_pos, xticklabels, size=14)
+	plt.yticks(tick_pos, yticklabels, size=14)
+
 	if name is not None:
 		for i in range(len(x)):
 			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
 
+	main_ax.set_aspect('auto')
 	
 	plt.tight_layout(pad=1.1)
 	makedirs(save_file)
@@ -1007,41 +1045,6 @@ def ax_surf(xi, yi, zi, label, mode="2D"):
 
 	return ax
 
-
-# def plt_half_filled(ax, x, y, cdict, alpha):
-# 	rot = 30
-# 	_sorted_cdict = {k: v for k, v in sorted(cdict.items(), key=lambda item: item[1])}
-# 	# small_color, small_ratio = _sorted_cdict[0]
-# 	# big_color, big_ratio = _sorted_cdict[1]
-
-# 	# try:
-# 	small_color, big_color = list(_sorted_cdict.keys())
-# 	small_ratio, big_ratio = list(_sorted_cdict.values())
-# 	# except Exception as e:
-# 	# 	print (_sorted_cdict)
-	
-
-# 	small_angle = 360 * small_ratio / (small_ratio + big_ratio)
-# 	# print (small_ratio, big_ratio)
-# 	# print (small_color, big_color)
-# 	# if z is None:
-# 	HalfA = mpl.patches.Wedge((x, y), 0.01, alpha=alpha, 
-# 		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
-# 		edgecolor="black")
-# 	HalfB = mpl.patches.Wedge((x, y), 0.01, alpha=alpha,
-# 		theta1=small_angle-rot,theta2=360-rot, color=big_color,
-# 		edgecolor="black")
-# 	# else:
-# 	# 	HalfA = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha, 
-# 	# 		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
-# 	# 		edgecolor="black")
-# 	# 	HalfB = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha,
-# 	# 		theta1=small_angle-rot,theta2=360-rot, color=big_color,
-# 	# 		edgecolor="black")
-# 	ax.add_artist(HalfA)
-# 	ax.add_artist(HalfB)
-
-
 def plt_half_filled(ax, x, y, cdict, alpha):
 
 	# small_ratio, big_ratio = sorted(cdict.values())
@@ -1049,9 +1052,7 @@ def plt_half_filled(ax, x, y, cdict, alpha):
 	color1, color2 = sorted(cdict.keys())
 	ratio1, ratio2 = cdict[color1], cdict[color2]
 	
-
 	angle1 = 360 * ratio1 / (ratio1 + ratio2)
-	
 	if angle1 == 180:
 		# # for 1-1 composition, e.g. Al1-Ti1
 		rot = 90
@@ -1060,25 +1061,15 @@ def plt_half_filled(ax, x, y, cdict, alpha):
 	else:
 		rot = 150
 
-
-	# print (small_ratio, big_ratio)
-	# print (small_color, big_color)
-	# if z is None:
-	HalfA = mpl.patches.Wedge((x, y), 2.0, alpha=alpha, 
+	HalfA = mpl.patches.Wedge((x, y), 0.9, alpha=alpha, 
 		theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
-		lw=1.5,
+		lw=0.5,
 		edgecolor="black")
-	HalfB = mpl.patches.Wedge((x, y), 4.0, alpha=alpha,
+	HalfB = mpl.patches.Wedge((x, y), 1.8, alpha=alpha,
 		theta1=angle1-rot,theta2=360-rot, facecolor=color2,
-		lw=1.5,
+		lw=0.5,
 		edgecolor="black")
-	# else:
-	# 	HalfA = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha, 
-	# 		theta1=0-rot,theta2=small_angle-rot, color=small_color, 
-	# 		edgecolor="black")
-	# 	HalfB = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha,
-	# 		theta1=small_angle-rot,theta2=360-rot, color=big_color,
-	# 		edgecolor="black")
+
 	ax.add_artist(HalfA)
 	ax.add_artist(HalfB)
 
