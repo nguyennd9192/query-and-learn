@@ -184,7 +184,6 @@ class UncertainGaussianProcess(object):
     # # in fit function
     # # just return estimator with best param with X_train, y_train
     np.random.seed(self.random_state)
-    n_features = X_train.shape[1]
 
 
     self.X_train = X_train

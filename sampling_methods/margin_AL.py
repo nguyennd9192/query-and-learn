@@ -6,7 +6,7 @@ import numpy as np
 from sampling_methods.sampling_def import SamplingMethod
 from sklearn.preprocessing import normalize
 
-
+ 
 class MarginAL(SamplingMethod):
   def __init__(self, X, y, seed):
     self.X = X

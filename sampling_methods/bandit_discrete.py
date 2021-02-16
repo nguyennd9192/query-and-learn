@@ -113,7 +113,7 @@ class BanditDiscreteSampler(WrapperSamplingMethod):
     kwargs['N'] = N
     kwargs['already_selected'] = already_selected
     sample = self.samplers[arm].select_batch(**kwargs)
-    return sample
+    return sample, 1
 
   def to_dict(self):
     output = {}

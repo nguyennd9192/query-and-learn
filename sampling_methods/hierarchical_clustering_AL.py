@@ -86,7 +86,7 @@ class HierarchicalClusterAL(SamplingMethod):
     self.classes = None
     self.X = X
 
-    classes = list(set(y))
+    classes = range(10)
     self.n_classes = len(classes)
     if max_features is not None:
       transformer = PCA(n_components=max_features)
@@ -113,7 +113,7 @@ class HierarchicalClusterAL(SamplingMethod):
       self.model.fit(X)
       self.already_clustered = True
     self.n_leaves = self.model.n_leaves_
-    self.n_components = self.model.n_components_
+    self.n_components = self.model.n_connected_components_
     self.children_list = self.model.children_
 
   def create_tree(self):
@@ -321,7 +321,7 @@ class HierarchicalClusterAL(SamplingMethod):
 
   def select_batch_(self, N, already_selected, labeled, y, **kwargs):
     # Observe labels for previously recommended batches
-    self.observe_labels(labeled)
+    # self.observe_labels(labeled)
 
     if not self.initialized:
       self.initialize_algo()
@@ -354,7 +354,7 @@ class HierarchicalClusterAL(SamplingMethod):
         selected_nodes.add(node)
         batch.append(np.random.choice(children))
     self.selected_nodes = selected_nodes
-    return batch
+    return batch, 1
 
   def to_dict(self):
     output = {}

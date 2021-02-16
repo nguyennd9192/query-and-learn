@@ -101,7 +101,10 @@ def query_and_learn(FLAGS, qid,
 	makedirs(fig_saveat)
 
 	selected_inds_copy = copy.copy(selected_inds)
+	n_unlbl_org = len(unlbl_index)
+	n_train_org = X_train.shape[0]
 	
+
 	query_data = dict()
 	if is_save_query:
 		last_query = np.array([None] * len(unlbl_index))
@@ -138,7 +141,7 @@ def query_and_learn(FLAGS, qid,
 						already_selected=list(selected_inds_copy), **select_batch_inputs)
 	selected_inds_copy.extend(new_batch)
 	if is_save_query:
-		query2update_DQ = np.array([None] * len(unlbl_index))
+		query2update_DQ = np.array([None] * n_unlbl_org)
 		query2update_DQ[new_batch] = "query2update_DQ_{}".format(qid)
 		query_data["query2update_DQ_{}".format(qid)] = query2update_DQ
 		query_data["acq_val_{}".format(qid)] = acq_val
@@ -152,7 +155,7 @@ def query_and_learn(FLAGS, qid,
 	lim_outstand_list = max(unlbl_y_pred[outstand_list])
 
 	if is_save_query:
-		query_outstanding = np.array([None] * len(unlbl_index))
+		query_outstanding = np.array([None] * n_unlbl_org)
 		query_outstanding[outstand_list] = "query_outstanding_{}".format(qid)
 		query_data["query_outstanding_{}".format(qid)] = query_outstanding
 
@@ -160,12 +163,12 @@ def query_and_learn(FLAGS, qid,
 	max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
 	# # 3. select by D_{rand}
-	the_non_qr = list(set(range(_unlbl_X.shape[0])) - set(selected_inds_copy))
+	the_non_qr = list(set(range(n_unlbl_org)) - set(selected_inds_copy))
 	random_list = random.sample(the_non_qr, FLAGS.batch_rand)
 	selected_inds_copy.extend(random_list)
 
 	if is_save_query:
-		query_random = np.array([None] * len(unlbl_index))
+		query_random = np.array([None] * n_unlbl_org)
 		query_random[random_list] = "query_random_{}".format(qid)
 		query_data["query_random_{}".format(qid)] = query_random
 
@@ -185,7 +188,7 @@ def query_and_learn(FLAGS, qid,
 
 	# # test error
 	# # selected_inds_to_estimator or selected_inds
-	non_qr_ids = list(set(range(unlbl_X.shape[0])) - set(selected_inds))
+	non_qr_ids = list(set(range(n_unlbl_org)) - set(selected_inds_to_estimator))
 	non_qr_y_pred = unlbl_y_pred[non_qr_ids]
 	non_qr_y = unlbl_y[non_qr_ids]
 	non_qr_error = np.abs(non_qr_y - non_qr_y_pred)	
@@ -218,8 +221,7 @@ def query_and_learn(FLAGS, qid,
 	if FLAGS.sampling_method == "margin":
 		acq_val[np.isinf(acq_val)] = np.max(acq_val)
 
-	scaler = MinMaxScaler()
-	size_points = scaler.fit_transform(acq_val.reshape(-1, 1))
+
 	# # name, color, marker for plot
 	plot_index = np.concatenate((unlbl_index, index_train), axis=0)
 	name = [k.replace(ALdir, "") for k in plot_index]
@@ -232,10 +234,9 @@ def query_and_learn(FLAGS, qid,
 	alphas[len(unlbl_index):] = 1.0
 
 	# # plot MLKR space or mds with original space
-	n_original_train = X_train.shape[0]
 	if FLAGS.embedding_method != "org_space":
 		# # concatenate data points train test
-		xy = np.concatenate((_unlbl_X, _x_train[:n_original_train]), axis=0)
+		xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
 	else:
 		X_all = np.concatenate((unlbl_X, X_train))
 		xy = process_dimensional_reduction(X_all, method="mds")
@@ -243,13 +244,13 @@ def query_and_learn(FLAGS, qid,
 	# # selected array as +
 	ytrain_pred = estimator.predict(_x_train)
 
-	y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred[:n_original_train]), axis=0)
-	y_all_obs = np.concatenate((unlbl_y, _y_train[:n_original_train]), axis=0)
+	y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred[:n_train_org]), axis=0)
+	y_all_obs = np.concatenate((unlbl_y, _y_train[:n_train_org]), axis=0)
 	error_all = y_all_pred - y_all_obs
 
 	# # merge var all
 	var_train = estimator.predict_proba(_x_train)
-	var_all = np.concatenate((var, var_train[:n_original_train]), axis=0)  
+	var_all = np.concatenate((var, var_train[:n_train_org]), axis=0)  
 	this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
 
 	marker_array[non_qr_ids] = "." 
@@ -277,72 +278,74 @@ def query_and_learn(FLAGS, qid,
 	plt_df.to_csv(this_df_dir)
 
 	save_file=this_fig_dir.replace(".pdf", "_error.pdf")
-	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-		z_values=error_all,
-		list_cdict=list_cdict, 
-		xvlines=[0.0], yhlines=[0.0], 
-		sigma=None, mode='scatter', lbl=None, name=None, 
-		s=60, alphas=alphas, 
-		title=save_file.replace(ALdir, ""),
-		x_label=FLAGS.embedding_method + "_dim_1",
-		y_label=FLAGS.embedding_method + "_dim_2", 
-		interpolate=False, cmap="seismic",
-		save_file=save_file,
-		preset_ax=None, linestyle='-.', marker=marker_array,
-		vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
 
-		)
+	if FLAGS.do_plot:
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=error_all,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			interpolate=False, cmap="seismic",
+			save_file=save_file,
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
 
-
-	save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
-	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-		z_values=y_all_obs,
-		list_cdict=list_cdict, 
-		xvlines=[0.0], yhlines=[0.0], 
-		sigma=None, mode='scatter', lbl=None, name=None, 
-		s=60, alphas=alphas, 
-		title=save_file.replace(ALdir, ""),
-		x_label=FLAGS.embedding_method + "_dim_1",
-		y_label=FLAGS.embedding_method + "_dim_2", 
-		save_file=save_file,
-		interpolate=False, cmap="PiYG",
-		preset_ax=None, linestyle='-.', marker=marker_array,
-		vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
-		)
+			)
 
 
-	save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
-	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-		z_values=y_all_pred,
-		list_cdict=list_cdict, 
-		xvlines=[0.0], yhlines=[0.0], 
-		sigma=None, mode='scatter', lbl=None, name=None, 
-		s=60, alphas=alphas, 
-		title=save_file.replace(ALdir, ""),
-		x_label=FLAGS.embedding_method + "_dim_1",
-		y_label=FLAGS.embedding_method + "_dim_2", 
-		save_file=save_file,
-		interpolate=False,  cmap="PuOr",
-		preset_ax=None, linestyle='-.', marker=marker_array,
-		vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
+		save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=y_all_obs,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False, cmap="PiYG",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+			)
 
-		)
 
-	save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
-	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-		z_values=var_all,
-		list_cdict=list_cdict, 
-		xvlines=[0.0], yhlines=[0.0], 
-		sigma=None, mode='scatter', lbl=None, name=None, 
-		s=60, alphas=alphas, 
-		title=save_file.replace(ALdir, ""),
-		x_label=FLAGS.embedding_method + "_dim_1",
-		y_label=FLAGS.embedding_method + "_dim_2", 
-		save_file=save_file,
-		interpolate=False, cmap="PRGn",
-		preset_ax=None, linestyle='-.', marker=marker_array,
-		vmin=-0.01, vmax=1.0
-		)
+		save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=y_all_pred,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False,  cmap="PuOr",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
+
+			)
+
+		save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=var_all,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False, cmap="PRGn",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=-0.01, vmax=1.0
+			)
 
 
 
@@ -418,13 +421,15 @@ def query_and_learn(FLAGS, qid,
 	return _x_train, _y_train, estimator, embedding_model
 
 
-def evaluation_map(FLAGS, X_train, y_train, index_train, 
+def evaluation_map(FLAGS, 
+	X_train, y_train, index_train, 
+	unlbl_X, unlbl_y, unlbl_index,
 	all_query, sampler, uniform_sampler, 
 	save_at, eval_data_file, estimator):
 	"""
 	# # to create an error map of samples in each query batch
 	"""
-	DQ, OS, RND = all_query 
+	estimator_copy = copy.copy(estimator)
 	all_query_name = ["DQ", "OS", "RND"]
 	feedback_val = None
 	fig = plt.figure(figsize=(10, 8))
@@ -439,18 +444,25 @@ def evaluation_map(FLAGS, X_train, y_train, index_train,
 	dx = 0.2
 	ndx = 0
 	plot_data = dict()
-	for dt, dtname in zip(all_query, all_query_name):
-		X_qr, y_qr, idx_qr = dt	
-		if X_qr.shape[0] != 0:
-			estimator.fit(X_train, y_train)
+	for idx_qr, dtname in zip(all_query, all_query_name):
+		ids = [np.where(unlbl_index==k)[0][0] for k in idx_qr]
+		X_qr, y_qr = unlbl_X[ids], unlbl_y[ids]
 
-			y_qr_pred = estimator.predict(X_qr)
+		if dtname == "DQ":
+			X_dq, y_dq, idx_dq = X_qr, y_qr, idx_qr
+		if dtname == "RND":
+			X_rnd, y_rnd, idx_rnd = X_qr, y_qr, idx_qr
+
+		if X_qr.shape[0] != 0:
+			estimator_copy.fit(X_train, y_train)
+
+			y_qr_pred = estimator_copy.predict(X_qr)
 			pos_x = 1.0 + ndx*dx
 
 			ax, y_star_ax, mean, y_min = show_one_rst(
 				y=y_qr, y_pred=y_qr_pred, ax=ax, y_star_ax=y_star_ax, 
 				ninst_ax=ninst_ax, pos_x=pos_x, color=color_codes[dtname])
-			if dt == "DQ":
+			if dtname == "DQ":
 				feedback_val = copy.copy(mean)
 			plot_data[dtname] = dict()
 			plot_data[dtname]["idx_qr"] = idx_qr
@@ -461,8 +473,6 @@ def evaluation_map(FLAGS, X_train, y_train, index_train,
 
 	# # update DQ to f then estimate RND
 	dtname = "DQ_to_RND"
-	X_dq, y_dq, idx_dq = DQ	
-	X_rnd, y_rnd, idx_rnd = RND	
 	print ("Checking shape train/test:", X_train.shape, y_train.shape, X_dq.shape, y_dq.shape)
 	X_train_udt, y_train_udt, _, embedding_model = est_alpha_updated(
 		X_train=X_train, y_train=y_train, 
@@ -472,8 +482,8 @@ def evaluation_map(FLAGS, X_train, y_train, index_train,
 
 	if type(embedding_model) is not str:
 		X_rnd = embedding_model.transform(X_val=X_rnd, get_min_dist=False)
-	estimator.fit(X_train_udt, y_train_udt)
-	y_rnd_pred = estimator.predict(X_rnd)
+	estimator_copy.fit(X_train_udt, y_train_udt)
+	y_rnd_pred = estimator_copy.predict(X_rnd)
 	
 	pos_x = 1.0 + 3*dx
 	ax, y_star_ax, mean, y_min = show_one_rst(
@@ -533,16 +543,9 @@ def map_unlbl_data(FLAGS):
 			# # get calculated  
 			# # DQs, OSs, RNDs: [0, 1, 2] "original index", "reduce index", "calculated target"
 			# print ("queried_files", queried_files)
-			all_query = get_queried_data(qids=queried_idxes, queried_files=queried_files, 
+			dq_idx, os_idx, rnd_idx = get_queried_data(qids=queried_idxes, queried_files=queried_files, 
 				unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 				embedding_model="Not yet")
-			dq_X, dq_y, dq_idx = all_query[0]
-			os_X, os_y, os_idx = all_query[1]
-			rnd_X, rnd_y, rnd_idx = all_query[2]
-
-			assert dq_X.shape[0] == len(dq_y)
-			assert os_X.shape[0] == len(os_y)
-			assert rnd_X.shape[0] == len(rnd_y)
 
 			# # remove all labeled data of X, y, id to update sampler
 			all_id = np.concatenate((dq_idx, os_idx, rnd_idx)).ravel()
@@ -632,6 +635,8 @@ def map_unlbl_data(FLAGS):
 		# if this_dq_X.shape[0] != 0 and this_os_X.shape[0] != 0 and this_rnd_X.shape[0] != 0:
 		feedback_val = evaluation_map(FLAGS=FLAGS,
 				X_train=_x_train, y_train=_y_train, 
+				unlbl_X=unlbl_X_sampler, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+
 				index_train=index_train, 
 				all_query=this_query, sampler=sampler, 
 				uniform_sampler=uniform_sampler,
@@ -689,8 +694,8 @@ def map_unlbl_data(FLAGS):
 if __name__ == "__main__":
 
 	FLAGS(sys.argv)
-	is_param_test = False
-	is_spark_run = True
+	is_spark_run = False
+
 
 	if is_spark_run:
 		pr_file = sys.argv[-1]
@@ -702,28 +707,8 @@ if __name__ == "__main__":
 		FLAGS.ith_trial = kwargs["ith_trial"]
 
 		map_unlbl_data(FLAGS=FLAGS)
+	else:
+		map_unlbl_data(FLAGS=FLAGS)
 
-	# # test only
-	if is_param_test:
-		sampling_methods = [
-			"uniform", "exploitation", "margin", "expected_improvement"]
-		score_methods = ["u_gp", "u_knn", "e_krr"
-				# "fully_connected", "ml-gp", "ml-knn"
-			]
-		embedding_methods = ["org_space", "MLKR", "LFDA", "LMNN"]
-		all_kwargs = list(product(sampling_methods, score_methods, embedding_methods))
 
-		for kw in all_kwargs:
-			sampling_method, score_method, embedding_method = kw[0], kw[1], kw[2]
-			FLAGS.score_method = score_method
-			FLAGS.sampling_method = sampling_method
-			FLAGS.embedding_method = embedding_method
-			FLAGS.n_run = 2 # # work only with test params
-
-			print ("score_method", FLAGS.score_method)
-			print ("sampling_method", FLAGS.sampling_method)
-			print ("embedding_method", FLAGS.embedding_method)
-
-			# rank_unlbl_data() # 014 for u_gp
-			map_unlbl_data(FLAGS=FLAGS)
-
+	

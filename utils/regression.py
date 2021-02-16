@@ -41,8 +41,8 @@ class RegressionFactory(object):
           model, md_selection = RegressionFactory.gaussian_process_cv_with_noise(
               X=X, y_obs=y, cv=cv, mt_kernel=mt_kernel)
         else:          
-          default_kernel = RegressionFactory.gp_kernel(c=1.0, l=100, n=100)
-          model = GaussianProcessRegressor(alpha=0.01, kernel=default_kernel)
+          default_kernel = RegressionFactory.gp_kernel(c=1.0, l=0.5, n=0.2)
+          model = GaussianProcessRegressor(alpha=0.1, kernel=default_kernel)
           md_selection = None
         model.fit(X, y)
 
@@ -202,14 +202,15 @@ class RegressionFactory(object):
   @staticmethod
   @ignore_warnings(category=ConvergenceWarning)
   def gaussian_process_cv_with_noise(X, y_obs, cv=10, mt_kernel=None):
-    n_steps = 5
+    n_steps = 2
     rbf_length_lb = -3
     rbf_length_ub = 1
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
 
-    const_lb = -2
-    const_ub = 2
-    consts = np.logspace(const_lb, const_ub, n_steps)
+    # const_lb = -2
+    # const_ub = 2
+    # consts = np.logspace(const_lb, const_ub, n_steps)
+    consts = [1.0]
 
     noise_lb = -2
     noise_ub = 1

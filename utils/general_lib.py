@@ -104,10 +104,10 @@ def get_savedir(ith_trial):
 
 	# # to mark whether update estimator by DQ only or DQ vs RND
 	# # "" is update all
-	estimator_update_by = str(FLAGS.estimator_update_by).split('_') # , "RND", "OS"
-	if len(estimator_update_by) < 3:
-		for k in estimator_update_by:
-			unlbl_dir += k
+	# estimator_update_by = str(FLAGS.estimator_update_by).split('_') # , "RND", "OS"
+	# if len(estimator_update_by) < 3:
+	# 	for k in estimator_update_by:
+	unlbl_dir += FLAGS.estimator_update_by
 
 	return unlbl_dir
 
@@ -242,11 +242,6 @@ def get_queried_data(qids, queried_files, unlbl_X, unlbl_y, unlbl_index,
 		os_cvt = map(functools.partial(id_qr, y=unlbl_y, index=unlbl_index), os)
 		rnd_cvt = map(functools.partial(id_qr, y=unlbl_y, index=unlbl_index), rnd)
 
-		# dqs = merge_two_dicts(dqs, dq_cvt)
-		# dq_cvt = list(map(id_qr_to_database, arg1))
-		# os_cvt = list(map(id_qr_to_database, arg2))
-		# rnd_cvt = list(map(id_qr_to_database, arg3))
-		# queried_data.append((dq_cvt, os_cvt, rnd_cvt))
 		dqs.extend(dq_cvt)
 		oss.extend(os_cvt)
 		rnds.extend(rnd_cvt)
@@ -257,16 +252,9 @@ def get_queried_data(qids, queried_files, unlbl_X, unlbl_y, unlbl_index,
 
 	for data in [DQs, OSs, RNDs]:
 		_y =  data[:, -1] 
-		# # last column as predicted variable
-		# # data in the format of: [id_qr, id_qr_cvt, target]
 		valid_id = [i for i, val in enumerate(_y) if val != None] 
-		_y = np.array([float(k) for k in _y[valid_id]]) 
-		_idx = np.array(data[valid_id, 0])
-
-		_X = np.array(unlbl_X[[np.where(unlbl_index==k)[0][0] for k in _idx], :])
-		if type(embedding_model) is not str:
-			_X = embedding_model.transform(X_val=_X, get_min_dist=False)
-		valid_Xyid.append((_X, _y, _idx))
+		_idx = data[valid_id, 0]
+		valid_Xyid.append(_idx)
 	
 	return valid_Xyid
 

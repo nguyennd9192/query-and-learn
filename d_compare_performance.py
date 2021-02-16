@@ -30,12 +30,11 @@ def perform_each_acquisition(ith_trials, embedding_method, sampling_method, dt, 
 		values = []
 		for ith_trial in ith_trials:
 			savedir = job_savedir.replace("/trial_1/", "/trial_{}/".format(ith_trial))
+		
+			# # read load only rand query
 			eval_file = savedir + "/query_{0}/eval_query_{0}.pkl".format(qid)
-
 			if not gfile.exists(eval_file):
 				continue
-			# else:
-			# 	print ("File existed.")
 
 			data = load_pickle(eval_file)
 			dict_values = data[dt]
@@ -47,15 +46,29 @@ def perform_each_acquisition(ith_trials, embedding_method, sampling_method, dt, 
 			# ax, y_star_ax, mean, y_min = show_one_rst(y=y_qr, y_pred=y_qr_pred, 
 			# 	ax=ax, y_star_ax=y_star_ax, ninst_ax=ninst_ax,
 			# 	pos_x=pos_x, color=performance_codes[method],	is_shown_tails=is_shown_tails)
-			error = np.abs(y_qr - y_qr_pred)
-			mean = np.mean(error)
-			if embedding_method == "org_space":
-				print (embedding_method, mean)
+			error_qr = np.abs(y_qr - y_qr_pred)
 			y_min = np.min(y_qr)
+
+
+			# # read load the rest
+			query_file = savedir + "/query_{0}/query_{0}.csv".format(qid)
+			if not gfile.exists(query_file):
+				continue
+			df = pd.read_csv(query_file, index_col=0)
+			ids_non_qr = df[df["last_query_{}".format(qid)].isnull()].index.tolist()
+			error_non_qr = df.loc[ids_non_qr, "err_{}".format(qid)]
+			
+			mean_qr = np.mean(error_qr)
+			mean_non_qr = np.mean(error_non_qr)
+
+
+
+			if embedding_method == "org_space":
+				print (embedding_method, mean_qr)
 			if dt == "OS":
 				values.append(y_min)
 			else:
-				values.append(mean)
+				values.append(mean_qr)
 
 		bplot = ax.boxplot(x=values, vert=True, #notch=True, 
 				# sym='rs', # whiskerprops={'linewidth':2},

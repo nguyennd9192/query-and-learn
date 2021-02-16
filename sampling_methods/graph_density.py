@@ -83,7 +83,7 @@ class GraphDensitySampler(SamplingMethod):
       batch.add(selected)
       self.graph_density[already_selected] = min(self.graph_density) - 1
       self.graph_density[list(batch)] = min(self.graph_density) - 1
-    return list(batch)
+    return list(batch), self.graph_density
 
   def to_dict(self):
     output = {}

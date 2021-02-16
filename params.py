@@ -3,8 +3,8 @@ from absl import flags
 import pandas as pd
 import ntpath, os, sys
 
-ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-# ALdir = "/home/nguyen/work/active-learning"
+# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+ALdir = "/home/nguyen/work/active-learning"
 for ld, subdirs, files in os.walk(ALdir):
   if os.path.isdir(ld) and ld not in sys.path:
     sys.path.append(ld)
@@ -33,13 +33,15 @@ flags.DEFINE_string("data_target", "SmFe12/mix_fe", "Dataset test name")  #
 
 # # # obtain from args
 # # run parallel
-flags.DEFINE_string("sampling_method", "margin", 
+flags.DEFINE_string("sampling_method", "uniform",
                   # uniform, exploitation, margin, expected_improvement
+                  # graph_density, MarginExplSpace
+                  # hierarchical, informative_diverse, bandit_discrete, cluster_mean
                     ("Name of sampling method to use, can be any defined in "
                      "AL_MAPPING in sampling_methods.constants"))
 
 # # run parallel
-flags.DEFINE_string("score_method", "u_gp", # # u_gp, u_knn, e_krr
+flags.DEFINE_string("score_method", "u_knn", # # u_gp, u_knn, e_krr
     ("Method to use to calculate accuracy."))
 
 # # run parallel
@@ -62,7 +64,7 @@ flags.DEFINE_string("mae_update_threshold", "update_all", # # 0.0, 0.3, 1.0, upd
     ("mean absolute error to update dq to estimator"))
 
 flags.DEFINE_string(
-    "estimator_update_by", "DQ", # # DQ_RND_OS
+    "estimator_update_by", "DQ_RND_OS", # # DQ_RND_OS
     ("mean absolute error to update dq to estimator")
 ) 
 flags.DEFINE_boolean("is_search_params", False, 
@@ -124,6 +126,8 @@ flags.DEFINE_float("train_horizon", "1.0",
                    "how far to extend learning curve as a percent of train")
 flags.DEFINE_string("do_save", "True",
                     "whether to save log and results")
+flags.DEFINE_boolean("do_plot", False,
+                    "whether to plot results")
 
 FLAGS = flags.FLAGS
 

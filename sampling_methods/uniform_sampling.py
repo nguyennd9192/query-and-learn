@@ -23,16 +23,21 @@ from __future__ import print_function
 
 import numpy as np
 import random
+from datetime import datetime
+
 from sampling_methods.sampling_def import SamplingMethod
 
 
 class UniformSampling(SamplingMethod): 
 
-  def __init__(self, X, y, seed):
+  def __init__(self, X, y, seed=None):
     self.X = X
     self.y = y
     self.name = 'uniform'
-    np.random.seed(seed)
+    if seed is None:
+      random.seed(datetime.now())
+    else:
+      random.seed(seed)
 
   def select_batch_(self, already_selected, N, **kwargs):
     """Returns batch of randomly sampled datapoints.
@@ -54,4 +59,10 @@ class UniformSampling(SamplingMethod):
     p = np.array([1/n_sample]*n_sample)
 
     return random_list, p
+
+if __name__ == "__main__":
+
+  sampler = UniformSampling()
+
+
 

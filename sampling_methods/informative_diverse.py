@@ -38,7 +38,7 @@ class InformativeClusterDiverseSampler(SamplingMethod):
   """
 
   def __init__(self, X, y, seed):
-    self.name = 'informative_and_diverse'
+    self.name = 'informative_diverse'
     self.X = X
     self.flat_X = self.flatten_X()
     # y only used for determining how many clusters there should be
@@ -93,7 +93,7 @@ class InformativeClusterDiverseSampler(SamplingMethod):
     n_slot_remaining = N - len(new_batch)
     batch_filler = list(set(rank_ind) - set(already_selected) - set(new_batch))
     new_batch.extend(batch_filler[0:n_slot_remaining])
-    return new_batch
+    return new_batch, 1
 
   def to_dict(self):
     output = {}
