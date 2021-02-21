@@ -132,63 +132,75 @@ def read_deformation(qr_indexes):
 
 
 def query_db():
-    database_dir = ALdir + "/data/standard"
+    std_dir = ALdir + "/data/standard"
     coarse_db_dir = ALdir + "/data/coarse_relax"
     fine_db_dir = ALdir + "/data/fine_relax"
 
-    std_file = database_dir+"/summary.csv"
+    std_file = std_dir+"/summary.csv"
     coarse_file = coarse_db_dir+"/summary.csv"
     fine_file = fine_db_dir+"/summary.csv"
 
     # # # data base storage
     database_jobs = [
+      "init/Sm-Fe11-M_wyckoff_2.csv", "init/Sm-Fe10-M2_wyckoff.csv", 
+      # "Sm-Fe11-Ga1", 
+      "init/Sm-Fe10-Ga2.csv",
+      "init/Sm2-Fe23-M.csv", "init/check_Mo_2-22-2.csv", 
+      "init/Sm2-Fe21-M3.csv",  "init/CuAlZnTi_Sm2-Fe22-M2.csv",
+      "init/Sm2-Fe23-Ga1.csv", "init/Sm2-Fe22-Ga2.csv", 
+      "init/Sm2-Fe21-Ga3.csv", "init/CuAlZnTi_Sm2-Fe21-M3.csv",
+
+
       "mix/query_1.csv",  "mix/supp_2.csv", "mix/supp_3.csv", "mix/supp_4.csv",  
       "mix/supp_5.csv", "mix/supp_6.csv", "mix/supp_7.csv", "mix/supp_8.csv",
       "mix/supp_9.csv", "mix/supp_10.csv",
+
+
               # "mix_2-24/query_1.csv"
               ]
-    database_results = [database_dir+"/"+k for k in database_jobs]
+    database_results = [std_dir+"/"+k for k in database_jobs]
     fine_db_rst = [fine_db_dir+"/"+k for k in database_jobs]
     coarse_db_rst = [coarse_db_dir+"/"+k for k in database_jobs]
 
     if os.path.isfile(std_file) and os.path.isfile(coarse_file) and os.path.isfile(fine_file):
-      db_results = pd.read_csv(std_file, index_col="index_reduce")
-      crs_db_results = pd.read_csv(coarse_file, index_col="index_reduce")
-      fine_db_results = pd.read_csv(fine_file, index_col="index_reduce")
+      std_results = pd.read_csv(std_file, index_col="index_reduce")
+      coarse_results = pd.read_csv(coarse_file, index_col="index_reduce")
+      fine_results = pd.read_csv(fine_file, index_col="index_reduce")
       print ("Done reading database.")
     else:
       # # standard result
       frames = [pd.read_csv(k, index_col=0) for k in database_results]
-      db_results = pd.concat(frames)
-      index_reduce = [get_basename(k) for k in db_results.index]
-      db_results["index_reduce"] = index_reduce
-      db_results.set_index('index_reduce', inplace=True)
+      std_results = pd.concat(frames)
+      index_reduce = [norm_id(k) for k in std_results.index]
+      std_results["index_reduce"] = index_reduce
+      std_results.set_index('index_reduce', inplace=True)
+
+      # /Volumes/Nguyen_6TB/work/SmFe12_screening/result/standard/CoTiNH_ijk/ErFe12_I4mm_cnvg
 
       # # coarse, fine db
       crs_frames = [pd.read_csv(k, index_col=0) for k in coarse_db_rst]
-      crs_db_results = pd.concat(crs_frames)
-      crs_db_results = crs_db_results.dropna()
-      index_reduce = [get_basename(k) for k in crs_db_results.index]
-      crs_db_results["index_reduce"] = index_reduce
-      crs_db_results.set_index('index_reduce', inplace=True)
+      coarse_results = pd.concat(crs_frames)
+      coarse_results = coarse_results.dropna()
+      index_reduce = [norm_id(k) for k in coarse_results.index]
+      coarse_results["index_reduce"] = index_reduce
+      coarse_results.set_index('index_reduce', inplace=True)
 
 
       fine_frames = [pd.read_csv(k, index_col=0) for k in fine_db_rst]
-      fine_db_results = pd.concat(fine_frames)
-      fine_db_results = fine_db_results.dropna()
-      index_reduce = [get_basename(k) for k in fine_db_results.index]
-      fine_db_results["index_reduce"] = index_reduce
-      fine_db_results.set_index('index_reduce', inplace=True)
+      fine_results = pd.concat(fine_frames)
+      fine_results = fine_results.dropna() 
+      index_reduce = [norm_id(k) for k in fine_results.index]
+      fine_results["index_reduce"] = index_reduce
+      fine_results.set_index('index_reduce', inplace=True)
+      std_results.to_csv(std_file)
+      coarse_results.to_csv(coarse_file)
+      fine_results.to_csv(fine_file)
 
-      db_results.to_csv(std_file)
-      crs_db_results.to_csv(coarse_file)
-      fine_db_results.to_csv(fine_file)
+    # print ("coarse_results: ", len(coarse_results))
+    # print ("fine_results: ", len(fine_results))
+    # print ("std_results: ", len(std_results))
 
-    # print ("crs_db_results: ", len(crs_db_results))
-    # print ("fine_db_results: ", len(fine_db_results))
-    # print ("db_results: ", len(db_results))
-
-    return db_results, crs_db_results, fine_db_results
+    return std_results, coarse_results, fine_results
 if __name__ == "__main__":
     FLAGS(sys.argv)
     # X_trval_csv, y_trval_csv, index_trval_csv, X_test_csv, y_test_csv, test_idx_csv = get_data_from_flags()
@@ -202,11 +214,11 @@ if __name__ == "__main__":
     unlbl_file, data, unlbl_X, unlbl_y, unlbl_index, unlbl_dir = load_unlbl_data(unlbl_job, result_file)
 
     # # get vasp calc data
-    db_results, crs_db_results, fine_db_results = query_db()
+    std_results, coarse_results, fine_results = query_db()
 
     # # map index to database
-    data_map = map(functools.partial(id_qr_to_database, db_results=db_results,
-      crs_db_results=crs_db_results, fine_db_results=fine_db_results), unlbl_index) 
+    data_map = map(functools.partial(id_qr_to_database, std_results=std_results,
+      coarse_results=coarse_results, fine_results=fine_results), unlbl_index) 
 
     # # get
     y_map = np.array(list(data_map))

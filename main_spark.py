@@ -25,7 +25,8 @@ def create_params_grid():
 		# "expected_improvement",
 		# "MarginExplSpace"
 		]
-	score_methods = ["u_knn" # "u_gp", "u_knn", "e_krr"
+	score_methods = ["u_knn",
+				 "u_gp" # "u_knn", "e_krr"
 			# "fully_connected", "ml-gp", "ml-knn"
 		]
 	embedding_methods = ["org_space", "MLKR"]  # LMNN, LFDA
@@ -41,7 +42,7 @@ def create_params_grid():
 	MainDir = copy.copy(ALdir)
 
 	ncores_per_cpu = 32 # fix
-	ncpus_reserve = 8
+	ncpus_reserve = 5
 	cpus_per_task = 8  # 16
 	max_cpus = ncpus_reserve*ncores_per_cpu # # ncpus take * ncores per cpu
 	ntask_per_batch = int(max_cpus / cpus_per_task)
@@ -94,7 +95,7 @@ def create_params_grid():
 				f.write("python a_rank_unlbl.py {0}\n".format(param_file))
 				# f.write("python e_autism_modeling.py {0}\n".format(param_file))
 
-			shrun_file.write("srun --ntasks=1 --nodes=1 sh {0} \n".format(sh_file)) 
+			shrun_file.write("srun --ntasks=1 --nodes=1 sh {0} & \n".format(sh_file)) 
 		shrun_file.write("wait")
 		shrun_file.close()
 

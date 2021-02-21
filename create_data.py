@@ -172,10 +172,7 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   return data_train, data_test
 
 
-def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
-  df = pd.read_csv(lbldata, index_col=0)
-  df = df.dropna()
-  pv, tv = get_pv_tv(df, pv, tv, rmvs)
+def get_SmFe12_data(pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
 
   # # point to datadir of Volume6TB then get all unlnl data
   test_data = []
@@ -184,6 +181,7 @@ def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1
   for job in unlbl_jobs:
     listdir = glob.glob("{0}/{1}/*.*".format(job, ft_type)) # os.listdir(current_dir)    
     test_data = np.concatenate((test_data, listdir))
+
   # with open(struct_dir_file) as file:
   #   struct_reprs = file.read().splitlines()
 
@@ -198,34 +196,48 @@ def get_SmFe12_test(lbldata, pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1
   feature_names = np.array(data[0].__getattribute__('feature_name'))
 
   # # get vasp calc data
-  db_results, crs_db_results, fine_db_results = query_db()
+  std_results, coarse_results, fine_results = query_db()
   # # map index to database
-  data_map = list(map(functools.partial(id_qr_to_database, db_results=db_results,
-        crs_db_results=crs_db_results, fine_db_results=fine_db_results, tv=tv), test_data))
+  data_map = map(functools.partial(id_qr_to_database, std_results=std_results,
+    coarse_results=coarse_results, fine_results=fine_results, tv=tv), test_data) 
+  data_map = np.array(list(data_map))
 
-  
+
   # id_qr, y=unlbl_y, index=unlbl_index
   # # get y
-  y_obs = np.array(data_map)[:, -1]
-  test_index = np.array(data_map)[:, 1]
+  y_obs = data_map[:, -1]
+  test_index = data_map[:, 1]
 
+  # df.nunique(dropna=False)
+  full_df = pd.DataFrame(feature, columns=feature_names, index=test_index)
+  full_df[tv] = y_obs
+  full_df = full_df.dropna()
 
-  tmp_df = pd.DataFrame(feature, columns=feature_names, index=test_index)
-  tmp_df[tv] = y_obs
-  tmp_df = tmp_df.dropna()
-  
-  X_filter = tmp_df[pv].values 
-  y_filter = tmp_df[tv].values 
-  index_filter = tmp_df.index
+  # # for train data only, to remove constant cols, finally get pv
+  if pv is None:
+    for cc in feature_names:
+      nuq = len(np.unique(full_df[cc].values))
+      if nuq <= 1:
+        full_df = full_df.drop([cc], axis=1)
+    pv = list(copy.copy(full_df.columns))
+    pv.remove(tv)
+  print ("The X_cols:", len(pv))
 
-  assert X_filter.shape[0] == y_filter.shape[0]
+  X_filter = full_df[pv].values 
+  y_filter = full_df[tv].values 
+  index_filter = full_df.index
 
-  tmp_df.to_csv(saveat+'.csv')
+  # # save data as pv, tv for all train and test
+  data = pd.DataFrame(X_filter, columns=pv, index=index_filter)
+  data[tv] = y_filter
+  data.dropna()
+  data.to_csv(saveat+'.csv')
+
   print("Save at:", saveat, y_filter.shape[0], y_obs.shape[0])
-
-
   unlbl_data = Dataset(X=X_filter, y=y_filter, index=index_filter)
   dump_data(unlbl_data, saveat+'.pkl')
+  print (y_filter)
+  return pv
 
 def get_wikipedia_talk_data():
   """Get wikipedia talk dataset.
@@ -439,8 +451,7 @@ def get_mldata(dataset, is_test_separate=False, prefix=None):
     return
 
 
-def main(argv):
-  del argv  # Unused.
+def main():
   # First entry of tuple is mldata.org name, second is the name that we'll use
   # to reference the data.
   input_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/"
@@ -483,36 +494,39 @@ def main(argv):
 
               # # # for SmFe12
               # # for energy
-              # (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
-              #   '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d', 
-              #   'energy_substance_pa', ["atoms", "magmom_pa"]),
+              ('energy_substance_pa', ["atoms", "magmom_pa"]),
               # # for magmom 
-              (input_dir + '11*10*23-21_CuAlZnTiMoGa___ofm1_no_d.csv', 
-                'SmFe12_magmom_pa', 
-                'magmom_pa', ["atoms", "energy_substance_pa"]),
+              ('magmom_pa', ["atoms", "energy_substance_pa"]),
               ]
 
-  is_prepare_train_data = False
+  is_skl_data = False
   is_Sm12_test = True
 
   for d in datasets:
-    print(d[1])
-    # # non-separate test set
-    # get_mldata(d)
-    tv = d[2]
-    rmvs = d[-1]
-    # # separate test set
-    if is_prepare_train_data:
+    if is_skl_data:
       get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
     if is_Sm12_test:
-      get_SmFe12_test(lbldata=d[0], pv=None, tv=tv, rmvs=rmvs, 
+      tv = d[0]
+      rmvs = d[-1]
+      # # for train
+      pv = get_SmFe12_data(pv=None, tv=tv, rmvs=rmvs, 
+        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/init", # mix_2-24, mix
+        saveat=input_dir+"/SmFe12/init_{}".format(tv)
+        )
+
+      # train_file = input_dir+"/SmFe12/init_{}.csv".format(tv)
+      # df = pd.read_csv(train_file, index_col=0)
+      # pv = list(df.columns)
+      # pv.remove(tv)
+      # # for test
+      get_SmFe12_data(pv=pv, tv=tv, rmvs=rmvs, 
         unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix", # mix_2-24, mix
         saveat=input_dir+"/SmFe12/mix_{}".format(tv)
-        )
+      )
       
 
 if __name__ == '__main__':
-  app.run(main)
+  main()
 
 
 

@@ -223,11 +223,11 @@ def query_and_learn(FLAGS, qid,
 
 
 	# # name, color, marker for plot
-	plot_index = np.concatenate((unlbl_index, index_train), axis=0)
-	name = [k.replace(ALdir, "") for k in plot_index]
+	mix_index = ["mix__"+k for k in unlbl_index]
+	plot_index = np.concatenate((mix_index, index_train), axis=0)
 	family = [get_family(k) for k in plot_index]
 
-	list_cdict = np.array([get_color_112(k) for k in name])
+	list_cdict = np.array([get_color_112(k) for k in plot_index])
 	marker_array = np.array([get_marker_112(k) for k in family])
 	alphas = np.array([0.3] * len(plot_index))
 	alphas[selected_inds_copy] = 1.0 
@@ -694,8 +694,7 @@ def map_unlbl_data(FLAGS):
 if __name__ == "__main__":
 
 	FLAGS(sys.argv)
-	is_spark_run = False
-
+	is_spark_run = True
 
 	if is_spark_run:
 		pr_file = sys.argv[-1]

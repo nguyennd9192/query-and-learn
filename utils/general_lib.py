@@ -173,41 +173,46 @@ def est_alpha_updated(X_train, y_train,
 def load_data():
 	# # read_load train data
 	if FLAGS.is_test_separate:
-		print (FLAGS.data_dir, FLAGS.data_init)
 		X_train, y_train, index_train = utils.get_mldata(FLAGS.data_dir, FLAGS.data_init)
 		X_test, y_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.data_target)
 
 	return X_train, y_train, index_train, X_test, y_test, index_test
 
 def norm_id(id_qr):
-	feature_dir = "/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/"
-	assert feature_dir in id_qr
-	id_qr_cvt = id_qr.replace(feature_dir, "")
-	assert "ofm1_no_d/" in id_qr_cvt
-	assert ".ofm1_no_d" in id_qr_cvt
+	n_dir = "/Volumes/Nguyen_6TB/work/SmFe12_screening"
+	assert n_dir in id_qr
+	id_qr_cvt = id_qr.replace(n_dir, "")
+	# id_qr_cvt = get_basename(id_qr)
+	rmvs = ["/result/", "/input/",  "feature/",
+			"coarse_relax/", "fine_relax/", "standard/",
+			"ofm1_no_d/", ".ofm1_no_d", "_cnvg",
+			"query_1/",  "supp_2/", "supp_3/", "supp_4/",  
+	    	"supp_5/", "supp_6/", "mix/supp_7/", "supp_8/",
+	    	"supp_9/", "supp_10/",
+			"mix/", "mix-_-", "init/"
+			]
+	for rm in rmvs:
+		id_qr_cvt = id_qr_cvt.replace(rm, "")
 
-	id_qr_cvt = id_qr_cvt.replace("ofm1_no_d/", "").replace(".ofm1_no_d", "")
 	id_qr_cvt = id_qr_cvt.replace("/", '-_-')
 	return id_qr_cvt
 
-def id_qr_to_database(id_qr, db_results, 
-		crs_db_results=None, fine_db_results=None, tv="energy_substance_pa"):
+def id_qr_to_database(id_qr, std_results, 
+		coarse_results=None, fine_results=None, tv="energy_substance_pa"):
 	# # Still use in create_data
 	# id_qr = arg[0]
-
 	id_qr_cvt = norm_id(id_qr)
-
-	if id_qr_cvt in db_results.index:
-		target_y = db_results.loc[id_qr_cvt, tv]
-	elif id_qr_cvt in fine_db_results.index:
-		target_y = fine_db_results.loc[id_qr_cvt, tv]
+	if id_qr_cvt in std_results.index:
+		target_y = std_results.loc[id_qr_cvt, tv]
+	elif id_qr_cvt in fine_results.index:
+		target_y = fine_results.loc[id_qr_cvt, tv]
 		# print ("Add fine_relax results", target_y)
-	elif id_qr_cvt in crs_db_results.index:
-		target_y = crs_db_results.loc[id_qr_cvt, tv]
+	elif id_qr_cvt in coarse_results.index:
+		target_y = coarse_results.loc[id_qr_cvt, tv]
 		# print ("Add coarse_relax results", target_y)
 	else:
 		target_y = None
-		# print ("None index:", id_qr_cvt, len(db_results.index))
+		# print ("None index:", id_qr_cvt, len(std_results.index))
 	return id_qr, id_qr_cvt, target_y
 
 

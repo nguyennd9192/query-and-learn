@@ -352,15 +352,14 @@ def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=No
 	release_mem(fig=fig)
 
 def get_ratio(index, element):
-	if "/feature/" in index:
-		index = index[index.find("/feature/")+len("/feature/"):]
-	if "/ofm1_no_d/" in index:
-		index = index[:index.find("/ofm1_no_d/")]
-	pos = index.find(element)
-	# print (index, element)
+	# # e.g. mix__Sm-Fe9-Ti1-Mo2-_-Mo_0-8___Ti_4
+	start = index.find("mix__") + len("mix__")
+	end = index.find("-_-") + len("-_-")
 
-	r = int(index[pos+2:pos+3])
-	# print (index, element, r)
+	short_index = index[start:end]
+
+	pos = short_index.find(element)
+	r = int(short_index[pos+2:pos+3])
 	return r
 
 def get_color_112(index):
@@ -375,7 +374,9 @@ def get_color_112(index):
 	if "mix" in index:
 		for element, color in cdicts.items():
 			if element in index:
-				colors[color] = get_ratio(index=index, element=element)
+				ratio = get_ratio(index=index, element=element)
+				print (element, ratio)
+				colors[color] = ratio
 	else:
 		for element, color in cdicts.items():
 			if element in index:
@@ -384,6 +385,10 @@ def get_color_112(index):
 		# c = "yellow"
 		print ("Here: ", index)
 		print ("Colors: ", colors)
+
+	if len(colors.keys()) ==0:
+		colors["black"] = "full"
+
 	#normalize item number values to colormap
 	# norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
 
@@ -1049,6 +1054,7 @@ def plt_half_filled(ax, x, y, cdict, alpha):
 
 	# small_ratio, big_ratio = sorted(cdict.values())
 	# small_color, big_color = sorted(cdict, key=cdict.get)
+	print (cdict)
 	color1, color2 = sorted(cdict.keys())
 	ratio1, ratio2 = cdict[color1], cdict[color2]
 	
