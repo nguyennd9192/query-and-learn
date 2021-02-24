@@ -13,9 +13,14 @@ title_font = {'fontname': 'serif', 'size': 14}
 # performance_codes = dict({"uniform":"red", "exploitation":"black", 
 # 		"margin":"blue", "expected_improvement":"green"})
 
-performance_codes = dict({"org_space":"red", "MLKR":"blue"})
+performance_codes = dict({"org_space":"blue", "MLKR":"red"}) 
+hatch_codes = dict({"uniform":"/", "exploitation":"*", 
+				"margin":"o", "expected_improvement":"/"}) 
+# # '-', '+', 'x', '\\', '*', 'o', 'O', '.'
 
-def perform_each_acquisition(ith_trials, embedding_method, sampling_method, dt, ax):
+
+def perform_each_acquisition(ith_trials, 
+		embedding_method, sampling_method, dt, ax):
 	# # loop all queries in each state
 	mean_vals = dict({"DQ":[], "OS":[], "RND":[], "DQ_to_RND":[]})
 	mean_pos = dict({"DQ":[], "OS":[], "RND":[], "DQ_to_RND":[]})
@@ -26,6 +31,12 @@ def perform_each_acquisition(ith_trials, embedding_method, sampling_method, dt, 
 	qids = range(1, n_run)
 	job_savedir = get_savedir(ith_trial=ith_trials[0])
 
+	if dt == "OS":
+		full_os_ids = get_full_os()
+		n_full = len(full_os_ids)
+
+	recall_os = 0
+	n_trials = len(ith_trials)
 	for qid in qids:
 		values = []
 		for ith_trial in ith_trials:
@@ -37,7 +48,11 @@ def perform_each_acquisition(ith_trials, embedding_method, sampling_method, dt, 
 				continue
 
 			data = load_pickle(eval_file)
-			dict_values = data[dt]
+
+			if dt == "DU":
+				dict_values = data["DQ"]
+			else:
+				dict_values = data[dt]
 			idx_qr, y_qr, y_qr_pred = dict_values["idx_qr"], dict_values["y_qr"], dict_values["y_qr_pred"]
 			if dt == "DQ_to_RND":
 				is_shown_tails = False
@@ -61,29 +76,48 @@ def perform_each_acquisition(ith_trials, embedding_method, sampling_method, dt, 
 			mean_qr = np.mean(error_qr)
 			mean_non_qr = np.mean(error_non_qr)
 
-
-
 			if embedding_method == "org_space":
 				print (embedding_method, mean_qr)
+
+
+
 			if dt == "OS":
-				values.append(y_min)
+				for tmp in ["DQ", "OS", "RND"]:
+					tmp_dict_values = data[tmp]
+					idx_expl, y_expl, y_expl_pred = tmp_dict_values["idx_qr"], tmp_dict_values["y_qr"], tmp_dict_values["y_qr_pred"]
+					this_recall = len(list(set(idx_expl).intersection(full_os_ids))) / float(n_full * n_trials)
+					recall_os += this_recall
+				values.append(recall_os)
+			elif dt == "DU":
+				values.append(mean_non_qr)
 			else:
 				values.append(mean_qr)
 
+
 		bplot = ax.boxplot(x=values, vert=True, #notch=True, 
 				# sym='rs', # whiskerprops={'linewidth':2},
+				# alpha=0.4,
+				# notch=True,
 				positions=[qid], patch_artist=True,
-				widths=0.25, meanline=True, #flierprops=flierprops,
-				showfliers=False, showbox=True, showmeans=False)
+				widths=0.8, meanline=True, #flierprops=flierprops,
+				showfliers=False, showbox=True, showmeans=False,
+				)
 			# ax.text(pos_x, mean, round(mean, 2),
 			# 	horizontalalignment='center', size=14, 
 			# 	color=color, weight='semibold')
 		patch = bplot['boxes'][0]
 		patch.set_facecolor(performance_codes[embedding_method])
+		patch.set_hatch(hatch_codes[sampling_method])
+		patch.set_alpha(0.8)
+		# ax.legend([bplot["boxes"][0]], 
+		# 	["{0}_{1}".format(embedding_method, sampling_method)], 
+		# 	loc='upper right')
+
+
 
 			# mean_vals[dt].append(mean)
 			# mean_pos[dt].append(qid)
-	return mean_vals, mean_pos
+	return mean_vals, mean_pos, patch
 
 
 
@@ -98,28 +132,35 @@ def show_performance(ith_trials, dt):
 
 	qids = range(1, n_run)
 	mean_perform = dict({})
+
+	legends = []
+	patches = []
 	for embedding_method in ["org_space", "MLKR"]: # 
-		for sampling_method in ["uniform", "exploitation", "margin"]: # expected_improvement
+		for sampling_method in ["uniform", "exploitation", "margin"]: # expected_improvement,  
 			flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
 						  linestyle='none', markeredgecolor='k')
-			mean_vals, mean_pos = perform_each_acquisition(ith_trials=ith_trials,
+			mean_vals, mean_pos, patch = perform_each_acquisition(ith_trials=ith_trials,
 				embedding_method=embedding_method,
 				sampling_method=sampling_method, dt=dt, ax=ax)
+			
+			lab = "{0}|{1}".format(embedding_method, sampling_method)
+			legends.append(lab)
+			patches.append(patch)
 
 		# ax.set_xlabel(r"Query index", **axis_font) 
 		if dt == "OS":
 			ax.set_ylabel(r"min(y_qeried)", **axis_font)
-			ax.set_ylim(-1.6, -0.4)
+			# ax.set_ylim(-1.6, -0.4)
 
 		else:
-			ax.set_ylabel(r"|y_obs - y_pred|", **axis_font)
+			ax.set_ylabel(r"Recall rate", **axis_font)
 			ax.set_yscale('log')
 			# ax.set_ylim(0.001, 1.3)
+	ax.legend(patches, legends)
 	
 	plt.xticks(qids, qids) 
-	plt.legend()
 	ax.tick_params(axis='y', labelsize=12)
-	# y_star_ax.set_yscale('log')
+	# y_star_ax.set_yscale('log') 
 	ax.set_title(dt)
 
 	plt.tight_layout(pad=1.1)
@@ -152,6 +193,17 @@ def show_performance(ith_trials, dt):
 	# makedirs(save_at)
 	# plt.savefig(save_at, transparent=False)
 	# print ("save_at: ", save_at)
+def get_full_os():
+	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index = load_data()
+	lim_os = -0.05
+	ids = np.where(unlbl_y < lim_os)[0]
+
+	# print (unlbl_y[ids])
+	# print (unlbl_index[ids])
+	return unlbl_index[ids]
+
+
+
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 	# pr_file = sys.argv[-1]
@@ -162,7 +214,9 @@ if __name__ == "__main__":
 	# FLAGS.active_p = kwargs["active_p"]
 	# FLAGS.ith_trial = kwargs["ith_trial"]
 
-	for dt in ["DQ", "OS", "RND", "DQ_to_RND"]:
-		show_performance(ith_trials=[1,2,3], dt=dt)
+	get_full_os()
+
+	for dt in ["OS"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
+		show_performance(ith_trials=[1,2,3,4,5], dt=dt)
 
 		

@@ -42,7 +42,7 @@ def create_params_grid():
 	MainDir = copy.copy(ALdir)
 
 	ncores_per_cpu = 32 # fix
-	ncpus_reserve = 5
+	ncpus_reserve = 3
 	cpus_per_task = 8  # 16
 	max_cpus = ncpus_reserve*ncores_per_cpu # # ncpus take * ncores per cpu
 	ntask_per_batch = int(max_cpus / cpus_per_task)

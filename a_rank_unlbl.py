@@ -270,7 +270,6 @@ def query_and_learn(FLAGS, qid,
 	data["y_pred"] = y_all_pred
 	data["var"] = var_all
 	data["marker"] = marker_array
-	print (len(marker_array), len(plot_index), len(var_all))
 	plt_df = pd.DataFrame().from_dict(data)
 	this_df_dir = this_fig_dir.replace(".pdf", "_plot.csv")
 
@@ -496,7 +495,6 @@ def evaluation_map(FLAGS,
 	plot_data[dtname]["y_qr_pred"] = y_rnd_pred
 	makedirs(eval_data_file)
 	pickle.dump(plot_data, gfile.GFile(eval_data_file, 'w'))
-	print ("Save at:", eval_data_file)
 
 	ax.set_yscale('log')
 	ax.set_xlabel(r"Query index", **axis_font) 
@@ -511,7 +509,6 @@ def evaluation_map(FLAGS,
 	fig.savefig(save_at, transparent=False)
 	release_mem(fig)
 
-	print ("Save at: ", save_at)
 
 	return feedback_val
 
@@ -636,7 +633,6 @@ def map_unlbl_data(FLAGS):
 		feedback_val = evaluation_map(FLAGS=FLAGS,
 				X_train=_x_train, y_train=_y_train, 
 				unlbl_X=unlbl_X_sampler, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
-
 				index_train=index_train, 
 				all_query=this_query, sampler=sampler, 
 				uniform_sampler=uniform_sampler,
@@ -656,27 +652,10 @@ def map_unlbl_data(FLAGS):
 				cmap="jet", title=save_mkl.replace(ALdir, ""),
 				lines=None)
 
-		# # interpolation
-		if FLAGS.embedding_method != "org_space":
-			try:
-				scatter_plot_2(x=_x_train[:, 0], y=_x_train[:, 1], 
-					z_values=_y_train,
-					color_array=_y_train, xvline=None, yhline=None, 
-					sigma=None, mode='scatter', lbl=None, name=None, 
-					x_label='x', y_label='y', 
-					save_file=save_mkl.replace("_dist", "interpolation"), 
-					title=save_mkl.replace(ALdir, ""),
-					interpolate=False, color='blue', 
-					preset_ax=None, linestyle='-.', marker='o')
-
-			except:
-				pass
-			
-
 		# # create invese_trans
-		invs_trans = InversableEmbeddingSpace(invs_emb_method="umap")
-		save_invs = savedir+"/query_{0}/umap.png".format(qid)
-		invs_trans.fit(_x_train, _y_train, save_invs)
+		# invs_trans = InversableEmbeddingSpace(invs_emb_method="umap")
+		# save_invs = savedir+"/query_{0}/umap.png".format(qid)
+		# invs_trans.fit(_x_train, _y_train, save_invs)
 
 
 		if FLAGS.score_method == "u_gp_mt":

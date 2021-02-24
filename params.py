@@ -67,7 +67,7 @@ flags.DEFINE_string(
     "estimator_update_by", "DQ_RND_OS", # # DQ_RND_OS
     ("mean absolute error to update dq to estimator")
 ) 
-flags.DEFINE_boolean("is_search_params", False, 
+flags.DEFINE_boolean("is_search_params", True, 
   ("search estimator or not")
 )
 flags.DEFINE_integer("batch_size", batch_size, 
@@ -126,7 +126,7 @@ flags.DEFINE_float("train_horizon", "1.0",
                    "how far to extend learning curve as a percent of train")
 flags.DEFINE_string("do_save", "True",
                     "whether to save log and results")
-flags.DEFINE_boolean("do_plot", False,
+flags.DEFINE_boolean("do_plot", True,
                     "whether to plot results")
 
 FLAGS = flags.FLAGS

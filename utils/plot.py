@@ -369,25 +369,17 @@ def get_color_112(index):
 
 	state_subs = 0
 	cdicts = dict({"Ga":"purple", "Mo":"red", "Zn":"orange", 
-		"Co":"brown", "Cu":"blue", "Ti":"cyan", "Al":"yellow"})
+		"Co":"brown", "Cu":"blue", "Ti":"cyan", "Al":"green"})
 	index = index.replace("CuAlZnTi_", "")
 	if "mix" in index:
 		for element, color in cdicts.items():
 			if element in index:
 				ratio = get_ratio(index=index, element=element)
-				print (element, ratio)
 				colors[color] = ratio
 	else:
 		for element, color in cdicts.items():
-			if element in index:
+			if element in index and "CuAlZnTi" not in index:
 				colors[color] = "full"
-	if len(colors.keys()) == 4:
-		# c = "yellow"
-		print ("Here: ", index)
-		print ("Colors: ", colors)
-
-	if len(colors.keys()) ==0:
-		colors["black"] = "full"
 
 	#normalize item number values to colormap
 	# norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
@@ -1009,7 +1001,6 @@ def ax_surf(xi, yi, zi, label, mode="2D"):
 
 	if mode == "3D_patch":
 		ax = fig.add_subplot(1, 1, 1, projection='3d')
-		print (xi.shape, yi.shape, zi.shape)
 		xi_rv, yi_rv, zi_rv = xi.ravel(), yi.ravel(), zi.ravel()
 
 		vmin, vmax = max(zi_rv)/2, max(zi_rv)# min(zi_rv), max(zi_rv)
@@ -1106,8 +1097,6 @@ def test_half_filled():
 	index =  "mix/Sm-Fe10-Al1-Ga1"
 	# colors = get_color_112(index) 
 	r = get_ratio(index=index, element="Ga")
-
-	print (r)
 
 def plot_heatmap(matrix, vmin, vmax, save_file, cmap, lines=None, title=None):
 	if vmax is None:

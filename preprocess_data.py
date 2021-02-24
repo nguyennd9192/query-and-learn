@@ -142,13 +142,18 @@ def query_db():
 
     # # # data base storage
     database_jobs = [
-      "init/Sm-Fe11-M_wyckoff_2.csv", "init/Sm-Fe10-M2_wyckoff.csv", 
-      # "Sm-Fe11-Ga1", 
-      "init/Sm-Fe10-Ga2.csv",
-      "init/Sm2-Fe23-M.csv", "init/check_Mo_2-22-2.csv", 
-      "init/Sm2-Fe21-M3.csv",  "init/CuAlZnTi_Sm2-Fe22-M2.csv",
-      "init/Sm2-Fe23-Ga1.csv", "init/Sm2-Fe22-Ga2.csv", 
-      "init/Sm2-Fe21-Ga3.csv", "init/CuAlZnTi_Sm2-Fe21-M3.csv",
+      "init/Sm-Fe11-M_wyckoff_2.csv", # full 7 subs
+
+      "init/Sm-Fe10-M2_wyckoff.csv", # Al, Cu, Mo, Ti, Zn
+      "init/Sm-Fe10-Ga2.csv", # Ga, 
+
+      "init/Sm2-Fe23-M.csv", "init/Sm2-Fe23-Ga1.csv", # full 7 subs
+
+      "init/check_Mo_2-22-2.csv", "init/Sm2-Fe22-Ga2.csv", "init/CuAlZnTi_Sm2-Fe22-M2.csv", # # Mo, Ga, Cu, Al, Zn, Ti
+      "init/Sm2-Fe21-M3.csv", "init/Sm2-Fe21-Ga3.csv",   "init/CuAlZnTi_Sm2-Fe21-M3.csv", # # Mo, Ga, Cu, Al, Zn, Ti
+
+      # # 1-10-2 missing Co      
+      # # 2-22-2, 2-21-3 missing Co
 
 
       "mix/query_1.csv",  "mix/supp_2.csv", "mix/supp_3.csv", "mix/supp_4.csv",  
