@@ -39,9 +39,10 @@ def ax_setting():
 def ax_setting_3d(ax):
 	ax.grid(which='minor', alpha=0.2)
 	ax.grid(which='major', alpha=0.5)
-	ax.xaxis._axinfo["grid"]['color'] =  "w"
-	ax.yaxis._axinfo["grid"]['color'] =  "w"
-	ax.zaxis._axinfo["grid"]['color'] =  "w"
+	ax.xaxis._axinfo["grid"]['color'] =  "grey"
+	ax.yaxis._axinfo["grid"]['color'] =  "grey"
+	ax.zaxis._axinfo["grid"]['color'] =  "grey"
+	# ax.xaxis._axinfo["grid"]['linestyle'] =  "-"
 
 	# ax.set_xticks([])
 	# ax.set_zticks([])
@@ -49,6 +50,7 @@ def ax_setting_3d(ax):
 	ax.tick_params(axis='x', which='major', labelsize=15)
 	ax.tick_params(axis='y', which='major', labelsize=15)
 	ax.tick_params(axis='z', which='major', labelsize=15)
+	# ax.set_zticks([])
 
 	ax.xaxis.pane.fill = False
 	ax.yaxis.pane.fill = False
@@ -203,16 +205,15 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 	sigma=None, mode='scatter', lbl=None, name=None, 
 	x_label='x', y_label='y', 
 	save_file=None, interpolate=False, color='blue', 
-	preset_ax=None, linestyle='-.', marker='o', title=None):
-	if preset_ax is not None:
-		fig = plt.figure(figsize=(8, 8))
+	linestyle='-.', marker='o', title=None):
+	fig = plt.figure(figsize=(8, 8))
 
 	if 'scatter' in mode:
 		n_points = len(x)
 		for i in range(n_points):
 			plt.scatter(x[i], y[i], s=80, alpha=0.8, 
 				marker=marker[i], 
-				c=color[i], edgecolor="black") # brown
+				c="black", edgecolor="black") # brown, color[i]
 			# plt.scatter(x[i], y[i], s=80, alpha=0.8, 
 			# 	marker=marker[i], 
 			# 	c=color[i], edgecolor="white") # brown
@@ -239,18 +240,11 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 	plt.xlabel(x_label, **axis_font)
 	ax_setting()
 
-	if preset_ax is not None:
-		# min_y, max_y = np.min(y), np.max(y)
-		# dy = max_y - min_y
-		# min_y -= 0.2*dy
-		# max_y += 0.2*max_y
-		# plt.ylim([min_y, max_y])
 
-		# plt.grid(linestyle='--', color="gray", alpha=0.8)
-		plt.legend(prop={'size': 16})
-		makedirs(save_file)
-		plt.savefig(save_file)
-		release_mem(fig=fig)
+	plt.legend(prop={'size': 16})
+	makedirs(save_file)
+	plt.savefig(save_file)
+	release_mem(fig=fig)
 
 
 def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=None, 
@@ -351,77 +345,6 @@ def scatter_plot_2(x, y, z_values=None, color_array=None, xvline=None, yhline=No
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)
 
-def get_ratio(index, element):
-	# # e.g. mix__Sm-Fe9-Ti1-Mo2-_-Mo_0-8___Ti_4
-	start = index.find("mix__") + len("mix__")
-	end = index.find("-_-") + len("-_-")
-
-	short_index = index[start:end]
-
-	pos = short_index.find(element)
-	r = int(short_index[pos+2:pos+3])
-	return r
-
-def get_color_112(index):
-	# c = "black"
-	colors = dict()
-	ratios = []
-
-	state_subs = 0
-	cdicts = dict({"Ga":"purple", "Mo":"red", "Zn":"orange", 
-		"Co":"brown", "Cu":"blue", "Ti":"cyan", "Al":"green"})
-	index = index.replace("CuAlZnTi_", "")
-	if "mix" in index:
-		for element, color in cdicts.items():
-			if element in index:
-				ratio = get_ratio(index=index, element=element)
-				colors[color] = ratio
-	else:
-		for element, color in cdicts.items():
-			if element in index and "CuAlZnTi" not in index:
-				colors[color] = "full"
-
-	#normalize item number values to colormap
-	# norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
-
-	#colormap possible values = viridis, jet, spectral
-	# rgba_color = cm.jet(norm(400),bytes=True) 
-	return colors
-
-def get_marker_112(index):
-	m = "|"
-	if "1-11-1" in index:
-		m = "s"
-	if "1-10-2" in index:
-		m = "H"
-	if "1-9-3" in index:
-		m = "v"
-	if "2-23-1" in index:
-		m = "X"
-	if "2-22-2" in index:
-		m = "p"
-	if "2-21-3" in index:
-		m = "^"
-	return m
-
-def get_family(index):
-	if "Sm-Fe9" in index:
-		f = "1-9-3"
-	elif "Sm-Fe10" in index:
-		f = "1-10-2"
-	elif "Sm-Fe11" in index:
-		f = "1-11-1"
-	elif "Sm2-Fe23" in index:
-		f = "2-23-1"
-	elif "Sm2-Fe22" in index:
-		f = "2-22-2"
-	elif "Sm2-Fe21" in index:
-		f = "2-21-3"
-	elif "2-22-2" in index:
-		f = "2-22-2"
-	else:
-		print(index)
-	return f
 
 
 def process_name(input_name, main_dir):
@@ -893,6 +816,65 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)
 
+def dump_interpolate(x, y, z_values=None, 
+				save_file=None):
+
+	org_x = copy.copy(x)
+	org_y = copy.copy(y)
+	min_org_x, max_org_x = min(org_x), max(org_x)
+	min_org_y, max_org_y = min(org_y), max(org_y)
+
+	x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * 200
+	y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * 200
+	x = x.T[0]
+	y = y.T[0]
+
+	grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+	grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), method='cubic')
+
+	makedirs(save_file)
+	np.savetxt(save_file, grid_interpolate)
+
+def imshow(grid, cmap, save_file, vmin=None, vmax=None):
+	fig, main_ax = plt.subplots(figsize=(8, 8), linewidth=1.0) # 
+
+	if vmin is None:
+		vmin = np.nanmin(grid.T)
+	if vmax  is None:
+		vmax = np.nanmax(grid.T)
+
+	# norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+	norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+	z_plot = main_ax.imshow(grid.T, 
+		cmap=cmap,
+		norm=norm, 
+		# vmin=-max_ipl, vmax=max_ipl, 
+		interpolation="hamming",
+		alpha=0.8)
+	# colorbar(z_plot)
+	fig.colorbar(z_plot, shrink=0.6)
+	plt.tight_layout(pad=1.1)
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
+def gradient_map(list_vectors, save_file):
+	fig, ax = plt.subplots(figsize=(8, 8), linewidth=1.0)
+	# ax1.set_title()
+	for y, rows in enumerate(list_vectors):
+		for x, column_point in enumerate(rows):
+			if not np.isnan(column_point[0]):
+				Q = ax.quiver(x, y, column_point[0], column_point[1], 
+					units='x',#	width=0.001
+					scale_units="inches", scale=10, headwidth=0.5, headlength=0.5
+					)
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
+
 
 def show_one_rst(y, y_pred, ax, y_star_ax, ninst_ax, pos_x, color, is_shown_tails=True):
 	
@@ -974,6 +956,59 @@ def plot_hist(x, ax, x_label, y_label,
 		plt.savefig(save_at)
 		print ("Save file at:", "{0}".format(save_at))
 		release_mem(fig)
+
+def two_surf(surf1, surf2, lbl1, lbl2, save_at, title):
+	x1 = range(surf1.shape[0])
+	y1 = range(surf1.shape[1])
+	x1, y1 = np.meshgrid(x1, y1)
+
+
+	x2 = range(surf2.shape[0])
+	y2 = range(surf2.shape[1])
+	x2, y2 = np.meshgrid(x2, y2)
+	
+	lift = 2
+	surf2 += lift
+	vmin, vmax = np.nanmin(surf2), np.nanmax(surf2)
+
+	fig = plt.figure(figsize=(8, 8))
+
+	ax = Axes3D(fig)
+	s1 = ax.plot_surface(x1, y1, surf1, alpha=1.0, 
+		cmap="PiYG", # cmap=cm.hot, #color="orange", 
+		shade=False, #rcount=500, ccount=500, 
+		linewidth=0.1, linestyle="-", antialiased=True)
+	# surf = ax.plot_trisurf(xi, yi, zi, alpha=0.2, cmap="jet", 
+	# 	linewidth=0.1, vmin=min(zi.ravel()), vmax=max(zi.ravel()))
+
+	s2 = ax.plot_surface(x2, y2, surf2, alpha=1.0, 
+		cmap="Blues_r", # cmap=cm.hot, #color="orange", 
+		shade=False, #rcount=500, ccount=500, 
+		linewidth=0.1, linestyle="-", antialiased=True,
+		zorder=3, vmin=lift, vmax=vmax*0.8)
+
+	# for surf in (surf1, surf2):
+	# 	surf._facecolors2d = surf._facecolors3d
+	# 	surf._edgecolors2d = surf._edgecolors3d
+
+	# ax.set_axis_off()
+	ax.view_init(20, 30) # 60, 60, 37, -150
+	# plt.show()
+	plt.title(title, **title_font)
+	ax_setting_3d(ax=ax)
+	fig.patch.set_visible(False)
+	fig.colorbar(s1, shrink=0.4, label=lbl1)
+	fig.colorbar(s2, shrink=0.4, label=lbl2)
+
+
+	plt.tight_layout(pad=1.1)
+
+	makedirs(save_at)
+	plt.savefig(save_at)
+	print ("Save file at:", "{0}".format(save_at))
+	release_mem(fig)
+	
+
 
 
 def ax_surf(xi, yi, zi, label, mode="2D"):

@@ -93,7 +93,7 @@ def query_and_learn(FLAGS, qid,
 		selected_inds, selected_inds_to_estimator,
 		estimator, X_train, y_train, index_train, 
 		unlbl_X, unlbl_y, unlbl_index, sampler, uniform_sampler, 
-		is_save_query, savedir, tsne_file, is_plot, perform_ax, perform_fig):
+		is_save_query, savedir, tsne_file, is_plot, perform_ax, perform_fig, pv):
 	# is_load_pre_trained = False
 	csv_saveat = savedir+"/query_{0}/query_{0}.csv".format(qid)	
 	fig_saveat = savedir + "/autism/error_dist.pdf"
@@ -133,7 +133,9 @@ def query_and_learn(FLAGS, qid,
 	select_batch_inputs = {"model": copy.copy(estimator), "labeled": None, 
 			"eval_acc": None, "X_test": None, 
 			"y_test": None, "y": None, "verbose": True,
-			"y_star": min(_y_train)}
+			"y_star": min(_y_train),
+			"embedding_model":embedding_model,
+			"X_org":unlbl_X}
 
 	# # 1. update by D_{Q}
 	new_batch, acq_val = select_batch(sampler=sampler, uniform_sampler=uniform_sampler, 
@@ -276,9 +278,52 @@ def query_and_learn(FLAGS, qid,
 	makedirs(this_df_dir)
 	plt_df.to_csv(this_df_dir)
 
-	save_file=this_fig_dir.replace(".pdf", "_error.pdf")
+	assert len(pv) == unlbl_X.shape[1]
 
+	X_all = np.concatenate((unlbl_X, X_train))
 	if FLAGS.do_plot:
+		# for i, v in enumerate(pv):
+		# 	save_file= savedir+"/query_{0}/ft/{1}.pdf".format(qid, v)
+		# 	z_values=X_all[:, i]
+		# 	if len(set(z_values)) >1:
+		# 		try:
+		# 			scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 				z_values=z_values,
+		# 				list_cdict=list_cdict, 
+		# 				xvlines=[0.0], yhlines=[0.0], 
+		# 				sigma=None, mode='scatter', lbl=None, name=None, 
+		# 				s=60, alphas=alphas, 
+		# 				title=save_file.replace(ALdir, ""),
+		# 				x_label=FLAGS.embedding_method + "_dim_1",
+		# 				y_label=FLAGS.embedding_method + "_dim_2", 
+		# 				interpolate=False, cmap="seismic",
+		# 				save_file=save_file,
+		# 				preset_ax=None, linestyle='-.', marker=marker_array,
+		# 				vmin=None, vmax=None
+		# 				)
+		# 		except:
+		# 			pass
+				
+			
+		save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+				z_values=y_all_obs,
+				list_cdict=list_cdict, 
+				xvlines=[0.0], yhlines=[0.0], 
+				sigma=None, mode='scatter', lbl=None, name=None, 
+				s=60, alphas=alphas, 
+				title=save_file.replace(ALdir, ""),
+				x_label=FLAGS.embedding_method + "_dim_1",
+				y_label=FLAGS.embedding_method + "_dim_2", 
+				save_file=save_file,
+				interpolate=False, cmap="PiYG",
+				preset_ax=None, linestyle='-.', marker=marker_array,
+				vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+				)
+
+
+
+		save_file=this_fig_dir.replace(".pdf", "_error.pdf")
 		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
 			z_values=error_all,
 			list_cdict=list_cdict, 
@@ -293,23 +338,6 @@ def query_and_learn(FLAGS, qid,
 			preset_ax=None, linestyle='-.', marker=marker_array,
 			vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
 
-			)
-
-
-		save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=y_all_obs,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=save_file,
-			interpolate=False, cmap="PiYG",
-			preset_ax=None, linestyle='-.', marker=marker_array,
-			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
 			)
 
 
@@ -346,78 +374,7 @@ def query_and_learn(FLAGS, qid,
 			vmin=-0.01, vmax=1.0
 			)
 
-
-
-
-		# lim_acq_val = min(acq_val[new_batch])
-
-		# z =  np.concatenate((unlbl_y_pred, y_train)) # unlbl_y_pred, min_margin
-		# x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
-		# y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
-		# xi, yi = np.meshgrid(x1,y1)
-		# # interpolate
-		# zi = griddata((x,y),z,(xi,yi),method='neanon_qr')
-		# if plt_mode == "3D_patch":
-		# 	xi, yi, zi = x, y, z
-		# ax = ax_surf(xi=xi, yi=yi, zi=zi, label="pred_val", mode=plt_mode)
-
-		# # # tSNE map
-		# csv_save_dir += "/"+plt_mode
-		# save_figat = csv_save_dir+"/cmap_unlbl_rank_unlbl_y_pred.pdf"
-		# ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
-		# 	 x_label="tSNE axis 1", y_label="tSNE axis 2",
-		# 	 alphas=alphas, save_at=save_figat, plt_mode=plt_mode)
-		
-		# # # new plot
-		# ax2 = ax_surf(xi=xi, yi=yi, zi=zi, label="pred_val", mode=plt_mode)
-		# list_cdict2 = np.array(copy.copy(list_cdict))
-		# marker_array2 = np.array(copy.copy(marker_array))
-		# mask = np.full(len(list_cdict2),False,dtype=bool)
-		# mask[selected_inds_copy] = True # # for selected ids
-		# mask[-len(index_train):] = True # # for obs dataset
-		# list_cdict2[~mask] = dict({"grey":"full"})
-		# marker_array2[~mask] = "o"
-
-		# ax_scatter(ax=ax2, x=x, y=y, marker=marker_array2, 
-		# 	list_cdict=list_cdict2,
-		# 	x_label="tSNE axis 1", y_label="tSNE axis 2",
-		# 	alphas=alphas, plt_mode=plt_mode,
-		# 	save_at=save_figat.replace(".pdf", "2.pdf"))
-		
-		# # # acp_val map
-		# lim_acq_val = min(acq_val[new_batch])
-		# z =  np.concatenate((acq_val, [0]*len(y_train))) # unlbl_y_pred, min_margin
-		# x1 = np.arange(min(x), max(x), (max(x) - min(x))/200)
-		# y1 = np.arange(min(y), max(y), (max(y) - min(x))/200)
-		# xi, yi = np.meshgrid(x1,y1)
-		
-		# # interpolate
-		# zi = griddata((x,y),z,(xi,yi),method='neanon_qr')
-		# if plt_mode == "3D_patch":
-		# 	xi, yi, zi = x, y, z
-
-		# ax = ax_surf(xi=xi, yi=yi, zi=zi, 
-		# 	label="acp_val", mode=plt_mode)
-		# # plt.show()
-
-		# # # tSNE map
-		# ax_scatter(ax=ax, x=x, y=y, marker=marker_array, list_cdict=list_cdict,
-		# 	 x_label="tSNE axis 1", y_label="tSNE axis 2",
-		# 	 alphas=alphas, plt_mode=plt_mode,
-		# 	 save_at=save_figat.replace("unlbl_y_pred", "acq_val"))
-		# try:
-		# 	scatter_plot_5(x=acq_val, y=unlbl_y_pred, list_cdict=list_cdict, 
-		# 		xvlines=[lim_acq_val], yhlines=[lim_outstand_list], 
-		# 		sigma=None, mode='scatter', lbl=None, name=None, 
-		# 		s=80, alphas=alphas, title=None,
-		# 		x_label=sampler.name, y_label='unlbl_y_pred', 
-		# 		save_file=save_figat.replace(".pdf", "_2.pdf"),
-		# 		interpolate=False, 
-		# 		preset_ax=None, linestyle='-.', marker=marker_array)
-		# except Exception as e:
-		# 	pass
-
-	return _x_train, _y_train, estimator, embedding_model
+	return _x_train, _y_train, _unlbl_X, estimator, embedding_model
 
 
 def evaluation_map(FLAGS, 
@@ -519,7 +476,7 @@ def map_unlbl_data(FLAGS):
 	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
 
 	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
-	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index = load_data()
+	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = load_data()
 
 	selected_inds = []
 	selected_inds_to_estimator = []
@@ -527,7 +484,7 @@ def map_unlbl_data(FLAGS):
 
 	perform_fig = plt.figure(figsize=(10, 8))
 	perform_ax = perform_fig.add_subplot(1, 1, 1)
-	for qid in range(1, FLAGS.n_run): 
+	for qid in range(1, FLAGS.n_run): #
 		queried_idxes = list(range(1, qid))
 		# # read load queried data
 		# # queried_idxes is None mean all we investigate at initial step
@@ -602,7 +559,7 @@ def map_unlbl_data(FLAGS):
 
 		# # to force parameter search
 		# estimator.estimator = None
-		_x_train, _y_train, estimator, embedding_model = query_and_learn(
+		_x_train, _y_train, _unlbl_X, estimator, embedding_model = query_and_learn(
 			FLAGS=FLAGS, qid=qid,
 			selected_inds=selected_inds, 
 			selected_inds_to_estimator=selected_inds_to_estimator,
@@ -611,10 +568,40 @@ def map_unlbl_data(FLAGS):
 			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 			sampler=sampler, uniform_sampler=uniform_sampler, 
 			is_save_query=is_save_query, savedir=savedir, tsne_file=tsne_file,
-			is_plot=False, perform_ax=perform_ax, perform_fig=perform_fig)
+			is_plot=False, perform_ax=perform_ax, perform_fig=perform_fig,
+			pv=pv)
 		makedirs(est_file)
 		pickle.dump(estimator, gfile.GFile(est_file, 'w'))
 
+		# # new 27Feb
+
+		if FLAGS.embedding_method != "org_space":
+			A_matrix = embedding_model.learn_metric.components_.T
+			A_matrix_save = savedir+"/query_{0}/Amatrix_{0}.png".format(qid)
+			max_abs_A = np.abs(A_matrix).max()
+			A_df = pd.DataFrame(A_matrix, index=pv)
+			
+			plot_heatmap(matrix=A_df.values, 
+					vmin=-max_abs_A, vmax=max_abs_A, save_file=A_matrix_save, 
+					cmap="bwr", title=A_matrix_save.replace(ALdir, ""),
+					lines=None)
+			# A_df["pv"] = pv
+			A_df.to_csv(A_matrix_save.replace(".png", ".csv"))
+
+			n_inst = unlbl_X.shape[0]
+			pairs = np.array(list(product(unlbl_X, unlbl_X)))
+
+			score_matrix = embedding_model.learn_metric.score_pairs(pairs).reshape((n_inst, n_inst))
+			score_df = pd.DataFrame(score_matrix, index=unlbl_index, columns=unlbl_index)
+
+			save_mkl = savedir+"/query_{0}/score_{1}.png".format(qid, FLAGS.embedding_method)
+			score_df.to_csv(save_mkl.replace(".png", ".csv"))
+			
+			plot_heatmap(matrix=score_df.values, 
+					vmin=None, vmax=None, save_file=save_mkl, 
+					cmap="jet", title=save_mkl.replace(ALdir, ""),
+					lines=None)
+		# # end new
 		save_at = savedir+"/query_{}".format(qid)+"/query_performance.pdf"
 		eval_data_file = savedir+"/query_{}".format(qid)+"/eval_query_{}.pkl".format(qid) 
 		
@@ -632,12 +619,12 @@ def map_unlbl_data(FLAGS):
 		# if this_dq_X.shape[0] != 0 and this_os_X.shape[0] != 0 and this_rnd_X.shape[0] != 0:
 		feedback_val = evaluation_map(FLAGS=FLAGS,
 				X_train=_x_train, y_train=_y_train, 
-				unlbl_X=unlbl_X_sampler, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+				unlbl_X=_unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 				index_train=index_train, 
 				all_query=this_query, sampler=sampler, 
 				uniform_sampler=uniform_sampler,
 				save_at=save_at, eval_data_file=eval_data_file,
-				estimator=copy.copy(estimator))
+				estimator=estimator)
 
 		# # create distance matrix
 		assert unlbl_X_sampler.shape[0] == unlbl_X.shape[0]

@@ -3,36 +3,27 @@ from params import *
 
 from utils.general_lib import *
 from a_rank_unlbl import map_unlbl_data
-from e_autism_modeling import show_trace, error_dist
 import copy
 from itertools import product
-def main_spark():
-
-	FLAGS.sampling_method = sm
-	FLAGS.score_method = es
-
-	map_unlbl_data(ith_trial="000")
-	show_trace(ith_trial="000")
-	error_dist(ith_trial="000")
-
 
 def create_params_grid():
-
 	sampling_methods = [
 		"margin", "exploitation", "uniform", 
-		# "graph_density", "hierarchical"
+		"MaxEmbeddDir"
+		# "graph_density", 
+		# "hierarchical"
 		# 
 		# "expected_improvement",
 		# "MarginExplSpace"
 		]
-	score_methods = ["u_knn",
+	score_methods = [# "u_knn",
 				 "u_gp" # "u_knn", "e_krr"
 			# "fully_connected", "ml-gp", "ml-knn"
 		]
 	embedding_methods = ["org_space", "MLKR"]  # LMNN, LFDA
 
-	active_ps = [0.9 ] # , 0.9, 0.7, 0.5
-	ith_trials = [1, 2, 3, 4, 5]
+	active_ps = [1.0] # , 0.9, 0.7, 0.5
+	ith_trials = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 	# # 0.9: test with batch_size 10 10 10, eval by ignore selected_inds
 	# # 0.7: test with batch_size 30 30 30, eval by ignore selected_inds_to_estimator
 

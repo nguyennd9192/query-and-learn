@@ -143,14 +143,12 @@ def query_db():
     # # # data base storage
     database_jobs = [
       "init/Sm-Fe11-M_wyckoff_2.csv", # full 7 subs
-
       "init/Sm-Fe10-M2_wyckoff.csv", # Al, Cu, Mo, Ti, Zn
       "init/Sm-Fe10-Ga2.csv", # Ga, 
-
       "init/Sm2-Fe23-M.csv", "init/Sm2-Fe23-Ga1.csv", # full 7 subs
-
       "init/check_Mo_2-22-2.csv", "init/Sm2-Fe22-Ga2.csv", "init/CuAlZnTi_Sm2-Fe22-M2.csv", # # Mo, Ga, Cu, Al, Zn, Ti
       "init/Sm2-Fe21-M3.csv", "init/Sm2-Fe21-Ga3.csv",   "init/CuAlZnTi_Sm2-Fe21-M3.csv", # # Mo, Ga, Cu, Al, Zn, Ti
+      "init/Sm-Fe10-Co2.csv", "init/Sm2-Fe21-Co3.csv", "init/Sm2-Fe22-Co2.csv",
 
       # # 1-10-2 missing Co      
       # # 2-22-2, 2-21-3 missing Co
@@ -174,7 +172,7 @@ def query_db():
       print ("Done reading database.")
     else:
       # # standard result
-      frames = [pd.read_csv(k, index_col=0) for k in database_results]
+      frames = [pd.read_csv(k, index_col=0) for k in database_results if os.path.isfile(k)]
       std_results = pd.concat(frames)
       index_reduce = [norm_id(k) for k in std_results.index]
       std_results["index_reduce"] = index_reduce
@@ -191,7 +189,7 @@ def query_db():
       coarse_results.set_index('index_reduce', inplace=True)
 
 
-      fine_frames = [pd.read_csv(k, index_col=0) for k in fine_db_rst]
+      fine_frames = [pd.read_csv(k, index_col=0) for k in fine_db_rst if os.path.isfile(k)]
       fine_results = pd.concat(fine_frames)
       fine_results = fine_results.dropna() 
       index_reduce = [norm_id(k) for k in fine_results.index]

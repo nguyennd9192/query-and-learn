@@ -12,7 +12,7 @@ from sklearn.kernel_ridge import KernelRidge
 from sklearn.preprocessing import MinMaxScaler, MaxAbsScaler, StandardScaler, scale
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel
+from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel, ExpSineSquared
 from sklearn.neighbors import KNeighborsRegressor
 
 
@@ -195,8 +195,9 @@ class RegressionFactory(object):
     return best_model, GridSearch
 
 
-  def gp_kernel(c, l, n):
+  def gp_kernel(c, l, n=0.05):
     tmp = ConstantKernel(constant_value=c)*RBF(length_scale=l) + WhiteKernel(noise_level=n)
+    # tmp = ExpSineSquared(length_scale=l, periodicity=c)
     return tmp
 
   @staticmethod
@@ -207,15 +208,14 @@ class RegressionFactory(object):
     rbf_length_ub = 1
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
 
-    # const_lb = -2
-    # const_ub = 2
+    const_lb = -1
+    const_ub = 2
     # consts = np.logspace(const_lb, const_ub, n_steps)
     consts = [1.0]
 
     # noise_lb = -2
     # noise_ub = 1
     # noises = np.logspace(noise_lb, noise_ub, n_steps)
-    noises = [0.05]
 
     alpha_lb = -2
     alpha_ub = 2
@@ -224,8 +224,9 @@ class RegressionFactory(object):
     if mt_kernel is None:
       # # grid search with kernel length and noise
       param_grid = {"alpha": alphas,
-                    "kernel": [RegressionFactory.gp_kernel(1.0, l, n) 
-                    for l in rbf_lengths for n in noises]}
+                    "kernel": [RegressionFactory.gp_kernel(c, l, n=0.05) 
+                    for c in consts
+                    for l in rbf_lengths]}
     else:
       # # grid search with kernel length only
       param_grid = {"alpha": alphas,

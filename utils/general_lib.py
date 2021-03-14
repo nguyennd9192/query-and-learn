@@ -113,9 +113,9 @@ def get_savedir(ith_trial):
 
 
 def get_qrindex(df, qid):
-	dq = 	"query2update_DQ_{}".format(qid)
-	os = 	"query_outstanding_{}".format(qid)
-	rnd = 	"query_random_{}".format(qid)
+	dq = "query2update_DQ_{}".format(qid)
+	os = "query_outstanding_{}".format(qid)
+	rnd = "query_random_{}".format(qid)
 
 
 
@@ -123,6 +123,90 @@ def get_qrindex(df, qid):
 	outstand_str = df.loc[df[os]==os, "unlbl_index"].to_list()
 	random_str = df.loc[df[rnd]==rnd, "unlbl_index"].to_list()
 	return update_DQ_str, outstand_str, random_str
+
+def get_color_112(index):
+	# c = "black"
+	colors = dict()
+	ratios = []
+
+	state_subs = 0
+	cdicts = dict({"Ga":"purple", "Mo":"red", "Zn":"orange", 
+		"Co":"brown", "Cu":"blue", "Ti":"cyan", "Al":"green"})
+	index = index.replace("CuAlZnTi_", "")
+	if "mix" in index:
+		for element, color in cdicts.items():
+			if element in index:
+				ratio = get_ratio(index=index, element=element)
+				colors[color] = ratio
+	else:
+		for element, color in cdicts.items():
+			if element in index and "CuAlZnTi" not in index:
+				colors[color] = "full"
+
+	#normalize item number values to colormap
+	# norm = matplotlib.colors.Normalize(vmin=0, vmax=1000)
+
+	#colormap possible values = viridis, jet, spectral
+	# rgba_color = cm.jet(norm(400),bytes=True) 
+	return colors
+
+def get_marker_112(index):
+	m = "|"
+	if "1-11-1" in index:
+		m = "s"
+	if "1-10-2" in index:
+		m = "H"
+	if "1-9-3" in index:
+		m = "v"
+	if "2-23-1" in index:
+		m = "X"
+	if "2-22-2" in index:
+		m = "p"
+	if "2-21-3" in index:
+		m = "^"
+	return m
+
+def get_family(index):
+	if "Sm-Fe9" in index:
+		f = "1-9-3"
+	elif "Sm-Fe10" in index:
+		f = "1-10-2"
+	elif "Sm-Fe11" in index:
+		f = "1-11-1"
+	elif "Sm2-Fe23" in index:
+		f = "2-23-1"
+	elif "Sm2-Fe22" in index:
+		f = "2-22-2"
+	elif "Sm2-Fe21" in index:
+		f = "2-21-3"
+	elif "2-22-2" in index:
+		f = "2-22-2"
+	else:
+		print(index)
+	return f
+
+def get_ratio(index, element):
+	# # e.g. mix__Sm-Fe9-Ti1-Mo2-_-Mo_0-8___Ti_4
+	start = index.find("mix__") + len("mix__")
+	end = index.find("-_-") + len("-_-")
+
+	short_index = index[start:end]
+
+	pos = short_index.find(element)
+	r = int(short_index[pos+2:pos+3])
+	return r
+
+def	get_scatter_config(unlbl_index, index_train, selected_inds):
+	mix_index = ["mix__"+k for k in unlbl_index]
+	plot_index = np.concatenate((mix_index, index_train), axis=0)
+	family = [get_family(k) for k in plot_index]
+
+	list_cdict = np.array([get_color_112(k) for k in plot_index])
+	marker_array = np.array([get_marker_112(k) for k in family])
+	alphas = np.array([0.3] * len(plot_index))
+	alphas[selected_inds] = 1.0 
+	alphas[len(unlbl_index):] = 1.0
+	return list_cdict, marker_array, alphas
 
 
 def est_alpha_updated(X_train, y_train, 
@@ -164,6 +248,7 @@ def est_alpha_updated(X_train, y_train,
 			_y_train = copy.copy(y_train)
 
 		model.fit(X_train=X_train, y_train=_y_train)
+
 		X_train = model.transform(X_val=X_train, get_min_dist=False)
 		X_test = model.transform(X_val=X_test, get_min_dist=False)
 
@@ -172,11 +257,16 @@ def est_alpha_updated(X_train, y_train,
 
 def load_data():
 	# # read_load train data
-	if FLAGS.is_test_separate:
-		X_train, y_train, index_train = utils.get_mldata(FLAGS.data_dir, FLAGS.data_init)
-		X_test, y_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.data_target)
+	csvname = os.path.join(FLAGS.data_dir, FLAGS.data_init + ".csv")
+	df = pd.read_csv(csvname, index_col=0)
+	pv = list(df.columns)
+	pv.remove(FLAGS.tv)
 
-	return X_train, y_train, index_train, X_test, y_test, index_test
+
+	X_train, y_train, index_train = utils.get_mldata(FLAGS.data_dir, FLAGS.data_init)
+	X_test, y_test, index_test = utils.get_mldata(FLAGS.data_dir, FLAGS.data_target)
+
+	return X_train, y_train, index_train, X_test, y_test, index_test, pv
 
 def norm_id(id_qr):
 	n_dir = "/Volumes/Nguyen_6TB/work/SmFe12_screening"

@@ -3,8 +3,8 @@ from absl import flags
 import pandas as pd
 import ntpath, os, sys
 
-ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-# ALdir = "/home/nguyen/work/active-learning"
+# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+ALdir = "/home/nguyen/work/active-learning"
 for ld, subdirs, files in os.walk(ALdir):
   if os.path.isdir(ld) and ld not in sys.path:
     sys.path.append(ld)
@@ -14,9 +14,9 @@ def get_basename(filename):
     basename = os.path.splitext(tail)[0]
     return tail
 
-batch_size =  30
-batch_outstand = 30 
-batch_rand = 30 
+batch_size =  45
+batch_outstand = 45 
+batch_rand = 10 
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"
@@ -30,6 +30,7 @@ pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
 flags.DEFINE_string("data_init", "SmFe12/init_energy_substance_pa", "Dataset train name")  # 
 flags.DEFINE_string("data_target", "SmFe12/mix_energy_substance_pa", "Dataset test name")  # 
+flags.DEFINE_string("tv", "energy_substance_pa", "target variable")  # 
 
 # # # obtain from args
 # # run parallel
@@ -50,7 +51,7 @@ flags.DEFINE_string("embedding_method", "MLKR",
     ("Method to transform space."))
 
 # # run parallel
-flags.DEFINE_float("active_p", 0.9, 
+flags.DEFINE_float("active_p", 1.0, 
     ("Float value of active percentage in querying. 1 - active_p as uniform sampling"))
 
 # # run parallel
@@ -64,7 +65,7 @@ flags.DEFINE_string("mae_update_threshold", "update_all", # # 0.0, 0.3, 1.0, upd
     ("mean absolute error to update dq to estimator"))
 
 flags.DEFINE_string(
-    "estimator_update_by", "DQ_RND_OS", # # DQ_RND_OS
+    "estimator_update_by", "DQ", # # DQ, DQ_RND_OS, _RND_OS
     ("mean absolute error to update dq to estimator")
 ) 
 flags.DEFINE_boolean("is_search_params", True, 
@@ -126,7 +127,7 @@ flags.DEFINE_float("train_horizon", "1.0",
                    "how far to extend learning curve as a percent of train")
 flags.DEFINE_string("do_save", "True",
                     "whether to save log and results")
-flags.DEFINE_boolean("do_plot", True,
+flags.DEFINE_boolean("do_plot", False,
                     "whether to plot results")
 
 FLAGS = flags.FLAGS

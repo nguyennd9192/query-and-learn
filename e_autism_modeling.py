@@ -1,448 +1,223 @@
 from params import *
 from utils.plot import *
+from general_lib import *
 
 import sys, pickle, functools, json, copy
-# from run_experiment import get_savedir, get_savefile, get_data_from_flags
 import matplotlib.pyplot as plt
-from utils.general_lib import *
+from utils.utils import load_pickle
 import numpy as np
-from sklearn.metrics import r2_score, mean_absolute_error
-import joypy
 import pandas as pd
-from scipy.stats import norm
-from sklearn.neighbors import KernelDensity
-from matplotlib.collections import PolyCollection
-import matplotlib.gridspec as grid_spec
-from sklearn.metrics import pairwise 
-
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
+# performance_codes = dict({"uniform":"red", "exploitation":"black", 
+# 		"margin":"blue", "expected_improvement":"green"})
 
+performance_codes = dict({"org_space":"blue", "MLKR":"red"}) 
+hatch_codes = dict({"uniform":"/", "exploitation":"*", 
+				"margin":"o", "expected_improvement":"/"}) 
+# # '-', '+', 'x', '\\', '*', 'o', 'O', '.'
 
-def load_Xy_query(unlbl_dir, qid, 
-	unlbl_X, unlbl_y, unlbl_index, estimator_update_by):
-	# # get_data_from_flags: get original data obtained from 1st time sampling, not counting other yet.
-	if qid == 1:
-		selected_inds = []
-		selected_inds_to_estimator = []
-		all_query = None
-	else:
-		queried_idxes = range(1, qid)
-		queried_files = [unlbl_dir + "/query_{}".format(k) + "/query.csv" for k in queried_idxes]
-		print ("n queried files:", len(queried_files))
-		# # query only original ofm, transform later
-		valid_Xyid = get_queried_data(queried_files=queried_files, 
-			database_results=database_results, 
-			unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-			coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
-			embedding_model="org_space")
-
-
-		# # alocate representation, label and id of labeled data
-		dq_X, dq_y, dq_idx = valid_Xyid[0]
-		os_X, os_y, os_idx = valid_Xyid[1]
-		rnd_X, rnd_y, rnd_idx = valid_Xyid[2]
-
-		all_query = [[dq_X, dq_y, dq_idx], [os_X, os_y, os_idx], [rnd_X, rnd_y, rnd_idx]]
-		# print ("DQ, OS, RND shape")
-		assert dq_X.shape[0] == dq_y.shape[0]
-		assert os_X.shape[0] == os_X.shape[0]
-		assert rnd_X.shape[0] == rnd_X.shape[0]
-
-		# # remove all labeled data of X, y, id to update sampler
-		all_lbl_id = np.concatenate((dq_idx, os_idx, rnd_idx)).ravel()
-		all_unlbl_y = np.concatenate((dq_y, os_y, rnd_y)).ravel()
-		all_unlbl_X = np.concatenate((dq_X, os_X, rnd_X), axis=0)
-
-		selected_inds = [np.where(unlbl_index==k)[0][0] for k in all_lbl_id]
-		unlbl_y[selected_inds] = all_unlbl_y
-
-		if estimator_update_by is not None:
-			tmp = []
-			if "DQ" in estimator_update_by:
-				tmp.append(dq_idx)
-			if "OS" in estimator_update_by:
-				tmp.append(os_idx)
-			if "RND" in estimator_update_by:
-				tmp.append(rnd_idx)
-			dt2estimator = np.concatenate(tmp).ravel()
-			selected_inds_to_estimator = [np.where(unlbl_index==k)[0][0] for k in dt2estimator]
-		else:
-			selected_inds_to_estimator = copy.copy(selected_inds)
-
-
-
-	# # this qid data
-	this_qid_file = [unlbl_dir + "/query_{}".format(qid) + "/query.csv"]
-	this_qid_Xy = get_queried_data(queried_files=this_qid_file, 
-		database_results=database_results, 
-		unlbl_X=unlbl_X, unlbl_index=unlbl_index,
-		coarse_db_rst=coarse_db_rst, fine_db_rst=fine_db_rst,
-		embedding_model="org_space")
-
-	return unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy
-
-
-def generate_verts(df_data, err_cols, save_fig):
-	verts = []
-	ax_objs = []
-
-	n_panels = len(err_cols)
-	gs = grid_spec.GridSpec(n_panels,1)
-	fig = plt.figure(figsize=(16,9))
-
-	dz = range(n_panels)
-	cnorm = plt.Normalize()
-	colors = plt.cm.jet(cnorm(dz))
+def get_embedding_map(qid, all_data):
+	# # read load data, save dir, query_file
+	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = all_data
+	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
 	
-	error_min = np.min(df_data.min().values)
-	error_max = np.max(df_data.max().values) * 1.08
-	print (error_min)
+	savedir += "/query_{0}".format(qid)
 
-	for ind_time, col in enumerate(err_cols):
-		X = df_data[col].values
-		# X = np.abs(X[~np.isnan(X)])
-		X = X[~np.isnan(X)]
+	query_file = savedir + "/query_{0}.csv".format(qid)
 
-		if np.max(X)==np.min(X):
-			X_plot = X
-		else:
-			# X_plot = np.arange(np.min(X), np.max(X), (np.max(X)-np.min(X)) / 200.0)
-			X_plot = np.arange(error_min, error_max, (error_max-error_min) / 200.0)
-		
+	n_train_org = X_train.shape[0]
+	# # read load query data
+	if not gfile.exists(query_file):
+		print ("This file: ", query_file, "does not hold." )
+	df = pd.read_csv(query_file, index_col=0)
+	kw = "last_query_{}".format(qid)
+	ids_col = df[kw]
 
-		parameters = norm.fit(X)
-		kde = KernelDensity(kernel='gaussian', bandwidth=0.01).fit(X.reshape(-1,1))
-		log_dens = kde.score_samples(X_plot.reshape(-1,1))
-		
-		ys = np.exp(log_dens)
-		ys[0], ys[-1] = 0.0, 0.0
-		# verts.append(list(zip(X_plot, ys)))
+	# # selected ids
+	selected_inds = np.where(ids_col==kw)[0]
 
-		# creating new axes object
-		ax_objs.append(fig.add_subplot(gs[n_panels - (ind_time+1):n_panels -ind_time, 0:]))
-		# ax_objs.append(fig.add_subplot(gs[ind_time:ind_time+1, 0:]))
+	# # non-selected ids
+	ids_non_qr = df[df["last_query_{}".format(qid)].isnull()].index.tolist()
+	error_non_qr = df.loc[ids_non_qr, "err_{}".format(qid)]
 
-		# plotting the distribution
-		ax_objs[-1].plot(X_plot, ys,color="black",lw=1)
-		ax_objs[-1].fill_between(X_plot, ys, 
-			alpha=0.6, color=colors[ind_time])
-
-
-		# setting uniform x and y lims
-		# ax_objs[-1].set_xlim(0,1.7)
-		# ax_objs[-1].set_ylim(0,5)
-		# ax_objs[-1].set_xscale('log')
-
-
-		# make background transparent
-		rect = ax_objs[-1].patch
-		rect.set_alpha(0)
-
-		# remove borders, axis ticks, and labels
-		ax_objs[-1].set_yticklabels([])
-
-		if ind_time == 0: # len(err_cols)-1
-			ax_objs[-1].set_xlabel("Mean Absolute Error", fontsize=16,fontweight="bold")
-		else:
-			ax_objs[-1].set_xticklabels([])
-
-		spines = ["top","right","left","bottom"]
-		for s in spines:
-			ax_objs[-1].spines[s].set_visible(False)
-			ax_objs[-1].xaxis.set_ticks_position('none') 
-
-		adj_country = col.replace("_"," ")
-		# ax_objs[-1].text(-0.02,0,col,fontweight="bold",fontsize=14,ha="right")
-		ax_objs[-1].text(error_min*1.03,0,col,fontweight="bold",fontsize=14,ha="right")
-
-	gs.update(hspace=-0.6)
-
-	fig.text(0.07,0.9,"Distribution of error in predicting whole screening space",fontsize=20)
-
-	plt.tight_layout()
-	# ax.set_title("error distribution")
-	plt.savefig(save_fig, transparent=False)
-	print("Save at:", save_fig)
-
-
-
-
-def show_trace(ith_trial):
-	result_dir, unlbl_dir = get_savedir()
-	X_trval, y_trval, index_trval, unlbl_X, unlbl_y, unlbl_index = get_data_from_flags()
-
-
-	n_unlbl = len(unlbl_index)
-	
+	_x_train, _y_train, _unlbl_X, embedding_model = est_alpha_updated(
+		X_train=X_train, y_train=y_train, 
+		X_test=unlbl_X, y_test=unlbl_y, 
+		selected_inds=selected_inds,
+		estimator=None) 
+	list_cdict, marker_array, alphas = get_scatter_config(unlbl_index=unlbl_index, 
+		index_train=index_train, selected_inds=selected_inds)
 	
 
-	qids = range(1, FLAGS.n_run)
-	# qids = [1]
-	eval_files = [unlbl_dir+"/query_{0}/eval_query_{0}.pkl".format(qid) for qid in qids]
-	est_files = [unlbl_dir+"/query_{0}/pre_trained_est.pkl".format(qid) for qid in qids]
 
-	flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
-				  linestyle='none', markeredgecolor='k')
-	
-	error_rst_df = pd.DataFrame(index=unlbl_index, columns=["err_{}".format(k) for k in qids])
-	var_rst_df = pd.DataFrame(index=unlbl_index, columns=["var_{}".format(k) for k in qids])
-	
-	error_save_at = unlbl_dir + "/autism/error.csv"
-	var_save_at = unlbl_dir + "/autism/var.csv"
-	save_fig = unlbl_dir + "/autism/mae_rest.pdf"
-	
-	makedirs(error_save_at)
-	makedirs(var_save_at)
-	
-	color = "blue"
+	xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
+	y_all_obs = np.concatenate((unlbl_y, _y_train[:n_train_org]), axis=0)
+	savedir += "/x_on_embedd".format(qid)	
 
-	fig = plt.figure(figsize=(10, 8))
-	ax = fig.add_subplot(1, 1, 1)
-	tmp_df = pd.DataFrame(columns=["error", "qid"])
+	X_all = np.concatenate((unlbl_X, X_train))
 
-	color_array = []
+	for i, v in enumerate(pv):
+		print (v)
+		save_file = savedir+"/ft/{0}.txt".format(v)
+		z_values=X_all[:, i]
+		if len(set(z_values)) >1:
+			dump_interpolate(x=xy[:, 0], y=xy[:, 1], 
+				z_values=z_values,	save_file=save_file,
+					)
+			save_file = savedir+"/ft_img/{0}.pdf".format(v)
+			# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			# 		z_values=z_values,
+			# 		list_cdict=list_cdict, 
+			# 		xvlines=[0.0], yhlines=[0.0], 
+			# 		sigma=None, mode='scatter', lbl=None, name=None, 
+			# 		s=60, alphas=alphas, 
+			# 		title=save_file.replace(ALdir, ""),
+			# 		x_label=FLAGS.embedding_method + "_dim_1",
+			# 		y_label=FLAGS.embedding_method + "_dim_2", 
+			# 		save_file=save_file,
+			# 		interpolate=False, cmap="PiYG",
+			# 		preset_ax=None, linestyle='-.', marker=marker_array,
+			# 		vmin=None, vmax=None
+			# 		)
 
-	line_query = []
+	save_file = savedir + "/y_all_obs.txt"
+	dump_interpolate(x=xy[:, 0], y=xy[:, 1], z_values=y_all_obs,
+			save_file=save_file)
 
-
-
-	for qid, eval_file, est_file in zip(qids, eval_files, est_files):
-
-		# # get all_query, selected_inds and update unlbl_y
-		unlbl_y, selected_inds, selected_inds_to_estimator, all_query, this_qid_Xy = load_Xy_query(
-			unlbl_dir=unlbl_dir, qid=qid, 
-			unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
-			estimator_update_by=estimator_update_by)
-
-		# _x_train, _y_train = est_alpha_updated(
-		# 		X_train=X_trval, y_train=y_trval, 
-		# 		X_test=unlbl_X, y_test=unlbl_y, 
-		# 		selected_inds=selected_inds_to_estimator)
-		estimator = load_pickle(est_file)
-
-		# # _x_train = X_trval[selected_inds_to_estimator]
-		# # all _x_train, _y_train, _unlbl_X have been transformed if needed
-		_x_train, _y_train, unlbl_X_sampler, embedding_model = est_alpha_updated(
-			X_train=X_trval, y_train=y_trval, 
-			X_test=unlbl_X, y_test=unlbl_y, 
-			selected_inds=selected_inds_to_estimator,
-			embedding_method=FLAGS.embedding_method,
-			mae_update_threshold=FLAGS.mae_update_threshold,
-			estimator=estimator) 
+	save_file = savedir + "/y_all_obs.pdf"
+	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=y_all_obs,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False, cmap="PiYG",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+			)
 
 
-		dq_X, dq_y, dq_idx = this_qid_Xy[0]
-		os_X, os_y, os_idx = this_qid_Xy[1]
-		rnd_X, rnd_y, rnd_idx = this_qid_Xy[2]
-		
-		print ("qid:", qid, "_x_train.shape", _x_train.shape)
-		print ("mae_update_threshold", FLAGS.mae_update_threshold)
-		data = load_pickle(eval_file)
-		# estimator.fit(_x_train, _y_train)
+def simple_pearson():
+	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = load_data()
+	lim_os = -0.05
+	ids = np.where(unlbl_y < lim_os)[0]
 
-		
+	# print (unlbl_y[ids])
+	# print (unlbl_index[ids])
+	x = np.concatenate((X_train[:, 28], unlbl_X[:, 28]), axis=0)
+	y = np.concatenate((y_train, unlbl_y), axis=0)
 
-
-		assert unlbl_X_sampler.shape[0] == unlbl_X.shape[0]
-		_unlbl_dist = pairwise.euclidean_distances(unlbl_X_sampler)
-		metric_df = pd.DataFrame(_unlbl_dist, index=unlbl_index, columns=unlbl_index)
-
-		save_file = save_file = unlbl_dir+"/query_{0}/{1}_dist.png".format(qid, FLAGS.embedding_method)
-		metric_df.to_csv(save_file.replace(".png", ".csv"))
-		
-		line_query.append(len(selected_inds))
-		plot_heatmap(matrix=metric_df.values, 
-				vmin=None, vmax=None, save_file=save_file, 
-				cmap="jet", title=save_file.replace(ALdir, ""),
-				lines=line_query)
+	scatter_plot(x=x, y=y, xvline=None, yhline=None, 
+		sigma=None, mode='scatter', lbl=None, name=None, 
+		x_label='x', y_label='y', 
+		save_file=result_dropbox_dir+"/test.pdf", interpolate=False, color='blue', 
+		linestyle='-.', 
+		marker=['o']*len(y), title=None)
+	return unlbl_index[ids]
 
 
-		if False:	
-			# # plot only embedding methods
-			if _x_train.shape[1] == 2:
-				save_file = unlbl_dir+"/query_{0}/{1}".format(qid, FLAGS.embedding_method)
-				new_c = [qid] * (_x_train.shape[0] - len(color_array))
-				color_array += new_c
-				scatter_plot_2(x=_x_train[:, 0], y=_x_train[:, 1], 
-					color_array=color_array, xvline=None, yhline=None, 
-					sigma=None, mode='scatter', lbl=None, name=None, 
-					x_label='x', y_label='y', 
-					save_file=save_file, interpolate=False, color='blue', 
-					preset_ax=None, linestyle='-.', marker='o')
+def get_normal(surf):
+	grad = np.gradient(surf, edge_order=1)  
+	zy, zx = grad[0], grad[1]
+	# You may also consider using Sobel to get a joint Gaussian smoothing and differentation
+	# to reduce noise
+	#zx = cv2.Sobel(d_im, cv2.CV_64F, 1, 0, ksize=5)     
+	#zy = cv2.Sobel(d_im, cv2.CV_64F, 0, 1, ksize=5)
 
+	normal = np.dstack(grad)
+	n = np.linalg.norm(normal, axis=2)
+	normal[:, :, 0] /= n
+	normal[:, :, 1] /= n
+	return normal
 
-
-			y_pred = estimator.predict(X_test)
-			y_test, y_pred = filter_array(y_test, y_pred)
-
-
-			assert y_test.shape == y_pred.shape
-			r2 = r2_score(y_test, y_pred)
-			mae = mean_absolute_error(y_test, y_pred)
-			error = np.abs(y_test-y_pred)
-
-			# # to plot
-
-			bplot = ax.boxplot(x=error, vert=True, #notch=True, 
-				sym='ro', # whiskerprops={'linewidth':2},
-				positions=[qid], patch_artist=True,
-				widths=0.1, meanline=True, flierprops=flierprops,
-				showfliers=True, showbox=True, showmeans=False,
-				autorange=True, bootstrap=5000)
-			ax.text(qid, mae, round(mae, 2),
-				horizontalalignment='center', size=14, 
-				color="red", weight='semibold')
-			patch = bplot['boxes'][0]
-			patch.set_facecolor(color)
-
-
-
-			indexes = ["{0}_{1}".format(k, qid) for k in unlbl_idx]
-			for i in range(len(indexes)):
-				tmp_df.loc[indexes[i], "error"] = np.log(error[i])
-				tmp_df.loc[indexes[i], "qid"] = qid
-
-
-			# # end plot
-			var = estimator.predict_proba(X_test)
-
-			var_rst_df.loc[idx_test, "var_{}".format(qid)] = var
-			error_rst_df.loc[idx_test, "err_{}".format(qid)] = y_test - y_pred
-
-			var_rst_df.to_csv(var_save_at)
-			error_rst_df.to_csv(error_save_at)
-			print ("r2:", round(r2, 3), "mae:",  round(mae, 3))
-			print ("=======")
-			
-			ax.grid(which='both', linestyle='-.')
-			ax.grid(which='minor', alpha=0.2)
-			plt.title(unlbl_dir.replace(ALdir, ""))
-			# ax.set_yscale('log')
-
-			plt.savefig(save_fig, transparent=False)
-
-			var_rst_df.fillna(0, inplace=True)
-			error_rst_df.fillna(0, inplace=True)
-
-			# ax = joypy.joyplot(tmp_df, by="qid", column="error")
-			# ax.grid(which='both', linestyle='-.')
-			# ax.grid(which='minor', alpha=0.2)
-			# plt.title(get_basename(save_fig))
-			# plt.savefig(save_fig.replace(".pdf","_joy.pdf"), transparent=False)
-
-			plot_heatmap(matrix=var_rst_df.values, vmin=None, vmax=None, save_file=var_save_at.replace(".csv", ".pdf"), cmap="jet")
-			plot_heatmap(matrix=error_rst_df.values, vmin=-0.5, vmax=0.5, save_file=error_save_at.replace(".csv", ".pdf"), cmap="bwr")
-
-
-
-def error_dist(ith_trial):
-	# estimator_update_by = None
-	result_dir, unlbl_dir = get_savedir()
-	X_trval, y_trval, index_trval, unlbl_X, unlbl_y, unlbl_index = get_data_from_flags()
-
-
-	estimator_update_by = ["DQ"] # , "RND", "OS"
-	if len(estimator_update_by) < 3:
-		for k in estimator_update_by:
-			unlbl_dir += k
-
-	if FLAGS.score_method == "u_gp_mt":
-		mt_kernel = 0.001 # 0.001, 1.0
-		fix_update_coeff = 1
-		unlbl_dir += "_mt{}".format(mt_kernel)
 
 	
-	error_save_at = unlbl_dir + "/autism/error.csv"
-	var_save_at = unlbl_dir + "/autism/var.csv"
-	save_fig = unlbl_dir + "/autism/error_dist.pdf"
+def two_map_sim(savedir, ref, ft, ref_map):
 
-	error_rst_df = pd.read_csv(error_save_at, index_col=0)
-	var_rst_df = pd.read_csv(var_save_at, index_col=0)
+	savefig = savedir + "/fig"
+	ft_file = savedir + "/ft/{}.txt".format(ft)
+	ft_map = np.loadtxt(ft_file)
 
-	error_rst_df = error_rst_df.dropna(axis="columns", how="all")
-	var_rst_df = var_rst_df.dropna(axis="columns", how="all")
-	err_cols = error_rst_df.columns
+	ref_grad = get_normal(surf=ref_map)
+	ft_grad = get_normal(surf=ft_map)
+	
+	sim_map = np.multiply(ref_grad, ft_grad).sum(2)
+	sim_score = np.nanmean(np.abs(sim_map))
 
-	generate_verts(error_rst_df, err_cols, save_fig)
+	save_at = savedir+"/{0}/{1}.pdf".format(ref, ft)
+	two_surf(surf1=ref_map, surf2=ft_map, 
+		lbl1=ref, lbl2=ft, title=save_at.replace(ALdir, "") +'\n'+ str(round(sim_score, 3)),
+		save_at=save_at)
 
-	# fig = plt.figure(figsize=(10, 8))
-	# ax = fig.add_subplot(1, 1, 1, projection='3d')
-	# poly = PolyCollection(verts, facecolors="red", edgecolors="black")
-	# poly.set_alpha(0.4)
-	# ax.add_collection3d(poly, zs=qids, zdir='y')
-	# # ax.set_yticklabels([""]+err_cols, verticalalignment='baseline',
-	# # 	horizontalalignment='left') # , rotation=320
-	# ax.set_xlim3d(0.001, 1.5)
-	# ax.set_xlabel("error")
-	# # ax.set_xscale('log')
+	# save_file = savedir + "/sim_map.pdf"
+	# imshow(grid=sim_map, cmap="tab20c", 
+	# 	save_file=save_file, vmin=-0.01, vmax=1)
 
-	# ax.set_ylim3d(-0.5, len(err_cols) + 0.05)
-	# ax.set_ylabel("Query times")
-	# ax.set_zlim3d(0, 10)
-	# ax.grid(False)
-	# ax.w_xaxis.pane.fill = False
-	# ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-	# ax.w_yaxis.pane.fill = False
-	# ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-	# ax.view_init(30, 320)
-	# ax.zaxis.set_visible(False)
-	# ax.set_title("error distribution")
-	# plt.savefig(save_fig, transparent=False)
-	# # plt.show()
-	# print("Save at:", save_fig)
+	# gradient_map(list_vectors=ref_grad, 
+	# 	save_file=savefig+"/{}.pdf".format(ref))
+	# gradient_map(list_vectors=ft_grad, 
+	# 	save_file=savefig +"/{}.pdf".format(ft))
+	return sim_score
 
 
-
-# def rotate_matrix(df_matrix):
-# 	values_matrix = df_matrix.values
-# 	features = df_matrix.columns.values
-# 	values_matrix = np.rot90(values_matrix)
-# 	df_result = pd.DataFrame(values_matrix, columns=features)
-# 	df_result.index = features[::-1]
-# 	return df_result
-
-# def plot_heatmap(df_matrix, title, fig_name, output_dir="", ivl=None, df_mapping=None):
-# 	if not ivl is None:
-# 		tmp_data = []
-# 		for label in ivl:
-# 			tmp_data.append(df_matrix.loc[label])
-# 		optimize_df = pd.DataFrame(tmp_data)
-# 		optimize_df = optimize_df.reindex(ivl, axis=1)
-# 		optimize_df = rotate_matrix(optimize_df)
-
-
-
+def map_features(qid):
+	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = all_data
+	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
+	
+	query_file = savedir + "/query_{0}/query_{0}.csv".format(qid)
+	save_file= savedir+"/query_{0}/ft/{1}.txt".format(qid, v)
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
-	
 	pr_file = sys.argv[-1]
 	kwargs = load_pickle(filename=pr_file)
 	FLAGS.score_method = kwargs["score_method"]
 	FLAGS.sampling_method =	kwargs["sampling_method"]
 	FLAGS.embedding_method = kwargs["embedding_method"]
-
-	show_trace(ith_trial="000")
-	# error_dist(ith_trial="000")
-
-
-
-	# is_label_mix = False
-	# for sm in ["margin"]: # "uniform",  "exploitation", "expected_improvement", "margin"
-	# 	FLAGS.sampling_method = sm
-	# 	show_trace(ith_trial="000")
-	# 	error_dist(ith_trial="000")
-
-	# # # to label the "mix" job
-	# if is_label_mix:
-	# 	unlbl_csv = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master/data/SmFe12/unlabeled_data/mix.csv"
-	# 	vasp_lbl2mix(unlbl_file=unlbl_csv, 
-	# 		database_results=database_results, 
-	# 		coarse_db_rst=coarse_db_rst, 
-	# 		fine_db_rst=fine_db_rst)
+	FLAGS.active_p = kwargs["active_p"]
+	FLAGS.ith_trial = kwargs["ith_trial"]
+	# simple_pearson()
 
 
+	qids = [1] # 5, 10, 15, 20, 25, 30
+	all_data = load_data()
+	pv = all_data[-1]
+
+	df = pd.DataFrame(index=pv, columns=qids)
+
+	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
+	save_score = savedir+"/x_on_embedd_score_qid.csv"
+	ref = "y_all_obs"
+
+	for qid in qids:
+		get_embedding_map(qid=qid, all_data=all_data)
+		qid_dir = savedir + "/query_{}/x_on_embedd".format(qid)
+
+		ref_file = qid_dir + "/{}.txt".format(ref)
+		ref_map = np.loadtxt(ref_file)
+		for v in pv:
+			sim_score = two_map_sim(
+				savedir=qid_dir, ref=ref, ft=v,
+				ref_map=ref_map)
+			df.loc[v, qid] = sim_score
+			df.to_csv(save_score)
+	print ("save at:", save_score)
 
 
+
+
+
+
+
+
+
+
+
+
+		

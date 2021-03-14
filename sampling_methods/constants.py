@@ -32,6 +32,8 @@ def get_base_AL_mapping():
   from sampling_methods.exploitation import Exploitation
   from sampling_methods.expected_improvement import ExpectedImprovement
   from sampling_methods.margin_expl_space import MarginExplSpace
+  from sampling_methods.embedd_dir import MaxEmbeddDir
+
 
   # # revise
   AL_MAPPING['margin'] = MarginAL
@@ -49,6 +51,8 @@ def get_base_AL_mapping():
   AL_MAPPING['exploitation'] = Exploitation
   AL_MAPPING['expected_improvement'] = ExpectedImprovement
   AL_MAPPING['MarginExplSpace'] = MarginExplSpace 
+  AL_MAPPING['MaxEmbeddDir'] = MaxEmbeddDir 
+
 
 
 def get_all_possible_arms():

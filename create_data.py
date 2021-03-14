@@ -172,7 +172,7 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   return data_train, data_test
 
 
-def get_SmFe12_data(pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
+def get_SmFe12_data(tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
 
   # # point to datadir of Volume6TB then get all unlnl data
   test_data = []
@@ -214,13 +214,7 @@ def get_SmFe12_data(pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
   full_df = full_df.dropna()
 
   # # for train data only, to remove constant cols, finally get pv
-  if pv is None:
-    for cc in feature_names:
-      nuq = len(np.unique(full_df[cc].values))
-      if nuq <= 1:
-        full_df = full_df.drop([cc], axis=1)
-    pv = list(copy.copy(full_df.columns))
-    pv.remove(tv)
+  pv = copy.copy(feature_names)
   print ("The X_cols:", len(pv))
 
   X_filter = full_df[pv].values 
@@ -234,10 +228,7 @@ def get_SmFe12_data(pv, tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
   data.to_csv(saveat+'.csv')
 
   print("Save at:", saveat, y_filter.shape[0], y_obs.shape[0])
-  unlbl_data = Dataset(X=X_filter, y=y_filter, index=index_filter)
-  dump_data(unlbl_data, saveat+'.pkl')
-  print (y_filter)
-  return pv
+
 
 def get_wikipedia_talk_data():
   """Get wikipedia talk dataset.
@@ -509,9 +500,10 @@ def main():
       tv = d[0]
       rmvs = d[-1]
       # # for train
-      pv = get_SmFe12_data(pv=None, tv=tv, rmvs=rmvs, 
+      train_data = input_dir+"/SmFe12/init_{}_full".format(tv)
+      pv = get_SmFe12_data(tv=tv, rmvs=rmvs, 
         unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/init", # mix_2-24, mix
-        saveat=input_dir+"/SmFe12/init_{}".format(tv)
+        saveat=train_data
         )
 
       # train_file = input_dir+"/SmFe12/init_{}.csv".format(tv)
@@ -519,11 +511,43 @@ def main():
       # pv = list(df.columns)
       # pv.remove(tv)
       # # for test
-      get_SmFe12_data(pv=pv, tv=tv, rmvs=rmvs, 
+      test_data = input_dir+"/SmFe12/mix_{}_full".format(tv)
+      get_SmFe12_data(tv=tv, rmvs=rmvs, 
         unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix", # mix_2-24, mix
-        saveat=input_dir+"/SmFe12/mix_{}".format(tv)
+        saveat=test_data
       )
+
+      train_df = pd.read_csv(train_data+".csv", index_col=0)
+      test_df = pd.read_csv(test_data+".csv", index_col=0)
       
+      n_train = len(train_df)
+
+      frames = [train_df, test_df]
+      merge_df = pd.concat(frames)
+      all_cols = merge_df.columns
+      for cc in all_cols:
+        nuq = len(np.unique(merge_df[cc].values))
+        if nuq <= 1:
+          merge_df = merge_df.drop([cc], axis=1)
+
+      pv = list(merge_df.columns)
+      pv.remove(tv)
+
+      all_indexes = np.array(merge_df.index)
+      train_df_revise = merge_df.loc[all_indexes[:n_train], :]
+      test_df_revise = merge_df.loc[all_indexes[n_train:], :]
+
+
+      train_revise_dir = train_data.replace("_full", "")
+      test_revise_dir = test_data.replace("_full", "")
+      train_df_revise.to_csv(train_revise_dir+".csv")
+      test_df_revise.to_csv(test_revise_dir+".csv")
+
+      train_ = Dataset(X=train_df_revise[pv].values, y=train_df_revise[tv], index=train_df_revise.index)
+      dump_data(train_, train_revise_dir+'.pkl')
+
+      test_ = Dataset(X=test_df_revise[pv].values, y=test_df_revise[tv], index=test_df_revise.index)
+      dump_data(test_, test_revise_dir+'.pkl')
 
 if __name__ == '__main__':
   main()
