@@ -15,7 +15,7 @@ title_font = {'fontname': 'serif', 'size': 14}
 
 performance_codes = dict({"org_space":"blue", "MLKR":"red"}) 
 hatch_codes = dict({"uniform":"/", "exploitation":"*", 
-				"margin":"o", "expected_improvement":"/"}) 
+				"margin":"o", "expected_improvement":"/", "MaxEmbeddDir":"."}) 
 # # '-', '+', 'x', '\\', '*', 'o', 'O', '.'
 
 def get_error(job_savedir, ith_trial, qid):
@@ -51,7 +51,7 @@ def get_error(job_savedir, ith_trial, qid):
 	mean_qr = np.mean(error_qr)
 	mean_non_qr = np.mean(error_non_qr)
 
-	return mean_qr, mean_non_qr
+	return mean_qr, mean_non_qr, data
 
 def perform_each_acquisition(ith_trials, 
 		embedding_method, sampling_method, dt, ax, is_relative):
@@ -61,6 +61,8 @@ def perform_each_acquisition(ith_trials,
 
 	if is_relative:
 		FLAGS.embedding_method = "org_space"
+		FLAGS.sampling_method = "uniform"
+
 		org_savedir = get_savedir(ith_trial=ith_trials[0])
 
 
@@ -80,12 +82,11 @@ def perform_each_acquisition(ith_trials,
 	for qid in qids:
 		values = []
 		for ith_trial in ith_trials:
-			
-			mean_qr, mean_non_qr = get_error(
+			mean_qr, mean_non_qr, data = get_error(
 				job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
 			if is_relative:
-				mean_qr_ref, mean_non_qr_ref = get_error(
-					job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
+				mean_qr_ref, mean_non_qr_ref, data_ref = get_error(
+					job_savedir=org_savedir, ith_trial=ith_trial, qid=qid)
 				mean_qr /= mean_qr_ref
 				mean_non_qr /= mean_non_qr_ref
 
@@ -129,7 +130,7 @@ def perform_each_acquisition(ith_trials,
 
 
 
-def show_performance(ith_trials, dt, is_relative=False):
+def show_performance(ith_trials, dt, is_relative):
 	performance_pos = dict({"uniform":0, "exploitation":1, 
 				"margin":2, "expected_improvement":3})
 	fig = plt.figure(figsize=(10, 8))
@@ -144,7 +145,8 @@ def show_performance(ith_trials, dt, is_relative=False):
 	legends = []
 	patches = []
 	for embedding_method in ["org_space", "MLKR"]: # 
-		for sampling_method in ["uniform", "exploitation", "margin", "MaxEmbeddDir"]: # expected_improvement,  
+		for sampling_method in ["uniform", "exploitation", "margin"]: 
+		# expected_improvement,  MaxEmbeddDir
 			flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
 						  linestyle='none', markeredgecolor='k')
 			mean_vals, mean_pos, patch = perform_each_acquisition(
@@ -152,10 +154,10 @@ def show_performance(ith_trials, dt, is_relative=False):
 				embedding_method=embedding_method,
 				sampling_method=sampling_method, dt=dt, ax=ax,
 				is_relative=is_relative)
-			
 			lab = "{0}|{1}".format(embedding_method, sampling_method)
 			legends.append(lab)
 			patches.append(patch)
+	
 
 		# ax.set_xlabel(r"Query index", **axis_font) 
 		if dt == "OS":
@@ -249,7 +251,8 @@ if __name__ == "__main__":
 	# get_full_os()
 
 	for dt in ["DQ", "OS", "RND", "DQ_to_RND", "DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
-		show_performance(ith_trials=[1,2,], # 3,4,5,6,7,8,9, 10
+		show_performance(ith_trials=[6,7,8,9,10], # 2,3,4,5,
+			# 2
 			dt=dt, is_relative=True)
 
 		

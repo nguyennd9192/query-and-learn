@@ -1,6 +1,6 @@
 
 
-import sys, pickle, functools, json, copy, random, re
+import sys, pickle, functools, json, copy, random, re, time
 import numpy as np 
 from params import *
 from absl import app
@@ -165,6 +165,7 @@ def query_and_learn(FLAGS, qid,
 	max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
 	# # 3. select by D_{rand}
+	random.seed(FLAGS.ith_trial * qid + time.time())
 	the_non_qr = list(set(range(n_unlbl_org)) - set(selected_inds_copy))
 	random_list = random.sample(the_non_qr, FLAGS.batch_rand)
 	selected_inds_copy.extend(random_list)
