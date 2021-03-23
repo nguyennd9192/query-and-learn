@@ -24,7 +24,6 @@ def get_embedding_map(qid, all_data):
 	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
 	
 	savedir += "/query_{0}".format(qid)
-
 	query_file = savedir + "/query_{0}.csv".format(qid)
 
 	n_train_org = X_train.shape[0]
@@ -49,58 +48,75 @@ def get_embedding_map(qid, all_data):
 		estimator=None) 
 	list_cdict, marker_array, alphas = get_scatter_config(unlbl_index=unlbl_index, 
 		index_train=index_train, selected_inds=selected_inds)
-	
-
 
 	xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
 	y_all_obs = np.concatenate((unlbl_y, _y_train[:n_train_org]), axis=0)
+	
 	savedir += "/x_on_embedd".format(qid)	
 
 	X_all = np.concatenate((unlbl_X, X_train))
 
-	for i, v in enumerate(pv):
-		print (v)
-		save_file = savedir+"/ft/{0}.txt".format(v)
-		z_values=X_all[:, i]
-		if len(set(z_values)) >1:
-			dump_interpolate(x=xy[:, 0], y=xy[:, 1], 
-				z_values=z_values,	save_file=save_file,
-					)
-			save_file = savedir+"/ft_img/{0}.pdf".format(v)
-			# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			# 		z_values=z_values,
-			# 		list_cdict=list_cdict, 
-			# 		xvlines=[0.0], yhlines=[0.0], 
-			# 		sigma=None, mode='scatter', lbl=None, name=None, 
-			# 		s=60, alphas=alphas, 
-			# 		title=save_file.replace(ALdir, ""),
-			# 		x_label=FLAGS.embedding_method + "_dim_1",
-			# 		y_label=FLAGS.embedding_method + "_dim_2", 
-			# 		save_file=save_file,
-			# 		interpolate=False, cmap="PiYG",
-			# 		preset_ax=None, linestyle='-.', marker=marker_array,
-			# 		vmin=None, vmax=None
-			# 		)
+	cmaps = [
+			# 'binary', 'gist_yarg', 'gist_gray', 'gray', 'bone', 'pink',
+   #          'spring', 'summer', 'autumn', 'winter', 'cool', 'Wistia',
+   #          'hot', 'afmhot', 'gist_heat', 'copper',
+   #          'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu',
+   #          'RdYlBu', 'RdYlGn', 'Spectral', 'coolwarm', 'bwr', 'seismic',
+   #          'twilight', 'twilight_shifted', 'hsv', 'Pastel1', 'Pastel2', 'Paired', 'Accent',
+   #          'Dark2', 'Set1', 'Set2', 'Set3',
+   #          'tab10', 'tab20', 
+            'tab20b', 
+            # 'tab20c', 'flag', 'prism', 'ocean', 'gist_earth', 'terrain', 'gist_stern',
+            # 'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg',
+            # 'gist_rainbow', 'rainbow', 'jet', 'turbo', 'nipy_spectral',
+            # 'gist_ncar'
+            ]
+	for cmap in cmaps:
+		for i, v in enumerate(pv):
+			if "p1" in v:
+				save_file = savedir+"/ft/{0}.txt".format(v)
+				z_values = X_all[:, i]
+				# print (z_values)
+				if len(set(z_values)) >1:
+					# dump_interpolate(x=xy[:, 0], y=xy[:, 1], 
+					# 	z_values=z_values,	save_file=save_file,
+							# )
+					save_file = savedir+"/ft_img_cbar/{0}/{1}.pdf".format(cmap, v)
+					scatter_plot_7(x=xy[:, 0], y=xy[:, 1], 
+							z_values=z_values,
+							list_cdict=list_cdict, 
+							xvlines=[0.0], yhlines=[0.0], 
+							sigma=None, mode='scatter', lbl=None, name=None, 
+							s=60, alphas=alphas, 
+							title=save_file.replace(ALdir, ""),
+							x_label=FLAGS.embedding_method + "_dim_1",
+							y_label=FLAGS.embedding_method + "_dim_2", 
+							save_file=save_file,
+							interpolate=False, cmap=cmap,
+							preset_ax=None, linestyle='-.', marker=marker_array,
+							vmin=None, vmax=None
+							)
+			
 
-	save_file = savedir + "/y_all_obs.txt"
-	dump_interpolate(x=xy[:, 0], y=xy[:, 1], z_values=y_all_obs,
-			save_file=save_file)
+	# save_file = savedir + "/y_all_obs.txt"
+	# dump_interpolate(x=xy[:, 0], y=xy[:, 1], z_values=y_all_obs,
+	# 		save_file=save_file)
 
-	save_file = savedir + "/y_all_obs.pdf"
-	scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=y_all_obs,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=save_file,
-			interpolate=False, cmap="PiYG",
-			preset_ax=None, linestyle='-.', marker=marker_array,
-			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
-			)
+	# save_file = savedir + "/y_all_obs.pdf"
+	# scatter_plot_7(x=xy[:, 0], y=xy[:, 1], 
+	# 		z_values=y_all_obs,
+	# 		list_cdict=list_cdict, 
+	# 		xvlines=[0.0], yhlines=[0.0], 
+	# 		sigma=None, mode='scatter', lbl=None, name=None, 
+	# 		s=60, alphas=alphas, 
+	# 		title=save_file.replace(ALdir, ""),
+	# 		x_label=FLAGS.embedding_method + "_dim_1",
+	# 		y_label=FLAGS.embedding_method + "_dim_2", 
+	# 		save_file=save_file,
+	# 		interpolate=False, cmap="PiYG",
+	# 		preset_ax=None, linestyle='-.', marker=marker_array,
+	# 		vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+	# 		)
 
 
 def simple_pearson():
@@ -173,6 +189,18 @@ def map_features(qid):
 	query_file = savedir + "/query_{0}/query_{0}.csv".format(qid)
 	save_file= savedir+"/query_{0}/ft/{1}.txt".format(qid, v)
 
+def A_matrix(A_file, saveat):
+	df = pd.read_csv(A_file, index_col=0)
+	df = df.sort_values(by=['0'])
+	array = df['0'].values
+	index = df.index
+
+	scatter_plot(index, array, xvline=None, yhline=None, 
+		sigma=None, mode='line', lbl=None, name=None, 
+		x_label='x', y_label='y', 
+		save_file=saveat, interpolate=False, color='blue', 
+		linestyle='-.', marker='o', title=None)
+
 if __name__ == "__main__":
 	FLAGS(sys.argv)
 	pr_file = sys.argv[-1]
@@ -185,11 +213,11 @@ if __name__ == "__main__":
 	# simple_pearson()
 
 
-	qids = [1] # 5, 10, 15, 20, 25, 30
+	qids = range(1,31) # 5, 10, 15, 20, 25, 30
 	all_data = load_data()
 	pv = all_data[-1]
 
-	df = pd.DataFrame(index=pv, columns=qids)
+	# df = pd.DataFrame(index=pv, columns=qids)
 
 	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
 	save_score = savedir+"/x_on_embedd_score_qid.csv"
@@ -197,20 +225,24 @@ if __name__ == "__main__":
 
 	for qid in qids:
 		get_embedding_map(qid=qid, all_data=all_data)
-		qid_dir = savedir + "/query_{}/x_on_embedd".format(qid)
+		qid_dir = savedir + "/query_{}/x_on_embedd_".format(qid)
 
-		ref_file = qid_dir + "/{}.txt".format(ref)
-		ref_map = np.loadtxt(ref_file)
-		for v in pv:
-			sim_score = two_map_sim(
-				savedir=qid_dir, ref=ref, ft=v,
-				ref_map=ref_map)
-			df.loc[v, qid] = sim_score
-			df.to_csv(save_score)
+		# ref_file = qid_dir + "/{}.txt".format(ref)
+		# ref_map = np.loadtxt(ref_file)
+		# for v in pv:
+		# 	sim_score = two_map_sim(
+		# 		savedir=qid_dir, ref=ref, ft=v,
+		# 		ref_map=ref_map)
+		# 	df.loc[v, qid] = sim_score
+		# 	df.to_csv(save_score)
 	print ("save at:", save_score)
 
 
+	# qid = 1
+	# A_file =  savedir + "/query_{0}/Amatrix_{0}.csv".format(qid)
+	# saveat =  savedir + "/query_{0}/Amatrix_{0}.pdf".format(qid)
 
+	# A_matrix(A_file=A_file, saveat=saveat)
 
 
 

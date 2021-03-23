@@ -212,7 +212,7 @@ def scatter_plot(x, y, xvline=None, yhline=None,
 		n_points = len(x)
 		for i in range(n_points):
 			plt.scatter(x[i], y[i], s=80, alpha=0.8, 
-				marker=marker[i], 
+				marker=marker, 
 				c="black", edgecolor="black") # brown, color[i]
 			# plt.scatter(x[i], y[i], s=80, alpha=0.8, 
 			# 	marker=marker[i], 
@@ -726,23 +726,12 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 
 	tmp = np.arange(min_org_y, max_org_y, (max_org_y - min_org_y)/len(tick_pos))
 	yticklabels = [myround(k,5) for k in tmp]
-	# x = copy.copy(XY[:, 0]) 
-	# y = copy.copy(XY[:, 1]) 
-	# print (x)
-	# print (len(x))
+
 
 	fig, main_ax = plt.subplots(figsize=(9, 8), linewidth=1.0) # 
 	# grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
 
 	sns.set_style(style='white') 
-
-	# main_ax = sns.kdeplot(x, y,
-	# 		 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
-	# 		 cmap='Oranges',
-	# 		 shade=True, shade_lowest=False,
-	# 		 fontsize=10, ax=main_ax, linewidths=1,
-	# 		 # vertical=True
-	# 		 )
 
 	for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
 		if _m in ["o", "D", "*"]:
@@ -766,7 +755,8 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 
 	if z_values is not None:
 		grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
-		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), method='cubic')
+		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), 
+			method='cubic')
 
 		# max_ipl = 0.8*max([abs(np.nanmax(grid_interpolate.T)), abs(np.nanmin(grid_interpolate.T))])
 		# max_ipl = 2.2
@@ -785,10 +775,10 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 		z_plot = main_ax.imshow(grid_interpolate.T, 
 			extent=(min(x),max(x),min(y),max(y)), origin='lower',
 			cmap=cmap,
-			norm=norm, 
+			# norm=norm, 
 			# vmin=-max_ipl, vmax=max_ipl, 
 			interpolation="hamming",
-			alpha=0.8)
+			alpha=0.9)
 		# colorbar(z_plot)
 		fig.colorbar(z_plot, shrink=0.6)
 
@@ -797,12 +787,95 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 	#   main_ax.axvline(x=xvline, linestyle='-.', color='black')
 	# for yhline in yhlines:
 	#   main_ax.axhline(y=yhline, linestyle='-.', color='black')
-	main_ax.set_title(title, **title_font)
-	main_ax.set_xlabel(x_label, **axis_font)
-	main_ax.set_ylabel(y_label, **axis_font)
+	# main_ax.set_title(title, **title_font)
+	# main_ax.set_xlabel(x_label, **axis_font)
+	# main_ax.set_ylabel(y_label, **axis_font)
 
-	plt.xticks(tick_pos, xticklabels, size=14)
-	plt.yticks(tick_pos, yticklabels, size=14)
+	plt.xticks(tick_pos, []) # xticklabels, size=14
+	plt.yticks(tick_pos, []) # yticklabels, size=14
+
+	if name is not None:
+		for i in range(len(x)):
+			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+
+	main_ax.set_aspect('auto')
+	
+	plt.tight_layout(pad=1.1)
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
+def scatter_plot_7(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
+	sigma=None, mode='scatter', lbl=None, name=None, 
+	s=100, alphas=0.8, title=None,
+	x_label='x', y_label='y', 
+	save_file=None, interpolate=False, color='blue', 
+	preset_ax=None, linestyle='-.', marker='o',
+	cmap='seismic',
+	vmin=None, vmax=None
+	):
+
+	org_x = copy.copy(x)
+	org_y = copy.copy(y)
+	min_org_x, max_org_x = min(org_x), max(org_x)
+	min_org_y, max_org_y = min(org_y), max(org_y)
+
+	x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * 200
+	y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * 200
+	x = x.T[0]
+	y = y.T[0]
+
+	tick_pos = [0.0, 50.0, 100.0, 150.0, 200.0]
+	tmp = np.arange(min_org_x, max_org_x, (max_org_x - min_org_x)/len(tick_pos))
+	xticklabels = [myround(k,5) for k in tmp]
+
+	tmp = np.arange(min_org_y, max_org_y, (max_org_y - min_org_y)/len(tick_pos))
+	yticklabels = [myround(k,5) for k in tmp]
+	# x = copy.copy(XY[:, 0]) 
+	# y = copy.copy(XY[:, 1]) 
+	# print (x)
+	# print (len(x))
+
+	fig, main_ax = plt.subplots(figsize=(9, 8), linewidth=1.0) # 
+	# grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+
+	sns.set_style(style='white') 
+
+	if z_values is not None:
+		grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), 
+			method='cubic')
+		if vmin is None:
+			vmin = np.nanmin(grid_interpolate.T)
+		if vmax  is None:
+			vmax = np.nanmax(grid_interpolate.T)
+
+		# norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+		norm = colors.DivergingNorm(vmin=0.0, vcenter=vmax/4, vmax=vmax)
+		# norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+
+		z_plot = main_ax.imshow(grid_interpolate.T, 
+			extent=(min(x),max(x),min(y),max(y)), origin='lower',
+			cmap=cmap,
+			norm=norm, 
+			# vmin=-max_ipl, vmax=max_ipl, 
+			interpolation="hamming",
+			alpha=1.0)
+		# colorbar(z_plot)
+		fig.colorbar(z_plot, shrink=0.6)
+
+
+	# for xvline in xvlines:
+	#   main_ax.axvline(x=xvline, linestyle='-.', color='black')
+	# for yhline in yhlines:
+	#   main_ax.axhline(y=yhline, linestyle='-.', color='black')
+	# main_ax.set_title(title, **title_font)
+	# main_ax.set_xlabel(x_label, **axis_font)
+	# main_ax.set_ylabel(y_label, **axis_font)
+
+	plt.xticks(tick_pos, []) # xticklabels, size=14
+	plt.yticks(tick_pos, []) # yticklabels, size=14
 
 	if name is not None:
 		for i in range(len(x)):
@@ -930,13 +1003,14 @@ def plot_hist(x, ax, x_label, y_label,
 
 	# hist, bins = np.histogram(x, bins=300, normed=True)
 	# xs = (bins[:-1] + bins[1:])/2
+	ax = df.plot.bar(x='lab', y='val', rot=0)
 
 	# plt.bar(xs, hist,  alpha=1.0)
 	# y_plot = hist
-	y_plot, x_plot, patches = ax.hist(x, bins=nbins, histtype='stepfilled', # step, stepfilled, 'bar', 'barstacked'
-										density=True, label=label, log=False,  
-										color='black', #edgecolor='none',
-										alpha=1.0, linewidth=2)
+	# y_plot, x_plot, patches = ax.hist(x, bins=nbins, histtype='stepfilled', # step, stepfilled, 'bar', 'barstacked'
+	# 									density=True, label=label, log=False,  
+	# 									color='black', #edgecolor='none',
+	# 									alpha=1.0, linewidth=2)
 
 	# X_plot = np.linspace(np.min(x), np.max(x), 1000)[:, np.newaxis]
 	# kde = KernelDensity(kernel='gaussian', bandwidth=2).fit(x.reshape(-1, 1))

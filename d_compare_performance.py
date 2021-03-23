@@ -145,10 +145,11 @@ def show_performance(ith_trials, dt, is_relative):
 	legends = []
 	patches = []
 	for embedding_method in ["org_space", "MLKR"]: # 
-		for sampling_method in ["uniform", "exploitation", "margin"]: 
+		for sampling_method in ["uniform"]: # , "exploitation", "margin"
 		# expected_improvement,  MaxEmbeddDir
 			flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
 						  linestyle='none', markeredgecolor='k')
+			# try:
 			mean_vals, mean_pos, patch = perform_each_acquisition(
 				ith_trials=ith_trials,
 				embedding_method=embedding_method,
@@ -157,6 +158,9 @@ def show_performance(ith_trials, dt, is_relative):
 			lab = "{0}|{1}".format(embedding_method, sampling_method)
 			legends.append(lab)
 			patches.append(patch)
+			# except:
+			# 	pass
+
 	
 
 		# ax.set_xlabel(r"Query index", **axis_font) 
@@ -251,8 +255,8 @@ if __name__ == "__main__":
 	# get_full_os()
 
 	for dt in ["DQ", "OS", "RND", "DQ_to_RND", "DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
-		show_performance(ith_trials=[6,7,8,9,10], # 2,3,4,5,
+		show_performance(ith_trials=[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], # 2,3,4,5,
 			# 2
-			dt=dt, is_relative=True)
+			dt=dt, is_relative=False)
 
 		

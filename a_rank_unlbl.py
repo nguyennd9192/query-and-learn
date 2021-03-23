@@ -165,7 +165,7 @@ def query_and_learn(FLAGS, qid,
 	max_y_pred_selected = np.max(unlbl_y_pred[outstand_list])
 
 	# # 3. select by D_{rand}
-	random.seed(FLAGS.ith_trial * qid + time.time())
+	random.seed(FLAGS.ith_trial*5*qid + time.time())
 	the_non_qr = list(set(range(n_unlbl_org)) - set(selected_inds_copy))
 	random_list = random.sample(the_non_qr, FLAGS.batch_rand)
 	selected_inds_copy.extend(random_list)
@@ -224,65 +224,66 @@ def query_and_learn(FLAGS, qid,
 	if FLAGS.sampling_method == "margin":
 		acq_val[np.isinf(acq_val)] = np.max(acq_val)
 
-
-	# # name, color, marker for plot
-	mix_index = ["mix__"+k for k in unlbl_index]
-	plot_index = np.concatenate((mix_index, index_train), axis=0)
-	family = [get_family(k) for k in plot_index]
-
-	list_cdict = np.array([get_color_112(k) for k in plot_index])
-	marker_array = np.array([get_marker_112(k) for k in family])
-	alphas = np.array([0.3] * len(plot_index))
-	alphas[selected_inds_copy] = 1.0 
-	alphas[len(unlbl_index):] = 1.0
-
-	# # plot MLKR space or mds with original space
-	if FLAGS.embedding_method != "org_space":
-		# # concatenate data points train test
-		xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
-	else:
-		X_all = np.concatenate((unlbl_X, X_train))
-		xy = process_dimensional_reduction(X_all, method="mds")
-		xy *= 10000
-	# # selected array as +
-	ytrain_pred = estimator.predict(_x_train)
-
-	y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred[:n_train_org]), axis=0)
-	y_all_obs = np.concatenate((unlbl_y, _y_train[:n_train_org]), axis=0)
-	error_all = y_all_pred - y_all_obs
-
-	# # merge var all
-	var_train = estimator.predict_proba(_x_train)
-	var_all = np.concatenate((var, var_train[:n_train_org]), axis=0)  
-	this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
-
-	marker_array[non_qr_ids] = "." 
-	# marker_array[selected_inds] = "o"
-	marker_array[new_batch] = "D"
-	marker_array[outstand_list] = "*"
-
-
-
-	data = dict()
-	data["x_embedd"] = xy[:, 0]
-	data["y_embedd"] = xy[:, 1]
-	data["error"] = error_all
-
-	data["index"] = plot_index
-	data["y_obs"] = y_all_obs
-	data["y_pred"] = y_all_pred
-	data["var"] = var_all
-	data["marker"] = marker_array
-	plt_df = pd.DataFrame().from_dict(data)
-	this_df_dir = this_fig_dir.replace(".pdf", "_plot.csv")
-
-	makedirs(this_df_dir)
-	plt_df.to_csv(this_df_dir)
-
-	assert len(pv) == unlbl_X.shape[1]
-
-	X_all = np.concatenate((unlbl_X, X_train))
 	if FLAGS.do_plot:
+		# # name, color, marker for plot
+		mix_index = ["mix__"+k for k in unlbl_index]
+		plot_index = np.concatenate((mix_index, index_train), axis=0)
+		family = [get_family(k) for k in plot_index]
+
+		list_cdict = np.array([get_color_112(k) for k in plot_index])
+		marker_array = np.array([get_marker_112(k) for k in family])
+		alphas = np.array([0.3] * len(plot_index))
+		alphas[selected_inds_copy] = 1.0 
+		alphas[len(unlbl_index):] = 1.0
+
+
+
+		# # plot MLKR space or mds with original space
+		if FLAGS.embedding_method != "org_space":
+			# # concatenate data points train test
+			xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
+		else:
+			X_all = np.concatenate((unlbl_X, X_train))
+			xy = process_dimensional_reduction(X_all, method="mds")
+			xy *= 10000
+		# # selected array as +
+		ytrain_pred = estimator.predict(_x_train)
+
+		y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred[:n_train_org]), axis=0)
+		y_all_obs = np.concatenate((unlbl_y, _y_train[:n_train_org]), axis=0)
+		error_all = y_all_pred - y_all_obs
+
+		# # merge var all
+		var_train = estimator.predict_proba(_x_train)
+		var_all = np.concatenate((var, var_train[:n_train_org]), axis=0)  
+		this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
+
+		marker_array[non_qr_ids] = "." 
+		# marker_array[selected_inds] = "o"
+		marker_array[new_batch] = "D"
+		marker_array[outstand_list] = "*"
+
+
+
+		data = dict()
+		data["x_embedd"] = xy[:, 0]
+		data["y_embedd"] = xy[:, 1]
+		data["error"] = error_all
+
+		data["index"] = plot_index
+		data["y_obs"] = y_all_obs
+		data["y_pred"] = y_all_pred
+		data["var"] = var_all
+		data["marker"] = marker_array
+		plt_df = pd.DataFrame().from_dict(data)
+		this_df_dir = this_fig_dir.replace(".pdf", "_plot.csv")
+
+		makedirs(this_df_dir)
+		plt_df.to_csv(this_df_dir)
+
+		assert len(pv) == unlbl_X.shape[1]
+
+		X_all = np.concatenate((unlbl_X, X_train))
 		# for i, v in enumerate(pv):
 		# 	save_file= savedir+"/query_{0}/ft/{1}.pdf".format(qid, v)
 		# 	z_values=X_all[:, i]
@@ -545,10 +546,10 @@ def map_unlbl_data(FLAGS):
 			estimator=estimator)
 
 
-		# # 3. prepare sampler
-		uniform_sampler = AL_MAPPING['uniform'](unlbl_X_sampler, unlbl_y, FLAGS.ith_trial)
+		# # 3. prepare sampler 
+		uniform_sampler = AL_MAPPING['uniform'](X=unlbl_X_sampler, y=unlbl_y, seed=FLAGS.ith_trial)
 		sampler = get_AL_sampler(FLAGS.sampling_method)
-		sampler = sampler(unlbl_X_sampler, unlbl_y, FLAGS.ith_trial)
+		sampler = sampler(X=unlbl_X_sampler, y=unlbl_y, seed=FLAGS.ith_trial)
 		
 		est_file = savedir+"/query_{0}/pre_trained_est_{0}.pkl".format(qid)
 		
@@ -576,7 +577,7 @@ def map_unlbl_data(FLAGS):
 
 		# # new 27Feb
 
-		if FLAGS.embedding_method != "org_space":
+		if FLAGS.embedding_method != "org_space" and FLAGS.do_plot:
 			A_matrix = embedding_model.learn_metric.components_.T
 			A_matrix_save = savedir+"/query_{0}/Amatrix_{0}.png".format(qid)
 			max_abs_A = np.abs(A_matrix).max()
@@ -609,7 +610,6 @@ def map_unlbl_data(FLAGS):
 		"""
 		# # It's time to create an error map of samples in each query batch
 		"""
-
 		# # 2. put this_queried_files to database for querying results
 		this_queried_file = [savedir+"/query_{0}/query_{0}.csv".format(qid)]
 		# # get calculated  
@@ -617,15 +617,15 @@ def map_unlbl_data(FLAGS):
 		this_query = get_queried_data(qids=[qid], queried_files=this_queried_file, 
 				unlbl_X=unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
 				embedding_model=embedding_model)
-		# if this_dq_X.shape[0] != 0 and this_os_X.shape[0] != 0 and this_rnd_X.shape[0] != 0:
+		
 		feedback_val = evaluation_map(FLAGS=FLAGS,
-				X_train=_x_train, y_train=_y_train, 
-				unlbl_X=_unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
-				index_train=index_train, 
-				all_query=this_query, sampler=sampler, 
-				uniform_sampler=uniform_sampler,
-				save_at=save_at, eval_data_file=eval_data_file,
-				estimator=estimator)
+			X_train=_x_train, y_train=_y_train, 
+			unlbl_X=_unlbl_X, unlbl_y=unlbl_y, unlbl_index=unlbl_index,
+			index_train=index_train, 
+			all_query=this_query, sampler=sampler, 
+			uniform_sampler=uniform_sampler,
+			save_at=save_at, eval_data_file=eval_data_file,
+			estimator=estimator)
 
 		# # create distance matrix
 		assert unlbl_X_sampler.shape[0] == unlbl_X.shape[0]
@@ -635,10 +635,10 @@ def map_unlbl_data(FLAGS):
 		save_mkl = savedir+"/query_{0}/{1}_dist.png".format(qid, FLAGS.embedding_method)
 		metric_df.to_csv(save_mkl.replace(".png", ".csv"))
 		
-		plot_heatmap(matrix=metric_df.values, 
-				vmin=None, vmax=None, save_file=save_mkl, 
-				cmap="jet", title=save_mkl.replace(ALdir, ""),
-				lines=None)
+		# plot_heatmap(matrix=metric_df.values, 
+		# 		vmin=None, vmax=None, save_file=save_mkl, 
+		# 		cmap="jet", title=save_mkl.replace(ALdir, ""),
+		# 		lines=None)
 
 		# # create invese_trans
 		# invs_trans = InversableEmbeddingSpace(invs_emb_method="umap")

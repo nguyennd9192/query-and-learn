@@ -14,9 +14,9 @@ def get_basename(filename):
     basename = os.path.splitext(tail)[0]
     return tail
 
-batch_size =  45
-batch_outstand = 45 
-batch_rand = 10 
+batch_size =  40
+batch_outstand = 40 
+batch_rand = 20 
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"
@@ -127,7 +127,7 @@ flags.DEFINE_float("train_horizon", "1.0",
                    "how far to extend learning curve as a percent of train")
 flags.DEFINE_string("do_save", "True",
                     "whether to save log and results")
-flags.DEFINE_boolean("do_plot", False,
+flags.DEFINE_boolean("do_plot", True,
                     "whether to plot results")
 
 FLAGS = flags.FLAGS
