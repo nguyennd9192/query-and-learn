@@ -3,8 +3,8 @@ from absl import flags
 import pandas as pd
 import ntpath, os, sys
 
-# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-ALdir = "/home/nguyen/work/active-learning"
+ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+# ALdir = "/home/nguyen/work/active-learning"
 for ld, subdirs, files in os.walk(ALdir):
   if os.path.isdir(ld) and ld not in sys.path:
     sys.path.append(ld)

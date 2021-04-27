@@ -132,38 +132,27 @@ def read_deformation(qr_indexes):
 
 
 def query_db():
-    std_dir = ALdir + "/data/standard"
-    coarse_db_dir = ALdir + "/data/coarse_relax"
-    fine_db_dir = ALdir + "/data/fine_relax"
+    data_SmFe12_dir = ALdir + "/data/SmFe12"
 
-    std_file = std_dir+"/summary.csv"
-    coarse_file = coarse_db_dir+"/summary.csv"
-    fine_file = fine_db_dir+"/summary.csv"
+    std_file = data_SmFe12_dir+"/summary/standard.csv"
+    fine_file = data_SmFe12_dir+"/summary/fine_relax.csv"
+    coarse_file = data_SmFe12_dir+"/summary/coarse_relax.csv"
 
     # # # data base storage
     database_jobs = [
-      "init/Sm-Fe11-M_wyckoff_2.csv", # full 7 subs
-      "init/Sm-Fe10-M2_wyckoff.csv", # Al, Cu, Mo, Ti, Zn
-      "init/Sm-Fe10-Ga2.csv", # Ga, 
-      "init/Sm2-Fe23-M.csv", "init/Sm2-Fe23-Ga1.csv", # full 7 subs
-      "init/check_Mo_2-22-2.csv", "init/Sm2-Fe22-Ga2.csv", "init/CuAlZnTi_Sm2-Fe22-M2.csv", # # Mo, Ga, Cu, Al, Zn, Ti
-      "init/Sm2-Fe21-M3.csv", "init/Sm2-Fe21-Ga3.csv",   "init/CuAlZnTi_Sm2-Fe21-M3.csv", # # Mo, Ga, Cu, Al, Zn, Ti
-      "init/Sm-Fe10-Co2.csv", "init/Sm2-Fe21-Co3.csv", "init/Sm2-Fe22-Co2.csv",
+        "single/single_1111_21jobs",
+        "single/single_1102_77jobs",
+        "single/single_193_162jobs",
 
-      # # 1-10-2 missing Co      
-      # # 2-22-2, 2-21-3 missing Co
-
-
-      "mix/query_1.csv",  "mix/supp_2.csv", "mix/supp_3.csv", "mix/supp_4.csv",  
-      "mix/supp_5.csv", "mix/supp_6.csv", "mix/supp_7.csv", "mix/supp_8.csv",
-      "mix/supp_9.csv", "mix/supp_10.csv",
-
-
-              # "mix_2-24/query_1.csv"
+        "mix/supp_0", "mix/supp_1", "mix/supp_2", "mix/supp_3",
+        "mix/supp_4", "mix/supp_5", "mix/supp_6", "mix/supp_7",
+        "mix/supp_8", # "mix/supp_9", "mix/supp_10"
+        "mix/supp_11"
               ]
-    database_results = [std_dir+"/"+k for k in database_jobs]
-    fine_db_rst = [fine_db_dir+"/"+k for k in database_jobs]
-    coarse_db_rst = [coarse_db_dir+"/"+k for k in database_jobs]
+    std_db_rst = [ "{0}/{1}/standard.csv".format(data_SmFe12_dir, k) for k in database_jobs]
+    fine_db_rst = [ "{0}/{1}/fine_relax.csv".format(data_SmFe12_dir, k) for k in database_jobs]
+    coarse_db_rst = [ "{0}/{1}/fine_relax.csv".format(data_SmFe12_dir, k) for k in database_jobs]
+    
 
     if os.path.isfile(std_file) and os.path.isfile(coarse_file) and os.path.isfile(fine_file):
       std_results = pd.read_csv(std_file, index_col="index_reduce")
@@ -172,19 +161,23 @@ def query_db():
       print ("Done reading database.")
     else:
       # # standard result
-      frames = [pd.read_csv(k, index_col=0) for k in database_results if os.path.isfile(k)]
+      frames = [pd.read_csv(k, index_col=0) for k in std_db_rst if os.path.isfile(k)]
+      # tt = pd.read_csv(std_db_rst[0], index_col=0)
       std_results = pd.concat(frames)
       index_reduce = [norm_id(k) for k in std_results.index]
       std_results["index_reduce"] = index_reduce
       std_results.set_index('index_reduce', inplace=True)
 
-      # /Volumes/Nguyen_6TB/work/SmFe12_screening/result/standard/CoTiNH_ijk/ErFe12_I4mm_cnvg
-
+      # /glusterfs/damlabfs/vasp_data/6103324a5e1c4c889b5b74cbff538098/single_193_162jobs/Al_0__f8_6__f8_9__i8/standard
       # # coarse, fine db
       crs_frames = [pd.read_csv(k, index_col=0) for k in coarse_db_rst]
       coarse_results = pd.concat(crs_frames)
       coarse_results = coarse_results.dropna()
+      
+      print (coarse_results.index[1000])
       index_reduce = [norm_id(k) for k in coarse_results.index]
+      print (index_reduce[1000])
+
       coarse_results["index_reduce"] = index_reduce
       coarse_results.set_index('index_reduce', inplace=True)
 
@@ -195,10 +188,10 @@ def query_db():
       index_reduce = [norm_id(k) for k in fine_results.index]
       fine_results["index_reduce"] = index_reduce
       fine_results.set_index('index_reduce', inplace=True)
+      makedirs(std_file)
       std_results.to_csv(std_file)
       coarse_results.to_csv(coarse_file)
       fine_results.to_csv(fine_file)
-
     # print ("coarse_results: ", len(coarse_results))
     # print ("fine_results: ", len(fine_results))
     # print ("std_results: ", len(std_results))

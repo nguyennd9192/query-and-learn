@@ -269,24 +269,46 @@ def load_data():
 	return X_train, y_train, index_train, X_test, y_test, index_test, pv
 
 def norm_id(id_qr):
-	n_dir = "/Volumes/Nguyen_6TB/work/SmFe12_screening"
-	assert n_dir in id_qr
-	id_qr_cvt = id_qr.replace(n_dir, "")
-	# id_qr_cvt = get_basename(id_qr)
-	rmvs = ["/result/", "/input/",  "feature/",
-			"coarse_relax/", "fine_relax/", "standard/",
-			"ofm1_no_d/", ".ofm1_no_d", "_cnvg",
-			"query_1/",  "supp_2/", "supp_3/", "supp_4/",  
-	    	"supp_5/", "supp_6/", "mix/supp_7/", "supp_8/",
-	    	"supp_9/", "supp_10/",
-			"mix/", "mix-_-", "init/"
+	rmvs = [
+			"/glusterfs/damlabfs/vasp_data/",
+			"/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/",
+			"/coarse_relax", "/fine_relax", "/standard",
+			".ofm1_no_d", 
+			"ofm1_no_d/", 
+			# mix/Sm-Fe9-Ti1-Mo2/Mo_2-9___Ti_7
+		"6103324a5e1c4c889b5b74cbff538098/single_193_162jobs/",
+		"0fb43913fa7540e9aafd8d49465c7123/single_1102_77jobs/",
+		"0cfb92a839764d70a894766286cefcd2/single_1111_21jobs/",
+		"0f0ce41cc6a146a0a3c6595725634176/supp_0/",
+		"ce7eeeea21fb4b8784344b0ed536f8dd/supp_1/",
+		"bc336d85dca14791a99a35e1cac3ae59/supp_2/",
+		"d6719d4ecdb0405b81d7ad7ff554b693/supp_3/",
+		"9c40cfc311e2430e84718bf93f651cd4/supp_4/",
+		"0277b5462e8a4efc984b17562e80b226/supp_5/",
+		"6daead0ebb7044cf9cae51ced4267854/supp_6/",
+		"c11dc70398594be48aa0b71d335e0c1a/supp_7/",
+		"944b6d0b64cb45aeadda4dd71ab0a667/supp_8/",
+		# "437d235204e34f23953f71c12aa6724a/supp_9/",
+		# "53f9ec52625044a28bd51b0e17444cd8/supp_10/",
+		"b2d63e38b5a84a6199fb2ffaa2c63733/supp_11/"
 			]
+	# # single/Sm-Fe9-Co3/ofm1_no_d/Co_2__j8_4__i8_9__i8.ofm1_no_d
+	# # mix/Sm-Fe10-Al1-Ga1/ofm1_no_d/Ga_1___Al_8.ofm1_no_d
 	for rm in rmvs:
-		id_qr_cvt = id_qr_cvt.replace(rm, "")
+		id_qr = id_qr.replace(rm, "")
 
-	id_qr_cvt = id_qr_cvt.replace("/", '-_-')
-	return id_qr_cvt
+	if "mix" in id_qr:
+		id_qr = id_qr.replace("/", "-_-")
+	else:
+		id_qr = get_basename(id_qr)
+	# dot = "-_-"
+	# if dot in id_qr:
+	# 	last_point = id_qr.rfind(dot) #+ len("mix-_-")
+	# 	id_qr = id_qr[last_point:]
+	# 	print ("last_point", last_point)
 
+	return id_qr
+ 
 def id_qr_to_database(id_qr, std_results, 
 		coarse_results=None, fine_results=None, tv="energy_substance_pa"):
 	# # Still use in create_data
@@ -302,8 +324,13 @@ def id_qr_to_database(id_qr, std_results,
 		# print ("Add coarse_relax results", target_y)
 	else:
 		target_y = None
+
+	if "mix" in id_qr and type(target_y) is not float and target_y is not None:
+		print ("=======")
+		print ("old:", id_qr)
+		print ("id_qr:", id_qr_cvt, target_y)
 		# print ("None index:", id_qr_cvt, len(std_results.index))
-	return id_qr, id_qr_cvt, target_y
+	return id_qr, id_qr, target_y
 
 
 def id_qr(qr, y, index):

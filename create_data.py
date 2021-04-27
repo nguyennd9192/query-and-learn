@@ -44,10 +44,10 @@ from sklearn.datasets import load_iris
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 
-# sc_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-# for ld, subdirs, files in os.walk(sc_dir):
-#   if os.path.isdir(ld) and ld not in sys.path:
-#     sys.path.append(ld)
+sc_dir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+for ld, subdirs, files in os.walk(sc_dir):
+  if os.path.isdir(ld) and ld not in sys.path:
+    sys.path.append(ld)
 
 from absl import app
 from absl import flags
@@ -172,12 +172,12 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
   return data_train, data_test
 
 
-def get_SmFe12_data(tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
+def get_SmFe12_data(tv, rmvs, unlbl_data_dir, 
+      saveat, ft_type="ofm1_no_d"):
 
   # # point to datadir of Volume6TB then get all unlnl data
   test_data = []
   unlbl_jobs = get_subdirs(unlbl_data_dir)
-  print("unlbl_jobs", unlbl_jobs)
   for job in unlbl_jobs:
     listdir = glob.glob("{0}/{1}/*.*".format(job, ft_type)) # os.listdir(current_dir)    
     test_data = np.concatenate((test_data, listdir))
@@ -197,12 +197,16 @@ def get_SmFe12_data(tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
 
   # # get vasp calc data
   std_results, coarse_results, fine_results = query_db()
+  print (std_results.shape)
+  print (coarse_results.shape)
+  print (coarse_results.shape)
+
   # # map index to database
   data_map = map(functools.partial(id_qr_to_database, std_results=std_results,
     coarse_results=coarse_results, fine_results=fine_results, tv=tv), test_data) 
   data_map = np.array(list(data_map))
 
-
+  print ("data_map.shape:", data_map.shape)
   # id_qr, y=unlbl_y, index=unlbl_index
   # # get y
   y_obs = data_map[:, -1]
@@ -211,7 +215,7 @@ def get_SmFe12_data(tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
   # df.nunique(dropna=False)
   full_df = pd.DataFrame(feature, columns=feature_names, index=test_index)
   full_df[tv] = y_obs
-  full_df = full_df.dropna()
+  # full_df = full_df.dropna()
 
   # # for train data only, to remove constant cols, finally get pv
   pv = copy.copy(feature_names)
@@ -224,7 +228,7 @@ def get_SmFe12_data(tv, rmvs, unlbl_data_dir, saveat, ft_type="ofm1_no_d"):
   # # save data as pv, tv for all train and test
   data = pd.DataFrame(X_filter, columns=pv, index=index_filter)
   data[tv] = y_filter
-  data.dropna()
+  # data.dropna()
   data.to_csv(saveat+'.csv')
 
   print("Save at:", saveat, y_filter.shape[0], y_obs.shape[0])
@@ -500,22 +504,20 @@ def main():
       tv = d[0]
       rmvs = d[-1]
       # # for train
-      train_data = input_dir+"/SmFe12/init_{}_full".format(tv)
+      train_data = input_dir+"/SmFe12/train_{}".format(tv)
       pv = get_SmFe12_data(tv=tv, rmvs=rmvs, 
-        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/init", # mix_2-24, mix
-        saveat=train_data
-        )
+        unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/single", 
+        saveat=train_data)
 
       # train_file = input_dir+"/SmFe12/init_{}.csv".format(tv)
       # df = pd.read_csv(train_file, index_col=0)
       # pv = list(df.columns)
       # pv.remove(tv)
       # # for test
-      test_data = input_dir+"/SmFe12/mix_{}_full".format(tv)
+      test_data = input_dir+"/SmFe12/test_{}".format(tv)
       get_SmFe12_data(tv=tv, rmvs=rmvs, 
         unlbl_data_dir="/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/mix", # mix_2-24, mix
-        saveat=test_data
-      )
+        saveat=test_data)
 
       train_df = pd.read_csv(train_data+".csv", index_col=0)
       test_df = pd.read_csv(test_data+".csv", index_col=0)
@@ -525,10 +527,10 @@ def main():
       frames = [train_df, test_df]
       merge_df = pd.concat(frames)
       all_cols = merge_df.columns
-      for cc in all_cols:
-        nuq = len(np.unique(merge_df[cc].values))
-        if nuq <= 1:
-          merge_df = merge_df.drop([cc], axis=1)
+      # for cc in all_cols:
+      #   nuq = len(np.unique(merge_df[cc].values))
+      #   if nuq <= 1:
+      #     merge_df = merge_df.drop([cc], axis=1)
 
       pv = list(merge_df.columns)
       pv.remove(tv)
