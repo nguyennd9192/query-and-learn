@@ -9,11 +9,8 @@ from itertools import product
 def create_params_grid():
 	sampling_methods = [
 		"margin", "exploitation", "uniform", 
-		# "MaxEmbeddDir"
-		# "graph_density", 
-		# "hierarchical"
-		# 
-		# "expected_improvement",
+		# "MaxEmbeddDir", "graph_density", 
+		# "hierarchical", "expected_improvement",
 		# "MarginExplSpace"
 		]
 	score_methods = [# "u_knn",
@@ -23,7 +20,7 @@ def create_params_grid():
 	embedding_methods = ["MLKR", "org_space"]  # LMNN, LFDA 
 
 	active_ps = [1.0] # , 0.9, 0.7, 0.5
-	ith_trials = [1,2,3,4,5,6,7,8,9,10] # # 
+	ith_trials = [1,2,3,4,5] # # 6,7,8,9,10
 	 #
 	# # 0.9: test with batch_size 10 10 10, eval by ignore selected_inds
 	# # 0.7: test with batch_size 30 30 30, eval by ignore selected_inds_to_estimator

@@ -226,8 +226,7 @@ def query_and_learn(FLAGS, qid,
 
 	if FLAGS.do_plot:
 		# # name, color, marker for plot
-		mix_index = ["mix__"+k for k in unlbl_index]
-		plot_index = np.concatenate((mix_index, index_train), axis=0)
+		plot_index = np.concatenate((unlbl_index, index_train), axis=0)
 		family = [get_family(k) for k in plot_index]
 
 		list_cdict = np.array([get_color_112(k) for k in plot_index])

@@ -215,11 +215,10 @@ def get_SmFe12_data(tv, rmvs, unlbl_data_dir,
   # df.nunique(dropna=False)
   full_df = pd.DataFrame(feature, columns=feature_names, index=test_index)
   full_df[tv] = y_obs
-  # full_df = full_df.dropna()
+  full_df = full_df.dropna()
 
   # # for train data only, to remove constant cols, finally get pv
   pv = copy.copy(feature_names)
-  print ("The X_cols:", len(pv))
 
   X_filter = full_df[pv].values 
   y_filter = full_df[tv].values 
@@ -228,7 +227,7 @@ def get_SmFe12_data(tv, rmvs, unlbl_data_dir,
   # # save data as pv, tv for all train and test
   data = pd.DataFrame(X_filter, columns=pv, index=index_filter)
   data[tv] = y_filter
-  # data.dropna()
+  data.dropna()
   data.to_csv(saveat+'.csv')
 
   print("Save at:", saveat, y_filter.shape[0], y_obs.shape[0])
@@ -527,10 +526,10 @@ def main():
       frames = [train_df, test_df]
       merge_df = pd.concat(frames)
       all_cols = merge_df.columns
-      # for cc in all_cols:
-      #   nuq = len(np.unique(merge_df[cc].values))
-      #   if nuq <= 1:
-      #     merge_df = merge_df.drop([cc], axis=1)
+      for cc in all_cols:
+        nuq = len(np.unique(merge_df[cc].values))
+        if nuq <= 1:
+          merge_df = merge_df.drop([cc], axis=1)
 
       pv = list(merge_df.columns)
       pv.remove(tv)

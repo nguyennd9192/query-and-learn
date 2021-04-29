@@ -3,8 +3,8 @@ from absl import flags
 import pandas as pd
 import ntpath, os, sys
 
-ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-# ALdir = "/home/nguyen/work/active-learning"
+# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+ALdir = "/home/nguyen/work/active-learning"
 for ld, subdirs, files in os.walk(ALdir):
   if os.path.isdir(ld) and ld not in sys.path:
     sys.path.append(ld)
@@ -28,8 +28,8 @@ pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 # # train/test for formation energy: SmFe12_fe/mix_fe 
 # # train/test for formation energy: SmFe12_magmom_pa/mix_magmom_pa
 
-flags.DEFINE_string("data_init", "SmFe12/init_energy_substance_pa", "Dataset train name")  # 
-flags.DEFINE_string("data_target", "SmFe12/mix_energy_substance_pa", "Dataset test name")  # 
+flags.DEFINE_string("data_init", "SmFe12/train_energy_substance_pa", "Dataset train name")  # 
+flags.DEFINE_string("data_target", "SmFe12/test_energy_substance_pa", "Dataset test name")  # 
 flags.DEFINE_string("tv", "energy_substance_pa", "target variable")  # 
 
 # # # obtain from args

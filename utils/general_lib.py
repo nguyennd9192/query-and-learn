@@ -154,46 +154,48 @@ def get_marker_112(index):
 	m = "|"
 	if "1-11-1" in index:
 		m = "s"
-	if "1-10-2" in index:
+	elif "1-10-2" in index:
 		m = "H"
-	if "1-9-3" in index:
+	elif "1-9-3" in index:
 		m = "v"
-	if "2-23-1" in index:
+	elif "2-23-1" in index:
 		m = "X"
-	if "2-22-2" in index:
+	elif "2-22-2" in index:
 		m = "p"
-	if "2-21-3" in index:
+	elif "2-21-3" in index:
 		m = "^"
 	return m
 
 def get_family(index):
-	if "Sm-Fe9" in index:
-		f = "1-9-3"
-	elif "Sm-Fe10" in index:
-		f = "1-10-2"
-	elif "Sm-Fe11" in index:
-		f = "1-11-1"
-	elif "Sm2-Fe23" in index:
-		f = "2-23-1"
-	elif "Sm2-Fe22" in index:
-		f = "2-22-2"
-	elif "Sm2-Fe21" in index:
-		f = "2-21-3"
-	elif "2-22-2" in index:
-		f = "2-22-2"
+	if "mix" in index:
+		if "Sm-Fe9" in index:
+			f = "1-9-3"
+		elif "Sm-Fe10" in index:
+			f = "1-10-2"
+		elif "Sm-Fe11" in index:
+			f = "1-11-1"
+		elif "Sm2-Fe23" in index:
+			f = "2-23-1"
+		elif "Sm2-Fe22" in index:
+			f = "2-22-2"
+		elif "Sm2-Fe21" in index:
+			f = "2-21-3"
+		elif "2-22-2" in index:
+			f = "2-22-2"
 	else:
-		print(index)
+		family_match = dict({1:"1-11-1", 2:"1-10-2", 3:"1-9-3"})
+		n_subs = str(index).count("__")
+		f = family_match[n_subs]
 	return f
 
 def get_ratio(index, element):
-	# # e.g. mix__Sm-Fe9-Ti1-Mo2-_-Mo_0-8___Ti_4
-	start = index.find("mix__") + len("mix__")
-	end = index.find("-_-") + len("-_-")
-
+	# # e.g. mix-_-Sm-Fe10-Al1-Ga1-_-Ga_9___Al_5
+	start = index.find("mix-_-") + len("mix-_-")
+	end = index.rfind("-_-")
 	short_index = index[start:end]
-
 	pos = short_index.find(element)
 	r = int(short_index[pos+2:pos+3])
+
 	return r
 
 def	get_scatter_config(unlbl_index, index_train, selected_inds):
@@ -330,7 +332,7 @@ def id_qr_to_database(id_qr, std_results,
 		print ("old:", id_qr)
 		print ("id_qr:", id_qr_cvt, target_y)
 		# print ("None index:", id_qr_cvt, len(std_results.index))
-	return id_qr, id_qr, target_y
+	return id_qr, id_qr_cvt, target_y
 
 
 def id_qr(qr, y, index):
