@@ -31,6 +31,10 @@ from itertools import product
 from embedding_space import InversableEmbeddingSpace
 
 
+from sklearn.inspection import partial_dependence, plot_partial_dependence
+import multiprocessing
+from functools import partial
+import matplotlib.cm as cm
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -126,6 +130,7 @@ def query_and_learn(FLAGS, qid,
 	# # fit with whole
 	# estimator.estimator = None # # force grid-search cv
 	estimator.fit(_x_train, _y_train)
+	fit_estimator = copy.copy(estimator)
 
 	unlbl_y_pred = estimator.predict(_unlbl_X)
 	query_data["unlbl_y_pred_{}".format(qid)] = unlbl_y_pred
@@ -242,8 +247,8 @@ def query_and_learn(FLAGS, qid,
 			# # concatenate data points train test
 			xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
 		else:
-			X_all = np.concatenate((unlbl_X, X_train))
-			xy = process_dimensional_reduction(X_all, method="mds")
+			X_tmp = np.concatenate((unlbl_X, X_train))
+			xy = process_dimensional_reduction(X_tmp, method="mds")
 			xy *= 10000
 		# # selected array as +
 		ytrain_pred = estimator.predict(_x_train)
@@ -283,9 +288,45 @@ def query_and_learn(FLAGS, qid,
 		assert len(pv) == unlbl_X.shape[1]
 
 		X_all = np.concatenate((unlbl_X, X_train))
+		# fig, ax = plt.subplots(nrows=1,  sharey=True)
+
+		terms = [ #"of",
+			# "s1", "s2",
+			# "p1"
+			# "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "f6"
+			"d10"
+			]
+
+		# with multiprocessing.Pool(processes=8) as pool:
+		# 	func = partial(plot_ppde, 
+		# 		pv=pv, estimator=fit_estimator, X_train=_x_train, y_train=_y_train,	
+		# 		X_all=X_all, xy=xy, savedir=savedir)
+		# 	pool.map(func, terms)
+
+
+		# # # toplot pairplot of original
+		X_pairplot = np.concatenate((unlbl_X[selected_inds_to_estimator], X_train))
+		pairplot_df = pd.DataFrame(X_pairplot, columns=pv)
+		pairplot_df[FLAGS.tv] = unlbl_y[selected_inds_to_estimator]
+
+		# # # toplot ppde of embedding with ft
+		for term in terms:
+			this_sdir = savedir + "/query_{0}/ft_ppd/".format(qid)
+			# plot_ppde(pv=pv, estimator=copy.copy(fit_estimator), 
+			# 	X_train=_x_train, y_train=_y_train,
+			# 	X_all=X_all, xy=xy, savedir=this_sdir, term=term)
+
+			this_sdir = savedir + "/query_{0}/pairplot/".format(qid)
+			pairplot(df=pairplot_df, 
+				fix_cols=[FLAGS.tv], term=term, save_dir=this_sdir)
+			
+
+
+		# # # toplot ppde of embedding with ft
 		# for i, v in enumerate(pv):
 		# 	save_file= savedir+"/query_{0}/ft/{1}.pdf".format(qid, v)
-		# 	z_values=X_all[:, i]
+		# 	z_values = X_all[:, i]
+
 		# 	if len(set(z_values)) >1:
 		# 		try:
 		# 			scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
@@ -304,76 +345,113 @@ def query_and_learn(FLAGS, qid,
 		# 				)
 		# 		except:
 		# 			pass
-				
-			
-		save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-				z_values=y_all_obs,
-				list_cdict=list_cdict, 
-				xvlines=[0.0], yhlines=[0.0], 
-				sigma=None, mode='scatter', lbl=None, name=None, 
-				s=60, alphas=alphas, 
-				title=save_file.replace(ALdir, ""),
-				x_label=FLAGS.embedding_method + "_dim_1",
-				y_label=FLAGS.embedding_method + "_dim_2", 
-				save_file=save_file,
-				interpolate=False, cmap="PiYG",
-				preset_ax=None, linestyle='-.', marker=marker_array,
-				vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
-				)
+
+		# save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 		z_values=y_all_obs,
+		# 		list_cdict=list_cdict, 
+		# 		xvlines=[0.0], yhlines=[0.0], 
+		# 		sigma=None, mode='scatter', lbl=None, name=None, 
+		# 		s=60, alphas=alphas, 
+		# 		title=save_file.replace(ALdir, ""),
+		# 		x_label=FLAGS.embedding_method + "_dim_1",
+		# 		y_label=FLAGS.embedding_method + "_dim_2", 
+		# 		save_file=save_file,
+		# 		interpolate=False, cmap="PiYG",
+		# 		preset_ax=None, linestyle='-.', marker=marker_array,
+		# 		vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+		# 		)
 
 
 
-		save_file=this_fig_dir.replace(".pdf", "_error.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=error_all,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			interpolate=False, cmap="seismic",
-			save_file=save_file,
-			preset_ax=None, linestyle='-.', marker=marker_array,
-			vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
+		# save_file=this_fig_dir.replace(".pdf", "_error.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 	z_values=error_all,
+		# 	list_cdict=list_cdict, 
+		# 	xvlines=[0.0], yhlines=[0.0], 
+		# 	sigma=None, mode='scatter', lbl=None, name=None, 
+		# 	s=60, alphas=alphas, 
+		# 	title=save_file.replace(ALdir, ""),
+		# 	x_label=FLAGS.embedding_method + "_dim_1",
+		# 	y_label=FLAGS.embedding_method + "_dim_2", 
+		# 	interpolate=False, cmap="seismic",
+		# 	save_file=save_file,
+		# 	preset_ax=None, linestyle='-.', marker=marker_array,
+		# 	vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
 
-			)
+		# 	)
 
 
-		save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=y_all_pred,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=save_file,
-			interpolate=False,  cmap="PuOr",
-			preset_ax=None, linestyle='-.', marker=marker_array,
-			vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
+		# save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 	z_values=y_all_pred,
+		# 	list_cdict=list_cdict, 
+		# 	xvlines=[0.0], yhlines=[0.0], 
+		# 	sigma=None, mode='scatter', lbl=None, name=None, 
+		# 	s=60, alphas=alphas, 
+		# 	title=save_file.replace(ALdir, ""),
+		# 	x_label=FLAGS.embedding_method + "_dim_1",
+		# 	y_label=FLAGS.embedding_method + "_dim_2", 
+		# 	save_file=save_file,
+		# 	interpolate=False,  cmap="PuOr",
+		# 	preset_ax=None, linestyle='-.', marker=marker_array,
+		# 	vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
 
-			)
+		# 	)
 
-		save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=var_all,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=save_file,
-			interpolate=False, cmap="PRGn",
-			preset_ax=None, linestyle='-.', marker=marker_array,
-			vmin=-0.01, vmax=1.0
-			)
+		# save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 	z_values=var_all,
+		# 	list_cdict=list_cdict, 
+		# 	xvlines=[0.0], yhlines=[0.0], 
+		# 	sigma=None, mode='scatter', lbl=None, name=None, 
+		# 	s=60, alphas=alphas, 
+		# 	title=save_file.replace(ALdir, ""),
+		# 	x_label=FLAGS.embedding_method + "_dim_1",
+		# 	y_label=FLAGS.embedding_method + "_dim_2", 
+		# 	save_file=save_file,
+		# 	interpolate=False, cmap="PRGn",
+		# 	preset_ax=None, linestyle='-.', marker=marker_array,
+		# 	vmin=-0.01, vmax=1.0
+		# 	)
+
+		# # # partial dependence plot
+		fit_estimator = fit_estimator.fit(_x_train, _y_train)
+		n_features = _x_train.shape[1]
+		midle = int(n_features/2)
+		features = range(n_features)
+
+		if FLAGS.embedding_method == "org_space":
+			save_file=this_fig_dir.replace(".pdf", "_avg1.pdf")
+			fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+			plot_partial_dependence(fit_estimator, _x_train, features[:midle],
+				   kind='average', line_kw={"color": "red"})
+			makedirs(save_file)
+			plt.savefig(save_file, transparent=False)
+			release_mem(fig=fig)
+
+			save_file=this_fig_dir.replace(".pdf", "_avg2.pdf")
+			fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+			plot_partial_dependence(fit_estimator, _x_train,  features[midle:],
+				   kind='average', line_kw={"color": "red"})
+			makedirs(save_file)
+			plt.savefig(save_file, transparent=False)
+			release_mem(fig=fig)
+		else:
+			# _, ax = plt.subplots(ncols=3, figsize=(9, 4))
+
+
+			fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+			save_file=this_fig_dir.replace(".pdf", "_partial.pdf")
+			plot_partial_dependence(fit_estimator, _x_train, features,
+				   kind='both', n_jobs=3, grid_resolution=20,
+					# ax=ax,
+					)
+			makedirs(save_file)
+			plt.savefig(save_file, transparent=False)
+			release_mem(fig=fig)
+
+
 
 	return _x_train, _y_train, _unlbl_X, estimator, embedding_model
 
