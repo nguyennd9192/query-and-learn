@@ -1382,6 +1382,25 @@ def pairplot(df, fix_cols, term, save_dir):
 	plt.savefig(save_at)
 	release_mem(fig)
 
+def get_2d_interpolate(x, y, z_values):
+	org_x = copy.copy(x)
+	org_y = copy.copy(y)
+
+	min_org_x, max_org_x = min(org_x), max(org_x)
+	min_org_y, max_org_y = min(org_y), max(org_y)
+
+	x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) # * 200
+	y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) # * 200
+	x = x.T[0]
+	y = y.T[0]
+	grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+
+	grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), 
+			method='nearest')
+	grid_interpolate = grid_interpolate.T
+
+	return grid_interpolate
+
 
 if __name__ == "__main__":
 	test_half_filled()
