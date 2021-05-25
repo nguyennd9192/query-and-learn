@@ -14,9 +14,9 @@ def get_basename(filename):
     basename = os.path.splitext(tail)[0]
     return tail
 
-batch_size =  4
-batch_outstand = 4 
-batch_rand = 2 
+batch_size = 300 #  4
+batch_outstand = 300 # 4 
+batch_rand = 50 # 2 
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"

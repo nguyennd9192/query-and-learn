@@ -124,6 +124,21 @@ def get_qrindex(df, qid):
 	random_str = df.loc[df[rnd]==rnd, "unlbl_index"].to_list()
 	return update_DQ_str, outstand_str, random_str
 
+def get_color_feature(v):
+	feature_dict = dict({"of":"red",
+			"s1":"blue", "s2":"green",
+			"p1":"yellow",
+			"d1":"brown", "d2":"cyan", "d3":"lightsteelblue", "d4":"orange", "d5":"beige", 
+			"d6":"chocolate", "d7":"darkviolet", "d8":"lime", "d9":"khaki", "d10":"midnightblue", 
+			"f6":"indigo"})
+	c = "black"
+	for term in feature_dict.keys():
+		tmp = term+"-"
+		if tmp in v:
+			c = feature_dict[term]
+
+	return dict({c:"full"})
+
 def get_color_112(index):
 	# c = "black"
 	colors = dict()

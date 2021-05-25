@@ -17,7 +17,7 @@ from sklearn.metrics import pairwise
 from proc_results import read_exp_params, params2text
 
 from utils.manifold_processing import Preprocessing
-from utils.plot import *
+from utils.plot import * 
 from tensorflow.io import gfile
 
 from matplotlib import gridspec
@@ -39,6 +39,8 @@ import matplotlib.cm as cm
 from kl import KLdivergence, jensen_shannon_distance, js
 from scipy.spatial import distance
 
+from sklearn.preprocessing import MinMaxScaler
+from image_scatter import images_scatter
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -328,28 +330,29 @@ def query_and_learn(FLAGS, qid,
 			
 
 		# # # toplot ppde of embedding with ft
-		# for i, v in enumerate(pv):
-		# 	save_file= savedir+"/query_{0}/ft/{1}.pdf".format(qid, v)
-		# 	z_values = X_all[:, i]
+		if False:
+			for i, v in enumerate(pv):
+				save_file= savedir+"/query_{0}/ft/{1}.png".format(qid, v)
+				z_values = X_all[:, i]
 
-		# 	if len(set(z_values)) >1:
-		# 		try:
-		# 			scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-		# 				z_values=z_values,
-		# 				list_cdict=list_cdict, 
-		# 				xvlines=[0.0], yhlines=[0.0], 
-		# 				sigma=None, mode='scatter', lbl=None, name=None, 
-		# 				s=60, alphas=alphas, 
-		# 				title=save_file.replace(ALdir, ""),
-		# 				x_label=FLAGS.embedding_method + "_dim_1",
-		# 				y_label=FLAGS.embedding_method + "_dim_2", 
-		# 				interpolate=False, cmap="seismic",
-		# 				save_file=save_file,
-		# 				preset_ax=None, linestyle='-.', marker=marker_array,
-		# 				vmin=None, vmax=None
-		# 				)
-		# 		except:
-		# 			pass
+				if len(set(z_values)) >1:
+					try:
+						scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+							z_values=z_values,
+							list_cdict=list_cdict, 
+							xvlines=[0.0], yhlines=[0.0], 
+							sigma=None, mode='scatter', lbl=None, name=None, 
+							s=60, alphas=alphas, 
+							title=save_file.replace(ALdir, ""),
+							x_label=FLAGS.embedding_method + "_dim_1",
+							y_label=FLAGS.embedding_method + "_dim_2", 
+							interpolate=False, cmap="seismic",
+							save_file=save_file,
+							preset_ax=None, linestyle='-.', marker=marker_array,
+							vmin=None, vmax=None
+							)
+					except:
+						pass
 
 		# # # ===========
 		#	
@@ -463,20 +466,68 @@ def query_and_learn(FLAGS, qid,
 		# # # ===========
 		# 
 		# # # to create map of maps
-		pv_combs = list(combinations(pv, 2))
-		with multiprocessing.Pool(processes=8) as pool:
-			func = partial(get_cell_distance, 
-				pv=pv, X_all=X_all, xy=xy)
-			all_dist = pool.map(func, pv_combs)
+		if True:
 
-		sum_dist = np.sum(all_dist, axis=-1)
-		print (sum_dist)
-		
-		save_file= savedir+"/query_{0}/ft/dist_of_features.pdf".format(qid)
-		plot_heatmap(sum_dist, vmin=None, vmax=None, 
-			save_file=save_file, cmap="jet", lines=None, title=None)
+			# var_compare = list(np.concatenate((pv, ["y_obs"])))
+			# # y_filter = np.where(y_all_obs<0, 1, 0)
+			# X_all_compare = np.hstack((X_all, np.array([y_all_obs]).T))
+			# print (X_all_compare)
+			# print (np.min(X_all_compare), np.max(X_all_compare))
 
-		exit()
+			var_compare = copy.copy(pv)
+			X_all_compare = copy.copy(X_all)
+			scaler = MinMaxScaler()
+			X_all_compare = scaler.fit_transform(X_all_compare)
+
+			pv_combs = list(combinations(pv, 2))
+			with multiprocessing.Pool(processes=8) as pool:
+				func = partial(get_cell_distance, 
+					pv=var_compare, X_all=X_all_compare, xy=xy)
+				all_dist = pool.map(func, pv_combs)
+			print (len(all_dist))
+			ft_dist = np.sum(np.array(all_dist), axis=0)
+
+			# # to plot distance between features		
+			save_file= savedir+"/query_{0}/dist_of_features.pdf".format(qid)
+			df = pd.DataFrame(ft_dist, columns=var_compare, index=var_compare)
+			df.to_csv(save_file.replace(".pdf", ".csv"))
+			plot_heatmap(df, vmin=0.0, vmax=1.0, 
+				save_file=save_file, cmap="bwr", lines=None, title=None)
+
+			# ft_dist = np.where(ft_dist is np.nan, 0, ft_dist)
+			ft_dist = np.nan_to_num(ft_dist)
+			ft_embedd = process_dimensional_reduction(ft_dist, method="mds")
+			save_file= savedir+"/query_{0}/dist_of_features_mds.pdf".format(qid)
+
+
+			list_cdict = [get_color_feature(v) for v in var_compare]
+			marker_array = np.array(["s" for v in var_compare])
+			alphas = np.array([0.9 for v in var_compare])
+			scatter_plot_4(x=ft_embedd[:, 0], y=ft_embedd[:, 1], 
+					# z_values=None,
+					# list_cdict=list_cdict, 
+					color_array = [k.keys() for k in list_cdict],
+					xvlines=[0.0], yhlines=[0.0], 
+					sigma=None, mode='scatter', lbl=None, name=var_compare, 
+					s=60, alphas=alphas, 
+					title=save_file.replace(ALdir, ""),
+					x_label=FLAGS.embedding_method + "_dim_1",
+					y_label=FLAGS.embedding_method + "_dim_2", 
+					save_file=save_file,
+					interpolate=False,
+					preset_ax=None, linestyle='-.', marker=marker_array,
+					# vmin=-0.01, vmax=1.0
+					)
+
+			coords_df = pd.DataFrame(columns=["x","y","file"])
+			coords_df["x"] = ft_embedd[:, 0]
+			coords_df["y"] = ft_embedd[:, 1]
+			coords_df["file"] = ["{0}.png".format(v) for v in var_compare]
+
+			images_scatter(coords_df, input_dir=savedir+"/query_{0}/ft".format(qid), 
+				n_bins=20, margin=0.1, save_fig=True, more_info=None)
+
+			# exit()
 
 
 	return _x_train, _y_train, _unlbl_X, estimator, embedding_model

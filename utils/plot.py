@@ -783,7 +783,8 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 			interpolation="hamming",
 			alpha=0.9)
 		# colorbar(z_plot)
-		fig.colorbar(z_plot, shrink=0.6)
+		if ".png" not in save_file:
+			fig.colorbar(z_plot, shrink=0.6)
 
 
 	# for xvline in xvlines:
