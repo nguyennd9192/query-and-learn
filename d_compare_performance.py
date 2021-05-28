@@ -223,7 +223,6 @@ def get_full_os():
 
 	print (unlbl_y[ids])
 	print (len(unlbl_y[ids]))
-
 	# print (unlbl_index[ids])
 	# x = np.concatenate((X_train[:, 28], unlbl_X[:, 28]), axis=0)
 	# y = np.concatenate((y_train, unlbl_y), axis=0)

@@ -642,66 +642,66 @@ def scatter_plot_5(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 
 
 def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
-    '''
-    Function to offset the "center" of a colormap. Useful for
-    data with a negative min and positive max and you want the
-    middle of the colormap's dynamic range to be at zero.
+	'''
+	Function to offset the "center" of a colormap. Useful for
+	data with a negative min and positive max and you want the
+	middle of the colormap's dynamic range to be at zero.
 
-    Input
-    -----
-      cmap : The matplotlib colormap to be altered
-      start : Offset from lowest point in the colormap's range.
-          Defaults to 0.0 (no lower offset). Should be between
-          0.0 and `midpoint`.
-      midpoint : The new center of the colormap. Defaults to 
-          0.5 (no shift). Should be between 0.0 and 1.0. In
-          general, this should be  1 - vmax / (vmax + abs(vmin))
-          For example if your data range from -15.0 to +5.0 and
-          you want the center of the colormap at 0.0, `midpoint`
-          should be set to  1 - 5/(5 + 15)) or 0.75
-      stop : Offset from highest point in the colormap's range.
-          Defaults to 1.0 (no upper offset). Should be between
-          `midpoint` and 1.0.
-    '''
-    cdict = {
-        'red': [],
-        'green': [],
-        'blue': [],
-        'alpha': []
-    }
+	Input
+	-----
+	  cmap : The matplotlib colormap to be altered
+	  start : Offset from lowest point in the colormap's range.
+		  Defaults to 0.0 (no lower offset). Should be between
+		  0.0 and `midpoint`.
+	  midpoint : The new center of the colormap. Defaults to 
+		  0.5 (no shift). Should be between 0.0 and 1.0. In
+		  general, this should be  1 - vmax / (vmax + abs(vmin))
+		  For example if your data range from -15.0 to +5.0 and
+		  you want the center of the colormap at 0.0, `midpoint`
+		  should be set to  1 - 5/(5 + 15)) or 0.75
+	  stop : Offset from highest point in the colormap's range.
+		  Defaults to 1.0 (no upper offset). Should be between
+		  `midpoint` and 1.0.
+	'''
+	cdict = {
+		'red': [],
+		'green': [],
+		'blue': [],
+		'alpha': []
+	}
 
-    # regular index to compute the colors
-    reg_index = np.linspace(start, stop, 257)
+	# regular index to compute the colors
+	reg_index = np.linspace(start, stop, 257)
 
-    # shifted index to match the data
-    shift_index = np.hstack([
-        np.linspace(0.0, midpoint, 128, endpoint=False), 
-        np.linspace(midpoint, 1.0, 129, endpoint=True)
-    ])
+	# shifted index to match the data
+	shift_index = np.hstack([
+		np.linspace(0.0, midpoint, 128, endpoint=False), 
+		np.linspace(midpoint, 1.0, 129, endpoint=True)
+	])
 
-    for ri, si in zip(reg_index, shift_index):
-        r, g, b, a = cmap(ri)
+	for ri, si in zip(reg_index, shift_index):
+		r, g, b, a = cmap(ri)
 
-        cdict['red'].append((si, r, r))
-        cdict['green'].append((si, g, g))
-        cdict['blue'].append((si, b, b))
-        cdict['alpha'].append((si, a, a))
+		cdict['red'].append((si, r, r))
+		cdict['green'].append((si, g, g))
+		cdict['blue'].append((si, b, b))
+		cdict['alpha'].append((si, a, a))
 
-    newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
-    plt.register_cmap(cmap=newcmap)
+	newcmap = mpl.colors.LinearSegmentedColormap(name, cdict)
+	plt.register_cmap(cmap=newcmap)
 
-    return newcmap
+	return newcmap
 
 
 def colorbar(mappable):
-    ax = mappable.axes
-    fig = ax.figure
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.2)
-    return fig.colorbar(mappable, cax=cax, shrink=0.6)
+	ax = mappable.axes
+	fig = ax.figure
+	divider = make_axes_locatable(ax)
+	cax = divider.append_axes("right", size="5%", pad=0.2)
+	return fig.colorbar(mappable, cax=cax, shrink=0.6)
 
 def myround(x, base=5):
-    return base * round(x/base)
+	return base * round(x/base)
 
 def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
 	sigma=None, mode='scatter', lbl=None, name=None, 
@@ -892,6 +892,263 @@ def scatter_plot_7(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 	plt.savefig(save_file, transparent=False)
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)
+
+
+
+def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
+	sigma=None, mode='scatter', lbl=None, name=None, 
+	s=100, alphas=0.8, title=None,
+	x_label='x', y_label='y', 
+	save_file=None, interpolate=False, color='blue', 
+	preset_ax=None, linestyle='-.', marker='o',
+	cmap='seismic',
+	vmin=None, vmax=None
+	):
+
+	org_x = copy.copy(x)
+	org_y = copy.copy(y)
+
+	min_org_x, max_org_x = min(org_x), max(org_x)
+	min_org_y, max_org_y = min(org_y), max(org_y)
+
+	x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * 200
+	y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * 200
+	x = x.T[0]
+	y = y.T[0]
+
+	tick_pos = [0.0, 50.0, 100.0, 150.0, 200.0]
+	tmp = np.arange(min_org_x, max_org_x, (max_org_x - min_org_x)/len(tick_pos))
+	xticklabels = [myround(k,5) for k in tmp]
+
+	tmp = np.arange(min_org_y, max_org_y, (max_org_y - min_org_y)/len(tick_pos))
+	yticklabels = [myround(k,5) for k in tmp]
+
+
+	fig, main_ax = plt.subplots(figsize=(9, 8), linewidth=1.0) # 
+	# grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+
+	sns.set_style(style='white') 
+
+	for _m, _cdict, _x, _y, _a, _z in zip(marker, list_cdict, x, y, alphas, z_values):
+		if _z == 0:
+			continue
+		if _m in ["o", "D", "*"]:
+			main_ax.scatter(_x, _y, s=s, 
+				marker=_m, c="white", 
+				alpha=1.0, edgecolor="red")
+		elif _m == ".":
+			# # for unlbl cases
+			main_ax.scatter(_x, _y, s=5, 
+				marker=_m, c="black", 
+				alpha=_a, edgecolor=None)
+		else: 
+			if len(_cdict.keys()) == 1:
+				main_ax.scatter(_x, _y, s=s, 
+					marker=_m, c=list(_cdict.keys())[0], 
+					alpha=_a, edgecolor="black")
+			else:
+				plt_half_filled(ax=main_ax, x=_x, y=_y, 
+					cdict=_cdict, alpha=_a
+					)
+
+	if z_values is not None:
+		ft_ids = np.where(z_values!=0)[0]
+		xf = x[ft_ids]
+		yf = y[ft_ids]
+		xmin, xmax = min(x), max(x)
+		ymin, ymax = min(y), max(y)
+
+		# # estimate only xf, yf
+		xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+		positions = np.vstack([xx.ravel(), yy.ravel()])
+		values = np.vstack([xf, yf])
+		kernel = stats.gaussian_kde(values)
+		f = np.reshape(kernel(positions).T, xx.shape)
+
+		main_ax.set_xlim(xmin, xmax)
+		main_ax.set_ylim(ymin, ymax)
+		# Contourf plot
+		cfset = main_ax.contourf(xx, yy, f, cmap='Blues')
+
+	# for xvline in xvlines:
+	#   main_ax.axvline(x=xvline, linestyle='-.', color='black')
+	# for yhline in yhlines:
+	#   main_ax.axhline(y=yhline, linestyle='-.', color='black')
+	# main_ax.set_title(title, **title_font)
+	# main_ax.set_xlabel(x_label, **axis_font)
+	# main_ax.set_ylabel(y_label, **axis_font)
+
+	plt.xticks(tick_pos, []) # xticklabels, size=14
+	plt.yticks(tick_pos, []) # yticklabels, size=14
+
+	if name is not None:
+		for i in range(len(x)):
+			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+
+	main_ax.set_aspect('auto')
+	
+	plt.tight_layout(pad=1.1)
+	makedirs(save_file)
+	plt.savefig(save_file, transparent=False)
+	print ("Save at: ", save_file)
+	release_mem(fig=fig)
+
+
+def comp_kde2d(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
+	sigma=None, mode='scatter', lbl=None, name=None, 
+	s=100, alphas=0.8, title=None,
+	x_label='x', y_label='y', 
+	save_file=None, interpolate=False, color='blue', 
+	preset_ax=None, linestyle='-.', marker='o',
+	cmap='seismic',
+	vmin=None, vmax=None
+	):
+
+	# grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+
+	sns.set_style(style='white') 
+
+	plt.xticks(tick_pos, []) # xticklabels, size=14
+	plt.yticks(tick_pos, []) # yticklabels, size=14
+
+
+
+def fts_on_embedding(term, pv, estimator, X_train, y_train,
+				ref_ids,
+				X_all, xy, savedir, background, 
+				vmin=None, vmax=None, cmap="jet"):
+	# fig = plt.subplots(nrows=1,  sharey=True)
+	fig = plt.figure(figsize=(16, 8))	
+	# norm = mpl.colors.Normalize(vmin=0, vmax=20) # 
+	# cmap = cm.jet # gist_earth
+	# m = cm.ScalarMappable(norm=norm, cmap=cmap)
+	c_dict = dict({
+			"s1":"darkblue", "s2":"green",
+			"p1":"purple", "d2":"cyan", "d5":"red", 
+			"d10":"darkgreen", "d6":"gray", "d7":"brown", "f6":"orange",
+			})
+	# # # cyan, blue, 
+
+	# # # setting fig only
+	fig, main_ax = plt.subplots(figsize=(9, 8), linewidth=1.0) # 
+	org_x = copy.copy(xy[:, 0])
+	org_y = copy.copy(xy[:, 1])
+	min_org_x, max_org_x = min(org_x), max(org_x)
+	min_org_y, max_org_y = min(org_y), max(org_y)
+	x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * 200
+	y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * 200
+	x = x.T[0]
+	y = y.T[0]
+	tick_pos = [0.0, 50.0, 100.0, 150.0, 200.0]
+	tmp = np.arange(min_org_x, max_org_x, (max_org_x - min_org_x)/len(tick_pos))
+	xticklabels = [myround(k,5) for k in tmp]
+	tmp = np.arange(min_org_y, max_org_y, (max_org_y - min_org_y)/len(tick_pos))
+	yticklabels = [myround(k,5) for k in tmp]
+	xmin, xmax = min(x), max(x)
+	ymin, ymax = min(y), max(y)
+	main_ax.set_xlim(xmin, xmax)
+	main_ax.set_ylim(ymin, ymax)
+	xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+	positions = np.vstack([xx.ravel(), yy.ravel()])
+	# # # end setting fig only
+
+
+	# # show y_obs
+	grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+	grid_interpolate = griddata(np.array([x, y]).T, background, (grid_x, grid_y), 
+		method='cubic')
+	if vmin is None:
+			vmin = np.nanmin(grid_interpolate.T)
+	if vmax  is None:
+		vmax = np.nanmax(grid_interpolate.T)
+	# norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+	norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+	z_plot = main_ax.imshow(grid_interpolate.T, 
+		extent=(min(x),max(x),min(y),max(y)), origin='lower',
+		cmap=cmap,
+		norm=norm, 
+		# vmin=-max_ipl, vmax=max_ipl, 
+		interpolation="hamming",
+		alpha=0.9)
+
+	# # prepare condition of bkg
+	values_ref = np.vstack([x[ref_ids], y[ref_ids]])
+	kernel_ref = stats.gaussian_kde(values_ref)
+	f_ref = np.reshape(kernel_ref(positions).T, xx.shape)
+	cs = main_ax.contour(xx, yy, f_ref, 
+			levels=1, corner_mask=False,
+			extent=None, colors="pink",
+			) 
+	fmt = {}
+	for l in cs.levels:
+		fmt[l] = "target"
+	main_ax.clabel(cs, inline=1, fontsize=10, fmt=fmt)
+
+	# # # end show y_obs
+	save_file = savedir + "{0}.pdf".format(term)
+	idp_test = dict()
+	for i, v in enumerate(pv):
+		z_values = X_all[:, i]
+
+		if len(set(z_values)) >1 and term in v:
+			ft_ids = np.where(z_values!=0)[0]
+			print (len(ft_ids))
+			xf = x[ft_ids]
+			yf = y[ft_ids]
+
+			if "of" in v:
+				c_term = v[:v.find("-")]
+			else:
+				c_term = v[v.find("-")+1:]
+			values = np.vstack([xf, yf])
+			kernel = stats.gaussian_kde(values)
+			f = np.reshape(kernel(positions).T, xx.shape)
+
+			test_independent = np.sum(f * f_ref)
+			print (term, c_term, test_independent)
+			idp_test[v] = test_independent
+			# Contourf plot
+			levels = 1
+			fmt = {}
+			cs = main_ax.contour(xx, yy, f, 
+					levels=levels, corner_mask=False,
+					extent=None, colors=c_dict[c_term],
+					label=v
+					) 
+			for l in cs.levels:
+				fmt[l] = v
+			main_ax.clabel(cs, inline=1, fontsize=10, fmt=fmt)
+
+			cs.cmap.set_under('white')
+
+			# for j, a in enumerate(main_ax.flatten()):
+			# 	# if j == 0:
+			# 	# 	a.set_ylabel(v, rotation=0)
+			# 	# else:
+			# 	# 	a.set_ylabel("")
+			# 	if j == 1:
+			# 		a.set_ylabel("")
+			# 	else:
+			# 		a.get_legend().remove()
+			# 	a.set_ylim([-0.1, 0.7])
+				# a.set_xlabel("")
+				# a.set_xticklabels([])
+				# a.set_yticklabels([])
+			# plt.ylabel(str(v))
+	
+	main_ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+	main_ax.set_aspect('auto')
+	plt.tight_layout(pad=1.1)
+	makedirs(save_file)
+	print ("Save at: ", save_file)
+	plt.savefig(save_file, transparent=False, bbox_inches="tight")
+
+	release_mem(fig=fig)
+	return idp_test
+
+
+
 
 def dump_interpolate(x, y, z_values=None, 
 				save_file=None):
@@ -1213,15 +1470,19 @@ def test_half_filled():
 
 def plot_heatmap(matrix, vmin, vmax, save_file, cmap, lines=None, title=None):
 	if vmax is None:
-		vmax = np.max(matrix)
+		vmax = np.max(np.array(matrix))
 	if vmin is None:
-		vmin = np.min(matrix)
+		vmin = np.min(np.array(matrix))
 	fig = plt.figure(figsize=(10, 8))
 
 	ax = fig.add_subplot(1, 1, 1)
+	print (matrix)
+	print (vmin, vmax)
+
 	ax = sns.heatmap(matrix, cmap=cmap, 
 			xticklabels=True,
 			yticklabels=True,
+			annot_kws={"size":1},
 			vmax=vmax, vmin=vmin)
 
 	makedirs(save_file)
@@ -1256,7 +1517,7 @@ def plot_ppde(term, pv, estimator, X_train, y_train,
 	estimator = estimator.fit(X_train, y_train)
 	display = plot_partial_dependence(estimator, X_train, [0, 1],
 		kind='average', n_jobs=3, grid_resolution=20,
-    	line_kw=dict({"color": "red", "label":"formation energy", "linestyle":"-."}))
+		line_kw=dict({"color": "red", "label":"formation energy", "linestyle":"-."}))
 	ax = display.axes_
 
 	for i, v in enumerate(pv):
@@ -1284,7 +1545,7 @@ def plot_ppde(term, pv, estimator, X_train, y_train,
 
 			display = plot_partial_dependence(tmp_estimator, xy, [0, 1],
 				   kind='average', n_jobs=3, grid_resolution=20,
-    				ax=ax, line_kw=dict({"color": c_list[i % (len(c_list))], "label":v})) # m.to_rgba(i)
+					ax=ax, line_kw=dict({"color": c_list[i % (len(c_list))], "label":v})) # m.to_rgba(i)
 			ax = display.axes_
 			f = display.figure_
 			# f.suptitle(v)
@@ -1319,25 +1580,25 @@ def plot_ppde(term, pv, estimator, X_train, y_train,
 
 
 def corrdot(*args, **kwargs):
-    corr_r = args[0].corr(args[1], 'pearson')
-    corr_text = round(corr_r, 2)
-    ax = plt.gca()
-    font_size = abs(corr_r) * 80 + 5
-    ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
-                ha='center', va='center', fontsize=font_size)
+	corr_r = args[0].corr(args[1], 'pearson')
+	corr_text = round(corr_r, 2)
+	ax = plt.gca()
+	font_size = abs(corr_r) * 80 + 5
+	ax.annotate(corr_text, [.5, .5,],  xycoords="axes fraction",
+				ha='center', va='center', fontsize=font_size)
 
 def corrfunc(x, y, **kws):
-    r, p = stats.pearsonr(x, y)
-    p_stars = ''
-    if p <= 0.05:
-        p_stars = '*'
-    if p <= 0.01:
-        p_stars = '**'
-    if p <= 0.001:
-        p_stars = '***'
-    ax = plt.gca()
-    ax.annotate(p_stars, xy=(0.65, 0.6), xycoords=ax.transAxes,
-                color='red', fontsize=70)
+	r, p = stats.pearsonr(x, y)
+	p_stars = ''
+	if p <= 0.05:
+		p_stars = '*'
+	if p <= 0.01:
+		p_stars = '**'
+	if p <= 0.001:
+		p_stars = '***'
+	ax = plt.gca()
+	ax.annotate(p_stars, xy=(0.65, 0.6), xycoords=ax.transAxes,
+				color='red', fontsize=70)
 
 
 def pairplot(df, fix_cols, term, save_dir):
@@ -1405,5 +1666,6 @@ def get_2d_interpolate(x, y, z_values):
 
 if __name__ == "__main__":
 	test_half_filled()
+
 
 

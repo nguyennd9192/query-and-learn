@@ -3,8 +3,8 @@ from absl import flags
 import pandas as pd
 import ntpath, os, sys
 
-ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-# ALdir = "/home/nguyen/work/active-learning"
+# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+ALdir = "/home/nguyen/work/active-learning"
 for ld, subdirs, files in os.walk(ALdir):
   if os.path.isdir(ld) and ld not in sys.path:
     sys.path.append(ld)
@@ -14,19 +14,15 @@ def get_basename(filename):
     basename = os.path.splitext(tail)[0]
     return tail
 
-batch_size = 300 #  4
-batch_outstand = 300 # 4 
-batch_rand = 50 # 2 
+batch_size = 20 #  4
+batch_outstand = 20 # 4 
+batch_rand = 10 # 2 
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"
 color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue", "DQ_to_RND":"orange"})
 pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
-
-# python rank_unlbl.py
-# # train/test for formation energy: SmFe12_fe/mix_fe 
-# # train/test for formation energy: SmFe12_magmom_pa/mix_magmom_pa
 
 flags.DEFINE_string("data_init", "SmFe12/train_energy_substance_pa", "Dataset train name")  # 
 flags.DEFINE_string("data_target", "SmFe12/test_energy_substance_pa", "Dataset test name")  # 
@@ -127,7 +123,7 @@ flags.DEFINE_float("train_horizon", "1.0",
                    "how far to extend learning curve as a percent of train")
 flags.DEFINE_string("do_save", "True",
                     "whether to save log and results")
-flags.DEFINE_boolean("do_plot", True,
+flags.DEFINE_boolean("do_plot", False,
                     "whether to plot results")
 
 FLAGS = flags.FLAGS
