@@ -42,6 +42,7 @@ from scipy.spatial import distance
 from sklearn.preprocessing import MinMaxScaler
 from image_scatter import images_scatter
 import warnings
+from sklearn.decomposition import PCA
 warnings.filterwarnings("ignore")
 
 get_wrapper_AL_mapping()
@@ -234,74 +235,70 @@ def query_and_learn(FLAGS, qid,
 	if FLAGS.sampling_method == "margin":
 		acq_val[np.isinf(acq_val)] = np.max(acq_val)
 
-	if FLAGS.do_plot:
-		# # name, color, marker for plot
-		plot_index = np.concatenate((unlbl_index, index_train), axis=0)
-		family = [get_family(k) for k in plot_index]
+	# # name, color, marker for plot
+	plot_index = np.concatenate((unlbl_index, index_train), axis=0)
+	family = [get_family(k) for k in plot_index]
 
-		list_cdict = np.array([get_color_112(k) for k in plot_index])
-		marker_array = np.array([get_marker_112(k) for k in family])
-		alphas = np.array([0.3] * len(plot_index))
-		alphas[selected_inds_copy] = 1.0 
-		alphas[len(unlbl_index):] = 1.0
-
+	list_cdict = np.array([get_color_112(k) for k in plot_index])
+	marker_array = np.array([get_marker_112(k) for k in family])
+	alphas = np.array([0.3] * len(plot_index))
+	alphas[selected_inds_copy] = 1.0 
+	alphas[len(unlbl_index):] = 1.0
 
 
-		# # plot MLKR space or mds with original space
-		if FLAGS.embedding_method != "org_space":
-			# # concatenate data points train test
-			xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
-		else:
-			X_tmp = np.concatenate((unlbl_X, X_train))
-			xy = process_dimensional_reduction(X_tmp, method="mds")
-			xy *= 10000
-		# # selected array as +
-		ytrain_pred = estimator.predict(_x_train)
+	# # plot MLKR space or mds with original space
+	if FLAGS.embedding_method != "org_space":
+		# # concatenate data points train test
+		xy = np.concatenate((_unlbl_X, _x_train[:n_train_org]), axis=0)
+	else:
+		X_tmp = np.concatenate((unlbl_X, X_train))
+		xy = process_dimensional_reduction(X_tmp, method="mds")
+		xy *= 10000
+	# # selected array as +
+	ytrain_pred = estimator.predict(_x_train)
 
-		y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred[:n_train_org]), axis=0)
-		y_all_obs = np.concatenate((unlbl_y, _y_train[:n_train_org]), axis=0)
-		error_all = y_all_pred - y_all_obs
+	y_all_pred = np.concatenate((unlbl_y_pred, ytrain_pred[:n_train_org]), axis=0)
+	y_all_obs = np.concatenate((unlbl_y, _y_train[:n_train_org]), axis=0)
+	error_all = y_all_pred - y_all_obs
 
-		# # merge var all
-		var_train = estimator.predict_proba(_x_train)
-		var_all = np.concatenate((var, var_train[:n_train_org]), axis=0)  
-		this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
+	# # merge var all
+	var_train = estimator.predict_proba(_x_train)
+	var_all = np.concatenate((var, var_train[:n_train_org]), axis=0)  
+	this_fig_dir = csv_saveat.replace(".csv", "ipl.pdf")
 
-		marker_array[non_qr_ids] = "." 
-		# marker_array[selected_inds] = "o"
-		marker_array[new_batch] = "D"
-		marker_array[outstand_list] = "*"
+	marker_array[non_qr_ids] = "." 
+	# marker_array[selected_inds] = "o"
+	marker_array[new_batch] = "D"
+	marker_array[outstand_list] = "*"
 
 
 
-		data = dict()
-		data["x_embedd"] = xy[:, 0]
-		data["y_embedd"] = xy[:, 1]
-		data["error"] = error_all
+	data = dict()
+	data["x_embedd"] = xy[:, 0]
+	data["y_embedd"] = xy[:, 1]
+	data["error"] = error_all
 
-		data["index"] = plot_index
-		data["y_obs"] = y_all_obs
-		data["y_pred"] = y_all_pred
-		data["var"] = var_all
-		data["marker"] = marker_array
-		plt_df = pd.DataFrame().from_dict(data)
-		this_df_dir = this_fig_dir.replace(".pdf", "_plot.csv")
+	data["index"] = plot_index
+	data["y_obs"] = y_all_obs
+	data["y_pred"] = y_all_pred
+	data["var"] = var_all
+	data["marker"] = marker_array
+	plt_df = pd.DataFrame().from_dict(data)
+	this_df_dir = this_fig_dir.replace(".pdf", "_plot.csv")
 
-		makedirs(this_df_dir)
-		plt_df.to_csv(this_df_dir)
+	makedirs(this_df_dir)
+	plt_df.to_csv(this_df_dir)
 
-		assert len(pv) == unlbl_X.shape[1]
+	assert len(pv) == unlbl_X.shape[1]
 
-		X_all = np.concatenate((unlbl_X, X_train))
-		# fig, ax = plt.subplots(nrows=1,  sharey=True)
+	X_all = np.concatenate((unlbl_X, X_train))
+	# fig, ax = plt.subplots(nrows=1,  sharey=True)
 
-		terms = [ 
-			"of",
-			"s1-", "s2-",
-			"p1-",
-			"d2-", "d5-", "d6-", "d7-", "d10-", "f6-",
-			"d10-"
-			]
+	terms = [ 
+		"of", "s1-", "s2-",
+		"p1-", "d2-", "d5-", "d6-", "d7-", "d10-", "f6-",
+		"d10-"
+		]
 
 		# with multiprocessing.Pool(processes=8) as pool:
 		# 	func = partial(plot_ppde, 
@@ -327,119 +324,25 @@ def query_and_learn(FLAGS, qid,
 		# 	pairplot(df=pairplot_df, 
 		# 		fix_cols=[FLAGS.tv], term=term, save_dir=this_sdir)
 
-		# # # # # # # # # # # # 
-		#
-		# # # to plot independence of yobs vs feature on embedding space
-		#
-		# # # # # # # # # # # # 
-		if FLAGS.do_plot:
-			idp_yobs_file = savedir + "/autism/idp_yobs.csv"
-			if qid == 1:
-				idp_df = pd.DataFrame(index=pv)
-			else:
-				idp_df = pd.read_csv(idp_yobs_file, index_col=0)
-			idp_df["q{0}".format(qid)] = np.nan
+	# # # # # # # # # # # # 
+	#
+	# # # toplot ppde of embedding with ft
+	#
+	# # # # # # # # # # # # 
+	if FLAGS.do_plot: # FLAGS.do_plot:
+		for i, v in enumerate(pv):
+			# # for interpolation
+			# save_file= savedir+"/query_{0}/ft/{1}.png".format(qid, v)
 
-			ref_ids = np.where(y_all_obs<0)[0]
-			for term in terms:
-				this_sdir = savedir + "/query_{0}/ft_yobs/".format(qid)
-				idp_test = fts_on_embedding(pv=pv, estimator=copy.copy(fit_estimator), 
-					X_train=_x_train, y_train=_y_train,
-					X_all=X_all, xy=xy, savedir=this_sdir, term=term,
-					background=y_all_obs, ref_ids=ref_ids,
-					cmap="PiYG",
-					vmin=vmin_plt["fe"], vmax=vmax_plt["fe"],
-					)
-				for k, v in idp_test.items():
-					idp_df.loc[k, "q{0}".format(qid)] = v
+			# # contour
+			save_file= savedir+"/query_{0}/ft_ct/{1}.png".format(qid, v)
 
+			z_values = X_all[:, i]
 
-				idp_df.to_csv(idp_yobs_file)
-			print (idp_df)
-			try:
-				plot_heatmap(idp_df, vmin=None, vmax=None, 
-					save_file=idp_yobs_file.replace(".csv", ".pdf"), 
-					cmap="bwr", lines=None, title=None)
-			except Exception as e:
-				pass
-
-		# # # # # # # # # # # # 
-		#
-		# # # to plot independence of variance vs feature on embedding space
-		#
-		# # # # # # # # # # # # 
-		if FLAGS.do_plot:
-			idp_yvar_file = savedir + "/autism/idp_var.csv"
-			if qid == 1:
-				idp_df = pd.DataFrame(index=pv)
-			else:
-				idp_df = pd.read_csv(idp_yvar_file, index_col=0)
-			idp_df["q{0}".format(qid)] = np.nan
-			ref_ids = np.where(var_all>0.8)[0]
-			for term in terms:
-				this_sdir = savedir + "/query_{0}/ft_var/".format(qid)
-				idp_test = fts_on_embedding(pv=pv, estimator=copy.copy(fit_estimator), 
-					X_train=_x_train, y_train=_y_train,
-					X_all=X_all, xy=xy, savedir=this_sdir, term=term,
-					background=var_all, ref_ids=ref_ids,
-					cmap="PRGn",
-					vmin=-0.01, vmax=1.0,
-					)
-				for k, v in idp_test.items():
-					idp_df.loc[k, "q{0}".format(qid)] = v
-				idp_df.to_csv(idp_yvar_file)
-			print (idp_df)
-
-			try:
-				plot_heatmap(idp_df, vmin=None, vmax=None, 
-					save_file=idp_yvar_file.replace(".csv", ".pdf"), 
-					cmap="PRGn", lines=None, title=None)
-			except Exception as e:
-				pass
-
-		# # # # # # # # # # # # 
-		#
-		# # # toplot ppde of embedding with ft
-		#
-		# # # # # # # # # # # # 
-		if FLAGS.do_plot:
-			for i, v in enumerate(pv):
-				# # for interpolation
-				# save_file= savedir+"/query_{0}/ft/{1}.png".format(qid, v)
-
-				# # contour
-				save_file= savedir+"/query_{0}/ft_ct/{1}.png".format(qid, v)
-
-				z_values = X_all[:, i]
-
-				if len(set(z_values)) >1:
-					# try:
-					scatter_plot_8(x=xy[:, 0], y=xy[:, 1],  # # scatter_plot_6
-						z_values=z_values,
-						list_cdict=list_cdict, 
-						xvlines=[0.0], yhlines=[0.0], 
-						sigma=None, mode='scatter', lbl=None, name=None, 
-						s=60, alphas=alphas, 
-						title=save_file.replace(ALdir, ""),
-						x_label=FLAGS.embedding_method + "_dim_1",
-						y_label=FLAGS.embedding_method + "_dim_2", 
-						interpolate=False, cmap="seismic",
-						save_file=save_file,
-						preset_ax=None, linestyle='-.', marker=marker_array,
-						vmin=None, vmax=None
-						)
-					# except:
-					# 	pass
-
-		# # # # # # # # # # # # 
-		#
-		# # # to plot y_obs, y_pred, var, error, no del
-		#
-		# # # # # # # # # # # # 
-		if FLAGS.do_plot:
-			save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
-			scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-					z_values=y_all_obs,
+			if len(set(z_values)) >1:
+				# try:
+				scatter_plot_8(x=xy[:, 0], y=xy[:, 1],  # # scatter_plot_6
+					z_values=z_values,
 					list_cdict=list_cdict, 
 					xvlines=[0.0], yhlines=[0.0], 
 					sigma=None, mode='scatter', lbl=None, name=None, 
@@ -447,50 +350,27 @@ def query_and_learn(FLAGS, qid,
 					title=save_file.replace(ALdir, ""),
 					x_label=FLAGS.embedding_method + "_dim_1",
 					y_label=FLAGS.embedding_method + "_dim_2", 
+					interpolate=False, cmap="seismic",
 					save_file=save_file,
-					interpolate=False, cmap="PiYG",
 					preset_ax=None, linestyle='-.', marker=marker_array,
-					vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+					vmin=None, vmax=None
 					)
+				# except:
+				# 	pass
 
+	# # # # # # # # # # # # 
+	#
+	# # # to plot y_obs, y_pred, var, error, no del
+	#
+	# # # # # # # # # # # # 
+	if FLAGS.do_plot: # FLAGS.do_plot: # # FLAGS.do_plot
+		pca = PCA(n_components=2)
+		xy = pca.fit_transform(xy)
 
-
-			save_file=this_fig_dir.replace(".pdf", "_error.pdf")
-			scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-				z_values=error_all,
-				list_cdict=list_cdict, 
-				xvlines=[0.0], yhlines=[0.0], 
-				sigma=None, mode='scatter', lbl=None, name=None, 
-				s=60, alphas=alphas, 
-				title=save_file.replace(ALdir, ""),
-				x_label=FLAGS.embedding_method + "_dim_1",
-				y_label=FLAGS.embedding_method + "_dim_2", 
-				interpolate=False, cmap="seismic",
-				save_file=save_file,
-				preset_ax=None, linestyle='-.', marker=marker_array,
-				vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
-				)
-
-
-			save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
-			scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-				z_values=y_all_pred,
-				list_cdict=list_cdict, 
-				xvlines=[0.0], yhlines=[0.0], 
-				sigma=None, mode='scatter', lbl=None, name=None, 
-				s=60, alphas=alphas, 
-				title=save_file.replace(ALdir, ""),
-				x_label=FLAGS.embedding_method + "_dim_1",
-				y_label=FLAGS.embedding_method + "_dim_2", 
-				save_file=save_file,
-				interpolate=False,  cmap="PuOr",
-				preset_ax=None, linestyle='-.', marker=marker_array,
-				vmin=vmin_plt["fe"]*2, vmax=vmax_plt["fe"]*2
-				)
-
-			save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
-			scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-				z_values=var_all,
+		print ("HERE", xy.shape)
+		save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+				z_values=y_all_obs,
 				list_cdict=list_cdict, 
 				xvlines=[0.0], yhlines=[0.0], 
 				sigma=None, mode='scatter', lbl=None, name=None, 
@@ -499,118 +379,233 @@ def query_and_learn(FLAGS, qid,
 				x_label=FLAGS.embedding_method + "_dim_1",
 				y_label=FLAGS.embedding_method + "_dim_2", 
 				save_file=save_file,
-				interpolate=False, cmap="PRGn",
+				interpolate=False, cmap="PiYG",
 				preset_ax=None, linestyle='-.', marker=marker_array,
-				vmin=-0.01, vmax=1.0
+				vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
 				)
 
-		# # # # # # # # # # # # 
-		#
-		# # # partial dependence plot
-		#
-		# # # # # # # # # # # # 
-		if FLAGS.do_plot:
-			fit_estimator = fit_estimator.fit(_x_train, _y_train)
-			n_features = _x_train.shape[1]
-			midle = int(n_features/2)
-			features = range(n_features)
+		save_file=this_fig_dir.replace(".pdf", "_error.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=error_all,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			interpolate=False, cmap="seismic",
+			save_file=save_file,
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+			)
 
-			if FLAGS.embedding_method == "org_space":
-				save_file=this_fig_dir.replace(".pdf", "_avg1.pdf")
-				fig = plt.figure(figsize=(8, 8), linewidth=1.0)
-				plot_partial_dependence(fit_estimator, _x_train, features[:midle],
-					   kind='average', line_kw={"color": "red"})
-				makedirs(save_file)
-				plt.savefig(save_file, transparent=False)
-				release_mem(fig=fig)
+		save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=y_all_pred,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False,  cmap="PuOr",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+			)
 
-				save_file=this_fig_dir.replace(".pdf", "_avg2.pdf")
-				fig = plt.figure(figsize=(8, 8), linewidth=1.0)
-				plot_partial_dependence(fit_estimator, _x_train,  features[midle:],
-					   kind='average', line_kw={"color": "red"})
-				makedirs(save_file)
-				plt.savefig(save_file, transparent=False)
-				release_mem(fig=fig)
-			else:
-				# _, ax = plt.subplots(ncols=3, figsize=(9, 4))
-				fig = plt.figure(figsize=(8, 8), linewidth=1.0)
-				save_file=this_fig_dir.replace(".pdf", "_partial.pdf")
-				plot_partial_dependence(fit_estimator, _x_train, features,
-					   kind='both', n_jobs=3, grid_resolution=20,
-						# ax=ax,
-						)
-				makedirs(save_file)
-				plt.savefig(save_file, transparent=False)
-				release_mem(fig=fig)
+		save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=var_all,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False, cmap="PRGn",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=-0.01, vmax=1.0
+			)
 
-		# # # # # # # # # # # # 
-		#
-		# # # to create map of maps
-		#
-		# # # # # # # # # # # # 
+	# # # # # # # # # # # # 
+	#
+	# # # partial dependence plot
+	#
+	# # # # # # # # # # # # 
+	if FLAGS.do_plot:
+		fit_estimator = fit_estimator.fit(_x_train, _y_train)
+		n_features = _x_train.shape[1]
+		midle = int(n_features/2)
+		features = range(n_features)
 
-		if FLAGS.do_plot:
-			# var_compare = list(np.concatenate((pv, ["y_obs"])))
-			# # y_filter = np.where(y_all_obs<0, 1, 0)
-			# X_all_compare = np.hstack((X_all, np.array([y_all_obs]).T))
-			# print (X_all_compare)
-			# print (np.min(X_all_compare), np.max(X_all_compare))
+		if FLAGS.embedding_method == "org_space":
+			save_file=this_fig_dir.replace(".pdf", "_avg1.pdf")
+			fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+			plot_partial_dependence(fit_estimator, _x_train, features[:midle],
+				   kind='average', line_kw={"color": "red"})
+			makedirs(save_file)
+			plt.savefig(save_file, transparent=False)
+			release_mem(fig=fig)
 
-			var_compare = copy.copy(pv)
-			X_all_compare = copy.copy(X_all)
-			scaler = MinMaxScaler()
-			X_all_compare = scaler.fit_transform(X_all_compare)
-
-			pv_combs = list(combinations(pv, 2))
-			with multiprocessing.Pool(processes=8) as pool:
-				func = partial(get_cell_distance, 
-					pv=var_compare, X_all=X_all_compare, xy=xy)
-				all_dist = pool.map(func, pv_combs)
-			print (len(all_dist))
-			ft_dist = np.sum(np.array(all_dist), axis=0)
-
-			# # to plot distance between features		
-			save_file= savedir+"/query_{0}/dist_of_features.pdf".format(qid)
-			df = pd.DataFrame(ft_dist, columns=var_compare, index=var_compare)
-			df.to_csv(save_file.replace(".pdf", ".csv"))
-			plot_heatmap(df, vmin=0.0, vmax=1.0, 
-				save_file=save_file, cmap="bwr", lines=None, title=None)
-
-			# ft_dist = np.where(ft_dist is np.nan, 0, ft_dist)
-			ft_dist = np.nan_to_num(ft_dist)
-			ft_embedd = process_dimensional_reduction(ft_dist, method="mds")
-			save_file= savedir+"/query_{0}/dist_of_features_mds.pdf".format(qid)
-
-
-			list_cdict = [get_color_feature(v) for v in var_compare]
-			marker_array = np.array(["s" for v in var_compare])
-			alphas = np.array([0.9 for v in var_compare])
-			scatter_plot_4(x=ft_embedd[:, 0], y=ft_embedd[:, 1], 
-					# z_values=None,
-					# list_cdict=list_cdict, 
-					color_array = [k.keys() for k in list_cdict],
-					xvlines=[0.0], yhlines=[0.0], 
-					sigma=None, mode='scatter', lbl=None, name=var_compare, 
-					s=60, alphas=alphas, 
-					title=save_file.replace(ALdir, ""),
-					x_label=FLAGS.embedding_method + "_dim_1",
-					y_label=FLAGS.embedding_method + "_dim_2", 
-					save_file=save_file,
-					interpolate=False,
-					preset_ax=None, linestyle='-.', marker=marker_array,
-					# vmin=-0.01, vmax=1.0
+			save_file=this_fig_dir.replace(".pdf", "_avg2.pdf")
+			fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+			plot_partial_dependence(fit_estimator, _x_train,  features[midle:],
+				   kind='average', line_kw={"color": "red"})
+			makedirs(save_file)
+			plt.savefig(save_file, transparent=False)
+			release_mem(fig=fig)
+		else:
+			# _, ax = plt.subplots(ncols=3, figsize=(9, 4))
+			fig = plt.figure(figsize=(8, 8), linewidth=1.0)
+			save_file=this_fig_dir.replace(".pdf", "_partial.pdf")
+			plot_partial_dependence(fit_estimator, _x_train, features,
+				   kind='both', n_jobs=3, grid_resolution=20,
+					# ax=ax,
 					)
+			makedirs(save_file)
+			plt.savefig(save_file, transparent=False)
+			release_mem(fig=fig)
 
-			coords_df = pd.DataFrame(columns=["x","y","file"])
-			coords_df["x"] = ft_embedd[:, 0]
-			coords_df["y"] = ft_embedd[:, 1]
-			coords_df["file"] = ["{0}.png".format(v) for v in var_compare]
+	# # # # # # # # # # # # 
+	#
+	# # # to create map of maps
+	#
+	# # # # # # # # # # # # 
+	if FLAGS.do_plot:
+		# var_compare = list(np.concatenate((pv, ["y_obs"])))
+		# # y_filter = np.where(y_all_obs<0, 1, 0)
+		# X_all_compare = np.hstack((X_all, np.array([y_all_obs]).T))
+		# print (X_all_compare)
+		# print (np.min(X_all_compare), np.max(X_all_compare))
 
-			images_scatter(coords_df, input_dir=savedir+"/query_{0}/ft".format(qid), 
-				n_bins=20, margin=0.1, save_fig=True, more_info=None)
+		var_compare = copy.copy(pv)
+		X_all_compare = copy.copy(X_all)
+		scaler = MinMaxScaler()
+		X_all_compare = scaler.fit_transform(X_all_compare)
 
-			# exit()
+		pv_combs = list(combinations(pv, 2))
+		with multiprocessing.Pool(processes=8) as pool:
+			func = partial(get_cell_distance, 
+				pv=var_compare, X_all=X_all_compare, xy=xy)
+			all_dist = pool.map(func, pv_combs)
+		print (len(all_dist))
+		ft_dist = np.sum(np.array(all_dist), axis=0)
 
+		# # to plot distance between features		
+		save_file= savedir+"/query_{0}/dist_of_features.pdf".format(qid)
+		df = pd.DataFrame(ft_dist, columns=var_compare, index=var_compare)
+		df.to_csv(save_file.replace(".pdf", ".csv"))
+		plot_heatmap(df, vmin=0.0, vmax=1.0, 
+			save_file=save_file, cmap="bwr", lines=None, title=None)
+
+		# ft_dist = np.where(ft_dist is np.nan, 0, ft_dist)
+		ft_dist = np.nan_to_num(ft_dist)
+		ft_embedd = process_dimensional_reduction(ft_dist, method="mds")
+		save_file= savedir+"/query_{0}/dist_of_features_mds.pdf".format(qid)
+
+
+		list_cdict = [get_color_feature(v) for v in var_compare]
+		marker_array = np.array(["s" for v in var_compare])
+		alphas = np.array([0.9 for v in var_compare])
+		scatter_plot_4(x=ft_embedd[:, 0], y=ft_embedd[:, 1], 
+				# z_values=None,
+				# list_cdict=list_cdict, 
+				color_array = [k.keys() for k in list_cdict],
+				xvlines=[0.0], yhlines=[0.0], 
+				sigma=None, mode='scatter', lbl=None, name=var_compare, 
+				s=60, alphas=alphas, 
+				title=save_file.replace(ALdir, ""),
+				x_label=FLAGS.embedding_method + "_dim_1",
+				y_label=FLAGS.embedding_method + "_dim_2", 
+				save_file=save_file,
+				interpolate=False,
+				preset_ax=None, linestyle='-.', marker=marker_array,
+				# vmin=-0.01, vmax=1.0
+				)
+
+		coords_df = pd.DataFrame(columns=["x","y","file"])
+		coords_df["x"] = ft_embedd[:, 0]
+		coords_df["y"] = ft_embedd[:, 1]
+		coords_df["file"] = ["{0}.png".format(v) for v in var_compare]
+
+		images_scatter(coords_df, input_dir=savedir+"/query_{0}/ft".format(qid), 
+			n_bins=20, margin=0.1, save_fig=True, more_info=None)
+
+
+
+	# # # # # # # # # # # # 
+	#
+	# # # to plot independence of yobs vs feature on embedding space
+	#
+	# # # # # # # # # # # # 
+	if FLAGS.do_plot: # FLAGS.do_plot: # True, FLAGS.do_plot
+		idp_yobs_file = savedir + "/autism/idp_yobs.csv"
+		if qid == 1:
+			idp_df = pd.DataFrame(index=pv)
+		else:
+			idp_df = pd.read_csv(idp_yobs_file, index_col=0)
+		idp_df["q{0}".format(qid)] = np.nan
+
+		ref_ids = np.where(y_all_obs<0)[0]
+		for term in terms:
+			this_sdir = savedir + "/query_{0}/ft_yobs/".format(qid)
+			idp_test = fts_on_embedding(pv=pv, estimator=copy.copy(fit_estimator), 
+				X_train=_x_train, y_train=_y_train,
+				X_all=X_all, xy=xy, savedir=this_sdir, term=term,
+				background=y_all_obs, ref_ids=ref_ids,
+				cmap="PiYG",
+				vmin=vmin_plt["fe"], vmax=vmax_plt["fe"],
+				)
+			for k, v in idp_test.items():
+				idp_df.loc[k, "q{0}".format(qid)] = v
+
+
+			idp_df.to_csv(idp_yobs_file)
+		print (idp_df)
+		try:
+			plot_heatmap(idp_df, vmin=None, vmax=None, 
+				save_file=idp_yobs_file.replace(".csv", ".pdf"), 
+				cmap="bwr", lines=None, title=None)
+		except Exception as e:
+			pass
+
+	# # # # # # # # # # # # 
+	#
+	# # # to plot independence of variance vs feature on embedding space
+	#
+	# # # # # # # # # # # # 
+	if FLAGS.do_plot: # FLAGS.do_plot: # 
+		idp_yvar_file = savedir + "/autism/idp_var.csv"
+		if qid == 1:
+			idp_df = pd.DataFrame(index=pv)
+		else:
+			idp_df = pd.read_csv(idp_yvar_file, index_col=0)
+		idp_df["q{0}".format(qid)] = np.nan
+		ref_ids = np.where(var_all>0.8)[0]
+		for term in terms:
+			this_sdir = savedir + "/query_{0}/ft_var/".format(qid)
+			idp_test = fts_on_embedding(pv=pv, estimator=copy.copy(fit_estimator), 
+				X_train=_x_train, y_train=_y_train,
+				X_all=X_all, xy=xy, savedir=this_sdir, term=term,
+				background=var_all, ref_ids=ref_ids,
+				cmap="PRGn",
+				vmin=-0.01, vmax=1.0,
+				)
+			for k, v in idp_test.items():
+				idp_df.loc[k, "q{0}".format(qid)] = v
+			idp_df.to_csv(idp_yvar_file)
+
+		try:
+			plot_heatmap(idp_df, vmin=None, vmax=None, 
+				save_file=idp_yvar_file.replace(".csv", ".pdf"), 
+				cmap="PRGn", lines=None, title=None)
+		except Exception as e:
+			pass
 
 	return _x_train, _y_train, _unlbl_X, estimator, embedding_model
 
@@ -640,10 +635,10 @@ def get_cell_distance(pv_comb, pv, X_all, xy):
 	return dist
 
 def evaluation_map(FLAGS, 
-	X_train, y_train, index_train, 
-	unlbl_X, unlbl_y, unlbl_index,
-	all_query, sampler, uniform_sampler, 
-	save_at, eval_data_file, estimator):
+		X_train, y_train, index_train, 
+		unlbl_X, unlbl_y, unlbl_index,
+		all_query, sampler, uniform_sampler, 
+		save_at, eval_data_file, estimator):
 	"""
 	# # to create an error map of samples in each query batch
 	"""

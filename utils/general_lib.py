@@ -16,8 +16,8 @@ from embedding_space import EmbeddingSpace
 from sklearn.preprocessing import MinMaxScaler
 
 
-vmin_plt = dict({"fe":-0.8, "magmom_pa":1.2})
-vmax_plt = dict({"fe":0.2, "magmom_pa":2.2})
+vmin_plt = dict({"fe":-0.15, "magmom_pa":1.2})
+vmax_plt = dict({"fe":0.28, "magmom_pa":2.2})
 
 
 

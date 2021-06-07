@@ -13,7 +13,12 @@ title_font = {'fontname': 'serif', 'size': 14}
 # performance_codes = dict({"uniform":"red", "exploitation":"black", 
 # 		"margin":"blue", "expected_improvement":"green"})
 
-performance_codes = dict({"org_space":"blue", "MLKR":"red"}) 
+# performance_codes = dict({"org_space":"blue", "MLKR":"red"}) 
+performance_codes = dict({
+	"org_space|uniform":"blue", "org_space|margin":"purple", "org_space|exploitation":"navy", 
+	"MLKR|uniform":"red", "MLKR|margin":"orange", "MLKR|exploitation":"tomato", 
+	}) 
+
 hatch_codes = dict({"uniform":"/", "exploitation":"*", 
 				"margin":"o", "expected_improvement":"/", "MaxEmbeddDir":"."}) 
 # # '-', '+', 'x', '\\', '*', 'o', 'O', '.'
@@ -51,7 +56,8 @@ def get_error(job_savedir, ith_trial, qid):
 	mean_qr = np.mean(error_qr)
 	mean_non_qr = np.mean(error_non_qr)
 
-	return mean_qr, mean_non_qr, data
+	return error_qr, error_non_qr, data
+	# return mean_qr, mean_non_qr, data
 
 def perform_each_acquisition(ith_trials, 
 		embedding_method, sampling_method, dt, ax, is_relative):
@@ -76,64 +82,86 @@ def perform_each_acquisition(ith_trials,
 		n_full = len(full_os_ids)
 
 	recall_os = 0
-	n_trials = len(ith_trials)
 	job_savedir = get_savedir(ith_trial=ith_trials[0])
 
+	mean_trials = []
+	var_trials = []
+	patch = None
 	for qid in qids:
 		values = []
+		# # for all trials
+		n_trials = 0
 		for ith_trial in ith_trials:
-			mean_qr, mean_non_qr, data = get_error(
-				job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
-			if is_relative:
-				mean_qr_ref, mean_non_qr_ref, data_ref = get_error(
-					job_savedir=org_savedir, ith_trial=ith_trial, qid=qid)
-				mean_qr /= mean_qr_ref
-				mean_non_qr /= mean_non_qr_ref
+			try:
+				mean_qr, mean_non_qr, data = get_error(
+					job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
+				if is_relative:
+					mean_qr_ref, mean_non_qr_ref, data_ref = get_error(
+						job_savedir=org_savedir, ith_trial=ith_trial, qid=qid)
+					mean_qr /= mean_qr_ref
+					mean_non_qr /= mean_non_qr_ref
 
-			if dt == "OS":
-				for tmp in ["DQ", "OS", "RND"]:
-					tmp_dict_values = data[tmp]
-					idx_expl, y_expl, y_expl_pred = tmp_dict_values["idx_qr"], tmp_dict_values["y_qr"], tmp_dict_values["y_qr_pred"]
-					this_recall = len(list(set(idx_expl).intersection(full_os_ids))) / float(n_full * n_trials)
-					recall_os += this_recall
-				values.append(recall_os)
-			elif dt == "DU":
-				values.append(mean_non_qr)
-			else:
-				values.append(mean_qr)
+				if dt == "OS":
+					for tmp in ["DQ", "OS", "RND"]:
+						tmp_dict_values = data[tmp]
+						idx_expl, y_expl, y_expl_pred = tmp_dict_values["idx_qr"], tmp_dict_values["y_qr"], tmp_dict_values["y_qr_pred"]
+						this_recall = len(list(set(idx_expl).intersection(full_os_ids))) / float(n_full)
+						recall_os += this_recall
+					values.append(recall_os)
+				elif dt == "DU":
+					values.append(mean_non_qr)
+					# values = np.concatenate([values, mean_non_qr])
+				else:
+					values.append(mean_qr)
+					# values = np.concatenate([values, mean_qr])
 
+				n_trials += 1
+			except Exception as e:
+				print ("Error in ", embedding_method, sampling_method, qid, ith_trial)
+				pass
+		values = np.array(values)
+		if dt == "OS":
+			# # normalize in scale of outstanding 
+			values /= n_trials
+		# else:
+		# 	# # normalize in scale of range of formation energy
+		# 	values /= 0.43
 
-		bplot = ax.boxplot(x=values, vert=True, #notch=True, 
-				# sym='rs', # whiskerprops={'linewidth':2},
-				# alpha=0.4,
-				# notch=True,
-				positions=[qid], patch_artist=True,
-				widths=0.8, meanline=True, #flierprops=flierprops,
-				showfliers=False, showbox=True, showmeans=False,
-				)
-			# ax.text(pos_x, mean, round(mean, 2),
-			# 	horizontalalignment='center', size=14, 
-			# 	color=color, weight='semibold')
-		patch = bplot['boxes'][0]
-		patch.set_facecolor(performance_codes[embedding_method])
-		patch.set_hatch(hatch_codes[sampling_method])
-		patch.set_alpha(0.8)
-		# ax.legend([bplot["boxes"][0]], 
-		# 	["{0}_{1}".format(embedding_method, sampling_method)], 
-		# 	loc='upper right')
+		mean_trial = np.mean(values)
+		var_trial = np.var(values)
 
+		if dt == "OS":
+			bplot = ax.boxplot(x=values, vert=True, #notch=True, 
+					# sym='rs', # whiskerprops={'linewidth':2},
+					# alpha=0.4,
+					# notch=True,
+					positions=[qid], patch_artist=True,
+					widths=0.8, meanline=True, #flierprops=flierprops,
+					showfliers=False, showbox=True, showmeans=True,
+					)
+				# ax.text(pos_x, mean, round(mean, 2),
+				# 	horizontalalignment='center', size=14, 
+				# 	color=color, weight='semibold')
+			patch = bplot['boxes'][0]
+			lab = "{0}|{1}".format(embedding_method, sampling_method)
 
+			patch.set_facecolor(performance_codes[lab])
+			# patch.set_hatch(hatch_codes[sampling_method])
+			patch.set_alpha(0.8)
+			ax.legend([bplot["boxes"][0]], 
+				["{0}_{1}".format(embedding_method, sampling_method)], 
+				loc='upper right')
 
-			# mean_vals[dt].append(mean)
-			# mean_pos[dt].append(qid)
-	return mean_vals, mean_pos, patch
+		mean_trials.append(mean_trial)
+		var_trials.append(var_trial)
+	return np.array(mean_trials), np.array(var_trials), patch
 
 
 
 def show_performance(ith_trials, dt, is_relative):
 	performance_pos = dict({"uniform":0, "exploitation":1, 
 				"margin":2, "expected_improvement":3})
-	fig = plt.figure(figsize=(10, 8))
+	fig = plt.figure(figsize=(11, 8))
 	ax = fig.add_subplot(1, 1, 1)
 	ax.grid(which='both', linestyle='-.')
 	ax.grid(which='minor', alpha=0.2)
@@ -144,40 +172,44 @@ def show_performance(ith_trials, dt, is_relative):
 
 	legends = []
 	patches = []
-	for embedding_method in ["org_space", "MLKR"]: # 
-		for sampling_method in ["margin", "exploitation", "uniform"]: # , "exploitation", "margin"
+	for embedding_method in ["MLKR", "org_space"]: # "org_space"
+		for sampling_method in ["margin", "exploitation", "uniform"]: # ,  
 		# expected_improvement,  MaxEmbeddDir
 			flierprops = dict(marker='+', markerfacecolor='r', markersize=2,
 						  linestyle='none', markeredgecolor='k')
-			try:
-				mean_vals, mean_pos, patch = perform_each_acquisition(
-					ith_trials=ith_trials,
-					embedding_method=embedding_method,
-					sampling_method=sampling_method, dt=dt, ax=ax,
-					is_relative=is_relative)
-				lab = "{0}|{1}".format(embedding_method, sampling_method)
-				legends.append(lab)
-				patches.append(patch)
-			except:
-				pass
+			# try:
+			mean_trials, var_trials, patch = perform_each_acquisition(
+				ith_trials=ith_trials,
+				embedding_method=embedding_method,
+				sampling_method=sampling_method, dt=dt, ax=ax,
+				is_relative=is_relative)
+			lab = "{0}|{1}".format(embedding_method, sampling_method)
+			legends.append(lab)
+			# patches.append(patch)
+			if dt != "OS":
+				ax.plot(qids, mean_trials, '-', c=performance_codes[lab], label=lab)
+				ax.fill_between(qids, mean_trials - var_trials, mean_trials + var_trials, 
+					color=performance_codes[lab],
+					alpha=0.8)
 
-	
-
+			# except:
+			# 	pass
 		# ax.set_xlabel(r"Query index", **axis_font) 
 		if dt == "OS":
 			ax.set_ylabel(r"Recall rate", **axis_font)
 			# ax.set_ylim(-1.6, -0.4)
-
 		else:
 			ax.set_ylabel(r"Error", **axis_font)
-			ax.set_yscale('log')
+			ax.set_ylim(0.0, 0.2)
+			# ax.set_yscale('log')
 			# ax.set_ylim(0.001, 1.3)
-	ax.legend(patches, legends)
+	# ax.legend(patches, legends)
+	ax.legend()
 	
 	plt.xticks(qids, qids) 
 	ax.tick_params(axis='y', labelsize=12)
-	# y_star_ax.set_yscale('log') 
 	ax.set_title(dt)
+	ax.set_xlim(1.0, n_run)
 
 	plt.tight_layout(pad=1.1)
 	save_at = result_dropbox_dir+"/merge_performance/box/"+dt+".pdf"
@@ -253,8 +285,8 @@ if __name__ == "__main__":
 
 	# get_full_os()
 
-	for dt in ["DQ", "OS", "RND", "DQ_to_RND", "DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
-		show_performance(ith_trials=[1,2,3,4,5], # 2,3,4,5,
+	for dt in ["DQ", "OS", "RND", "DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
+		show_performance(ith_trials=range(1,20), # 2,3,4,5,
 			# 2
 			dt=dt, is_relative=False)
 

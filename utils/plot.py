@@ -704,14 +704,14 @@ def myround(x, base=5):
 	return base * round(x/base)
 
 def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
-	sigma=None, mode='scatter', lbl=None, name=None, 
-	s=100, alphas=0.8, title=None,
-	x_label='x', y_label='y', 
-	save_file=None, interpolate=False, color='blue', 
-	preset_ax=None, linestyle='-.', marker='o',
-	cmap='seismic',
-	vmin=None, vmax=None
-	):
+		sigma=None, mode='scatter', lbl=None, name=None, 
+		s=100, alphas=0.8, title=None,
+		x_label='x', y_label='y', 
+		save_file=None, interpolate=False, color='blue', 
+		preset_ax=None, linestyle='-.', marker='o',
+		cmap='seismic',
+		vmin=None, vmax=None
+		):
 
 	org_x = copy.copy(x)
 	org_y = copy.copy(y)
@@ -731,11 +731,21 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 	yticklabels = [myround(k,5) for k in tmp]
 
 
-	fig, main_ax = plt.subplots(figsize=(9, 8), linewidth=1.0) # 
+	fig, main_ax = plt.subplots(figsize=(10, 9), linewidth=1.0) # 
 	# grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
 
-	sns.set_style(style='white') 
+	if False:
+		main_ax = sns.kdeplot(x, y,
+			 # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
+			 cmap='Oranges', # Greys
+			 shade=True, shade_lowest=False,
+			 fontsize=10, ax=main_ax, linewidths=1,
+			 alpha=0.5
+			 # vertical=True
+			 )
 
+
+	sns.set_style(style='white') 
 	for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
 		if _m in ["o", "D", "*"]:
 			main_ax.scatter(_x, _y, s=s, 
@@ -756,35 +766,50 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 					cdict=_cdict, alpha=_a
 					)
 
-	if z_values is not None:
-		grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
-		grid_interpolate = griddata(np.array([x, y]).T, z_values, (grid_x, grid_y), 
-			method='cubic')
+	xx, yy = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+	# density
+	# # # adddd
+	positions = np.vstack([xx.ravel(), yy.ravel()])
+	values = np.vstack([x, y])
+	kernel = stats.gaussian_kde(values)
+	f = np.reshape(kernel(positions).T, xx.shape)
 
-		# max_ipl = 0.8*max([abs(np.nanmax(grid_interpolate.T)), abs(np.nanmin(grid_interpolate.T))])
-		# max_ipl = 2.2
+	# Contourf plot
+	# cs = main_ax.contour(xx, yy, f, 
+	# 		levels=3, corner_mask=False,
+	# 		extent=None, colors="gray",
+	# 		) 
 
-		# orig_cmap = mpl.cm.coolwarm
-		# shrunk_cmap = shiftedColorMap(orig_cmap, 
-		# 	start=np.nanmin(grid_interpolate.T), 
-		# 	midpoint=0.5, stop=np.nanmax(grid_interpolate.T), name='shrunk')
-		if vmin is None:
-			vmin = np.nanmin(grid_interpolate.T)
-		if vmax  is None:
-			vmax = np.nanmax(grid_interpolate.T)
 
-		# norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-		norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
-		z_plot = main_ax.imshow(grid_interpolate.T, 
-			extent=(min(x),max(x),min(y),max(y)), origin='lower',
-			cmap=cmap,
-			norm=norm, 
-			# vmin=-max_ipl, vmax=max_ipl, 
-			interpolation="hamming",
-			alpha=0.9)
-		# colorbar(z_plot)
-		if ".png" not in save_file:
-			fig.colorbar(z_plot, shrink=0.6)
+	# # z_value layer
+	if True:
+		if z_values is not None:
+			grid_interpolate = griddata(np.array([x, y]).T, z_values, (xx, yy), 
+				method='nearest')
+
+			# max_ipl = 0.8*max([abs(np.nanmax(grid_interpolate.T)), abs(np.nanmin(grid_interpolate.T))])
+			# max_ipl = 2.2
+
+			# orig_cmap = mpl.cm.coolwarm
+			# shrunk_cmap = shiftedColorMap(orig_cmap, 
+			# 	start=np.nanmin(grid_interpolate.T), 
+			# 	midpoint=0.5, stop=np.nanmax(grid_interpolate.T), name='shrunk')
+			if vmin is None:
+				vmin = np.nanmin(grid_interpolate.T)
+			if vmax  is None:
+				vmax = np.nanmax(grid_interpolate.T)
+
+			# norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+			norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+			z_plot = main_ax.imshow(grid_interpolate.T, 
+				extent=(min(x),max(x),min(y),max(y)), origin='lower',
+				cmap=cmap, norm=norm, 
+				# vmin=-max_ipl, vmax=max_ipl, 
+				interpolation="hamming",
+				alpha=0.9)
+			colorbar(z_plot)
+			# if ".png" not in save_file:
+			# 	fig.colorbar(z_plot, shrink=0.6)
 
 
 	# for xvline in xvlines:
@@ -795,12 +820,12 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 	# main_ax.set_xlabel(x_label, **axis_font)
 	# main_ax.set_ylabel(y_label, **axis_font)
 
-	plt.xticks(tick_pos, []) # xticklabels, size=14
-	plt.yticks(tick_pos, []) # yticklabels, size=14
-
+	
 	if name is not None:
 		for i in range(len(x)):
 			main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
+	plt.xticks(tick_pos, []) # xticklabels, size=14
+	plt.yticks(tick_pos, []) # yticklabels, size=14
 
 	main_ax.set_aspect('auto')
 	
@@ -1018,7 +1043,7 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
 				X_all, xy, savedir, background, 
 				vmin=None, vmax=None, cmap="jet"):
 	# fig = plt.subplots(nrows=1,  sharey=True)
-	fig = plt.figure(figsize=(16, 8))	
+	fig = plt.figure(figsize=(9, 9))	
 	# norm = mpl.colors.Normalize(vmin=0, vmax=20) # 
 	# cmap = cm.jet # gist_earth
 	# m = cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -1030,7 +1055,7 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
 	# # # cyan, blue, 
 
 	# # # setting fig only
-	fig, main_ax = plt.subplots(figsize=(9, 8), linewidth=1.0) # 
+	fig, main_ax = plt.subplots(figsize=(8, 8), linewidth=1.0) # 
 	org_x = copy.copy(xy[:, 0])
 	org_y = copy.copy(xy[:, 1])
 	min_org_x, max_org_x = min(org_x), max(org_x)
@@ -1056,7 +1081,7 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
 	# # show y_obs
 	grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
 	grid_interpolate = griddata(np.array([x, y]).T, background, (grid_x, grid_y), 
-		method='cubic')
+		method='nearest')
 	if vmin is None:
 			vmin = np.nanmin(grid_interpolate.T)
 	if vmax  is None:
@@ -1077,7 +1102,7 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
 	f_ref = np.reshape(kernel_ref(positions).T, xx.shape)
 	cs = main_ax.contour(xx, yy, f_ref, 
 			levels=1, corner_mask=False,
-			extent=None, colors="pink",
+			extent=None, colors="black", linestyle="-."
 			) 
 	fmt = {}
 	for l in cs.levels:
@@ -1137,7 +1162,9 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
 			# plt.ylabel(str(v))
 	
 	main_ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-
+	plt.xticks(tick_pos, []) # xticklabels, size=14
+	plt.yticks(tick_pos, []) # yticklabels, size=14
+	
 	main_ax.set_aspect('auto')
 	plt.tight_layout(pad=1.1)
 	makedirs(save_file)
@@ -1344,8 +1371,6 @@ def two_surf(surf1, surf2, lbl1, lbl2, save_at, title):
 	release_mem(fig)
 	
 
-
-
 def ax_surf(xi, yi, zi, label, mode="2D"):
 	fig = plt.figure(figsize=(10, 8))
 
@@ -1499,7 +1524,6 @@ def plot_heatmap(matrix, vmin, vmax, save_file, cmap, lines=None, title=None):
 	plt.savefig(save_file, transparent=False)
 	print ("Save at: ", save_file)
 	release_mem(fig=fig)
-
 
 
 def plot_ppde(term, pv, estimator, X_train, y_train,

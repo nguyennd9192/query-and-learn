@@ -143,6 +143,7 @@ def query_db():
         "single/single_1111_21jobs",
         "single/single_1102_77jobs",
         "single/single_193_162jobs",
+        "single/Sm-Fe9-Co3",
 
         "mix/supp_0", "mix/supp_1", "mix/supp_2", "mix/supp_3",
         "mix/supp_4", "mix/supp_5", "mix/supp_6", "mix/supp_7",

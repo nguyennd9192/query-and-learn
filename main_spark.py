@@ -14,13 +14,14 @@ def create_params_grid():
 		# "MarginExplSpace"
 		]
 	score_methods = [# "u_knn",
-				 "u_gp" # "u_knn", "e_krr"
+				 "u_gp" 
+				 # "e_krr", 
 			# "fully_connected", "ml-gp", "ml-knn"
 		]
-	embedding_methods = ["MLKR"]  # LMNN, LFDA org_space
+	embedding_methods = ["MLKR", "org_space"]  # LMNN, LFDA, org_space, MLKR
 
 	active_ps = [1.0] # , 0.9, 0.7, 0.5
-	ith_trials = [1,2,3,4,5,6,7,8,9,10] # # 
+	ith_trials = range(1, 10) # list(range(10, 30))
 	 #
 	# # 0.9: test with batch_size 10 10 10, eval by ignore selected_inds
 	# # 0.7: test with batch_size 30 30 30, eval by ignore selected_inds_to_estimator
@@ -31,8 +32,8 @@ def create_params_grid():
 	MainDir = copy.copy(ALdir)
 
 	ncores_per_cpu = 32 # fix
-	ncpus_reserve = 8
-	cpus_per_task = 16  # 16
+	ncpus_reserve = 9
+	cpus_per_task = 32  # 16
 	max_cpus = ncpus_reserve*ncores_per_cpu # # ncpus take * ncores per cpu
 	ntask_per_batch = int(max_cpus / cpus_per_task)
 

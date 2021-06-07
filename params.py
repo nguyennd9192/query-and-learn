@@ -14,13 +14,14 @@ def get_basename(filename):
     basename = os.path.splitext(tail)[0]
     return tail
 
-batch_size = 20 #  4
-batch_outstand = 20 # 4 
-batch_rand = 10 # 2 
+batch_size = 40 # 20 
+batch_outstand = 40 # 20  
+batch_rand = 20# 10 
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"
-color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", "RND":"darkblue", "DQ_to_RND":"orange"})
+color_codes = dict({"DQ":"firebrick", "OS":"forestgreen", 
+                    "RND":"darkblue", "DQ_to_RND":"orange"})
 pos_codes = dict({"DQ":0, "OS":1, "RND":2, "DQ_to_RND":3})
 
 
@@ -61,7 +62,7 @@ flags.DEFINE_string("mae_update_threshold", "update_all", # # 0.0, 0.3, 1.0, upd
     ("mean absolute error to update dq to estimator"))
 
 flags.DEFINE_string(
-    "estimator_update_by", "DQ", # # DQ, DQ_RND_OS, _RND_OS
+    "estimator_update_by", "DQ_RND_OS", # # DQ, DQ_RND_OS, _RND_OS
     ("mean absolute error to update dq to estimator")
 ) 
 flags.DEFINE_boolean("is_search_params", True, 
