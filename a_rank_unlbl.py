@@ -271,8 +271,6 @@ def query_and_learn(FLAGS, qid,
 	marker_array[new_batch] = "D"
 	marker_array[outstand_list] = "*"
 
-
-
 	data = dict()
 	data["x_embedd"] = xy[:, 0]
 	data["y_embedd"] = xy[:, 1]
@@ -305,7 +303,6 @@ def query_and_learn(FLAGS, qid,
 		# 		pv=pv, estimator=fit_estimator, X_train=_x_train, y_train=_y_train,	
 		# 		X_all=X_all, xy=xy, savedir=savedir)
 		# 	pool.map(func, terms)
-
 
 		# # # toplot pairplot of original
 		# X_pairplot = np.concatenate((unlbl_X[selected_inds_to_estimator], X_train))
@@ -363,63 +360,89 @@ def query_and_learn(FLAGS, qid,
 	# # # to plot y_obs, y_pred, var, error, no del
 	#
 	# # # # # # # # # # # # 
-	if FLAGS.do_plot: # FLAGS.do_plot: # # FLAGS.do_plot
+	# if FLAGS.do_plot: # # FLAGS.do_plot
+	if True: # FLAGS.do_plot:
+
 		pca = PCA(n_components=2)
 		xy = pca.fit_transform(xy)
 
-		print ("HERE", xy.shape)
-		save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-				z_values=y_all_obs,
-				list_cdict=list_cdict, 
-				xvlines=[0.0], yhlines=[0.0], 
-				sigma=None, mode='scatter', lbl=None, name=None, 
-				s=60, alphas=alphas, 
-				title=save_file.replace(ALdir, ""),
-				x_label=FLAGS.embedding_method + "_dim_1",
-				y_label=FLAGS.embedding_method + "_dim_2", 
-				save_file=save_file,
-				interpolate=False, cmap="PiYG",
-				preset_ax=None, linestyle='-.', marker=marker_array,
-				vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
-				)
+		# print ("HERE", xy.shape)
+		# save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 		z_values=y_all_obs,
+		# 		list_cdict=list_cdict, 
+		# 		xvlines=[0.0], yhlines=[0.0], 
+		# 		sigma=None, mode='scatter', lbl=None, name=None, 
+		# 		s=60, alphas=alphas, 
+		# 		title=save_file.replace(ALdir, ""),
+		# 		x_label=FLAGS.embedding_method + "_dim_1",
+		# 		y_label=FLAGS.embedding_method + "_dim_2", 
+		# 		save_file=save_file,
+		# 		interpolate=False, cmap="PiYG",
+		# 		preset_ax=None, linestyle='-.', marker=marker_array,
+		# 		vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+		# 		)
 
-		save_file=this_fig_dir.replace(".pdf", "_error.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=error_all,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			interpolate=False, cmap="seismic",
-			save_file=save_file,
-			preset_ax=None, linestyle='-.', marker=marker_array,
-			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
-			)
+		# save_file=this_fig_dir.replace(".pdf", "_error.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 	z_values=error_all,
+		# 	list_cdict=list_cdict, 
+		# 	xvlines=[0.0], yhlines=[0.0], 
+		# 	sigma=None, mode='scatter', lbl=None, name=None, 
+		# 	s=60, alphas=alphas, 
+		# 	title=save_file.replace(ALdir, ""),
+		# 	x_label=FLAGS.embedding_method + "_dim_1",
+		# 	y_label=FLAGS.embedding_method + "_dim_2", 
+		# 	interpolate=False, cmap="seismic",
+		# 	save_file=save_file,
+		# 	preset_ax=None, linestyle='-.', marker=marker_array,
+		# 	vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+		# 	)
 
-		save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=y_all_pred,
-			list_cdict=list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=save_file,
-			interpolate=False,  cmap="PuOr",
-			preset_ax=None, linestyle='-.', marker=marker_array,
-			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
-			)
+		# save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 	z_values=y_all_pred,
+		# 	list_cdict=list_cdict, 
+		# 	xvlines=[0.0], yhlines=[0.0], 
+		# 	sigma=None, mode='scatter', lbl=None, name=None, 
+		# 	s=60, alphas=alphas, 
+		# 	title=save_file.replace(ALdir, ""),
+		# 	x_label=FLAGS.embedding_method + "_dim_1",
+		# 	y_label=FLAGS.embedding_method + "_dim_2", 
+		# 	save_file=save_file,
+		# 	interpolate=False,  cmap="PuOr",
+		# 	preset_ax=None, linestyle='-.', marker=marker_array,
+		# 	vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+		# 	)
 
-		save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
-		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-			z_values=var_all,
-			list_cdict=list_cdict, 
+		# save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
+		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+		# 	z_values=var_all,
+		# 	list_cdict=list_cdict, 
+		# 	xvlines=[0.0], yhlines=[0.0], 
+		# 	sigma=None, mode='scatter', lbl=None, name=None, 
+		# 	s=60, alphas=alphas, 
+		# 	title=save_file.replace(ALdir, ""),
+		# 	x_label=FLAGS.embedding_method + "_dim_1",
+		# 	y_label=FLAGS.embedding_method + "_dim_2", 
+		# 	save_file=save_file,
+		# 	interpolate=False, cmap="PRGn",
+		# 	preset_ax=None, linestyle='-.', marker=marker_array,
+		# 	vmin=-0.01, vmax=1.0
+		# 	)
+
+
+		save_file=this_fig_dir.replace(".pdf", "_dens.pdf")
+		tmp_list_cdict = np.array([dict({"white": "full"}) for k in plot_index])
+		tmp_marker = np.array(["o" for k in family])
+		tmp_marker[non_qr_ids] = "." 
+		# marker_array[selected_inds] = "o"
+		# tmp_marker[new_batch] = "D"
+		# tmp_marker[outstand_list] = "*"
+
+		scatter_plot_8(x=xy[:, 0], y=xy[:, 1], 
+			z_values=None,
+			list_cdict=tmp_list_cdict, 
 			xvlines=[0.0], yhlines=[0.0], 
 			sigma=None, mode='scatter', lbl=None, name=None, 
 			s=60, alphas=alphas, 
@@ -428,7 +451,7 @@ def query_and_learn(FLAGS, qid,
 			y_label=FLAGS.embedding_method + "_dim_2", 
 			save_file=save_file,
 			interpolate=False, cmap="PRGn",
-			preset_ax=None, linestyle='-.', marker=marker_array,
+			preset_ax=None, linestyle='-.', marker=tmp_marker,
 			vmin=-0.01, vmax=1.0
 			)
 
@@ -543,22 +566,24 @@ def query_and_learn(FLAGS, qid,
 	# # # to plot independence of yobs vs feature on embedding space
 	#
 	# # # # # # # # # # # # 
-	if FLAGS.do_plot: # FLAGS.do_plot: # True, FLAGS.do_plot
-		idp_yobs_file = savedir + "/autism/idp_yobs.csv"
+	if FLAGS.do_plot: # FLAGS.do_plot
+		idp_yobs_file = savedir + "/autism/idp_pred_neg.csv"
 		if qid == 1:
 			idp_df = pd.DataFrame(index=pv)
 		else:
 			idp_df = pd.read_csv(idp_yobs_file, index_col=0)
 		idp_df["q{0}".format(qid)] = np.nan
 
-		ref_ids = np.where(y_all_obs<0)[0]
+		ref_ids = np.where(y_all_pred<0)[0]
+		# ref_ids = np.where(np.abs(y_all_pred)<0.02)[0]
+
 		for term in terms:
 			this_sdir = savedir + "/query_{0}/ft_yobs/".format(qid)
 			idp_test = fts_on_embedding(pv=pv, estimator=copy.copy(fit_estimator), 
 				X_train=_x_train, y_train=_y_train,
 				X_all=X_all, xy=xy, savedir=this_sdir, term=term,
-				background=y_all_obs, ref_ids=ref_ids,
-				cmap="PiYG",
+				background=y_all_pred, ref_ids=ref_ids,
+				cmap="PuOr",
 				vmin=vmin_plt["fe"], vmax=vmax_plt["fe"],
 				)
 			for k, v in idp_test.items():
@@ -916,20 +941,15 @@ def map_unlbl_data(FLAGS):
 if __name__ == "__main__":
 
 	FLAGS(sys.argv)
-	is_spark_run = True
+	pr_file = sys.argv[-1]
+	kwargs = load_pickle(filename=pr_file)
+	FLAGS.score_method = kwargs["score_method"]
+	FLAGS.sampling_method =	kwargs["sampling_method"]
+	FLAGS.embedding_method = kwargs["embedding_method"]
+	FLAGS.active_p = kwargs["active_p"]
+	FLAGS.ith_trial = kwargs["ith_trial"]
 
-	if is_spark_run:
-		pr_file = sys.argv[-1]
-		kwargs = load_pickle(filename=pr_file)
-		FLAGS.score_method = kwargs["score_method"]
-		FLAGS.sampling_method =	kwargs["sampling_method"]
-		FLAGS.embedding_method = kwargs["embedding_method"]
-		FLAGS.active_p = kwargs["active_p"]
-		FLAGS.ith_trial = kwargs["ith_trial"]
-
-		map_unlbl_data(FLAGS=FLAGS)
-	else:
-		map_unlbl_data(FLAGS=FLAGS)
+	map_unlbl_data(FLAGS=FLAGS)
 
 
 	

@@ -8,7 +8,8 @@ from itertools import product
 
 def create_params_grid():
 	sampling_methods = [
-		"margin", "uniform", "exploitation", 
+		# "margin", 
+		"uniform", "exploitation", 
 		# "MaxEmbeddDir", "graph_density", 
 		# "hierarchical", "expected_improvement",
 		# "MarginExplSpace"

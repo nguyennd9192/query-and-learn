@@ -131,6 +131,8 @@ def perform_each_acquisition(ith_trials,
 		var_trial = np.var(values)
 
 		if dt == "OS":
+			lab = "{0}|{1}".format(embedding_method, sampling_method)
+
 			bplot = ax.boxplot(x=values, vert=True, #notch=True, 
 					# sym='rs', # whiskerprops={'linewidth':2},
 					# alpha=0.4,
@@ -143,7 +145,6 @@ def perform_each_acquisition(ith_trials,
 				# 	horizontalalignment='center', size=14, 
 				# 	color=color, weight='semibold')
 			patch = bplot['boxes'][0]
-			lab = "{0}|{1}".format(embedding_method, sampling_method)
 
 			patch.set_facecolor(performance_codes[lab])
 			# patch.set_hatch(hatch_codes[sampling_method])
@@ -199,8 +200,8 @@ def show_performance(ith_trials, dt, is_relative):
 			ax.set_ylabel(r"Recall rate", **axis_font)
 			# ax.set_ylim(-1.6, -0.4)
 		else:
-			ax.set_ylabel(r"Error", **axis_font)
-			ax.set_ylim(0.0, 0.2)
+			ax.set_ylabel(r"Error (eV/atom)", **axis_font)
+			ax.set_ylim(0.0, 0.075)
 			# ax.set_yscale('log')
 			# ax.set_ylim(0.001, 1.3)
 	# ax.legend(patches, legends)
@@ -286,7 +287,7 @@ if __name__ == "__main__":
 	# get_full_os()
 
 	for dt in ["DQ", "OS", "RND", "DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
-		show_performance(ith_trials=range(1,20), # 2,3,4,5,
+		show_performance(ith_trials=range(10,30), # 2,3,4,5,
 			# 2
 			dt=dt, is_relative=False)
 

@@ -19,8 +19,6 @@ from sklearn.preprocessing import MinMaxScaler
 vmin_plt = dict({"fe":-0.15, "magmom_pa":1.2})
 vmax_plt = dict({"fe":0.28, "magmom_pa":2.2})
 
-
-
 def release_mem(fig):
 	fig.clf()
 	plt.close()
