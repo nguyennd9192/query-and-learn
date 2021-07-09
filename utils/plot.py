@@ -560,11 +560,12 @@ def scatter_plot_5(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
     preset_ax=None, linestyle='-.', marker='o'):
 
 
-    fig = plt.figure(figsize=(8, 8), linewidth=1.0)
-    grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
-    main_ax = fig.add_subplot(grid[1:, :-1])
-    y_hist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
-    x_hist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
+    fig, main_ax = plt.subplots(figsize=(10, 9), linewidth=1.0) # 
+
+    # grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+    # main_ax = fig.add_subplot(grid[1:, :-1])
+    # y_hist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
+    # x_hist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
     
     sns.set_style(style='white') 
 
@@ -575,12 +576,20 @@ def scatter_plot_5(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
     #        fontsize=10, ax=main_ax, linewidths=1,
     #        # vertical=True
     #        )
-
+    # main_ax.scatter(x, y, s=5, 
+    #     marker=".", c="black", 
+    #     alpha=0.8, edgecolor="black")
+    sns.set_style(style='white') 
     for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
-        if _m == "+":
+        if _m in ["o", "D", "*"]:
+            main_ax.scatter(_x, _y, s=s, 
+                marker=_m, c="white", 
+                alpha=1.0, edgecolor="red")
+        elif _m == ".":
+            # # for unlbl cases
             main_ax.scatter(_x, _y, s=5, 
                 marker=_m, c="black", 
-                alpha=_a, edgecolor="black")
+                alpha=_a, edgecolor=None)
         else: 
             if len(_cdict.keys()) == 1:
                 main_ax.scatter(_x, _y, s=s, 
@@ -598,12 +607,14 @@ def scatter_plot_5(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
             extent=(min(x),max(x),min(y),max(y)), origin='lower',
             cmap="jet")
 
-    fig.colorbar(main_plot, ax=main_ax)
+        fig.colorbar(main_plot, ax=main_ax)
 
-    for xvline in xvlines:
-      main_ax.axvline(x=xvline, linestyle='-.', color='black')
-    for yhline in yhlines:
-      main_ax.axhline(y=yhline, linestyle='-.', color='black')
+    if xvlines is not None:
+        for xvline in xvlines:
+          main_ax.axvline(x=xvline, linestyle='-.', color='black')
+    if yhlines is not None:
+        for yhline in yhlines:
+          main_ax.axhline(y=yhline, linestyle='-.', color='black')
 
 
     main_ax.set_xlabel(x_label, **axis_font)
@@ -612,31 +623,31 @@ def scatter_plot_5(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
         for i in range(len(x)):
             main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
 
-    # # x-axis histogram
-    sns.distplot(x, bins=100, ax=x_hist, hist=False,
-        kde_kws={"color": "grey", "lw": 1},
-        # shade=True,
-        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
-        vertical=False, norm_hist=True)
-    l1 = x_hist.lines[0]
-    x1 = l1.get_xydata()[:,0]
-    y1 = l1.get_xydata()[:,1]
-    x_hist.fill_between(x1, y1, color="orange", alpha=0.3)
+    # # # x-axis histogram
+    # sns.distplot(x, bins=100, ax=x_hist, hist=False,
+    #     kde_kws={"color": "grey", "lw": 1},
+    #     # shade=True,
+    #     # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+    #     vertical=False, norm_hist=True)
+    # l1 = x_hist.lines[0]
+    # x1 = l1.get_xydata()[:,0]
+    # y1 = l1.get_xydata()[:,1]
+    # x_hist.fill_between(x1, y1, color="orange", alpha=0.3)
 
-    # # y-axis histogram
-    sns.distplot(y, bins=100, ax=y_hist, hist=False,
-        kde_kws={"color": "grey", "lw": 1},
-        # shade=True,
-        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
-        vertical=True, norm_hist=True)
-    l1 = y_hist.lines[0]
-    x1 = l1.get_xydata()[:,0]
-    y1 = l1.get_xydata()[:,1]
-    y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
+    # # # y-axis histogram
+    # sns.distplot(y, bins=100, ax=y_hist, hist=False,
+    #     kde_kws={"color": "grey", "lw": 1},
+    #     # shade=True,
+    #     # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+    #     vertical=True, norm_hist=True)
+    # l1 = y_hist.lines[0]
+    # x1 = l1.get_xydata()[:,0]
+    # y1 = l1.get_xydata()[:,1]
+    # y_hist.fill_between(x1, y1, color="orange", alpha=0.3)
 
 
-    plt.setp(x_hist.get_xticklabels(), visible=False)
-    plt.setp(y_hist.get_yticklabels(), visible=False)
+    # plt.setp(x_hist.get_xticklabels(), visible=False)
+    # plt.setp(y_hist.get_yticklabels(), visible=False)
     plt.tight_layout(pad=1.1)
 
     makedirs(save_file)
@@ -713,38 +724,64 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
         x_label='x', y_label='y', 
         save_file=None, interpolate=False, color='blue', 
         preset_ax=None, linestyle='-.', marker='o',
-        cmap='seismic',
-        vmin=None, vmax=None
+        cmap='seismic', scaler_y=None, 
+        vmin=None, vmax=None, vcenter=0.0
         ):
 
     org_x = copy.copy(x)
     org_y = copy.copy(y)
     min_org_x, max_org_x = min(org_x), max(org_x)
-    min_org_y, max_org_y = min(org_y), max(org_y)
 
-    x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * 200
-    y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * 200
+    norm_length = 200
+    x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * norm_length
+    if scaler_y is None:
+        y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * norm_length
+        min_org_y, max_org_y = min(org_y), max(org_y)
+    else:
+        y = scaler_y.transform(np.array(org_y).reshape(-1, 1)) * norm_length
+        min_org_y, max_org_y = scaler_y.data_min_, scaler_y.data_max_
+
+        yhlines = scaler_y.transform(np.array(yhlines).reshape(-1, 1)) * norm_length 
+        yhlines = yhlines.T[0]
+
     x = x.T[0]
     y = y.T[0]
 
-    tick_pos = [0.0, 50.0, 100.0, 150.0, 200.0]
-    tmp = np.arange(min_org_x, max_org_x, (max_org_x - min_org_x)/len(tick_pos))
-    xticklabels = [myround(k,5) for k in tmp]
 
-    tmp = np.arange(min_org_y, max_org_y, (max_org_y - min_org_y)/len(tick_pos))
-    yticklabels = [myround(k,5) for k in tmp]
+    tick_pos = [0.0, norm_length/4, norm_length/2, 3*norm_length/4, norm_length]
+    nticks = len(tick_pos)
+    tmp = np.linspace(min_org_x, max_org_x, nticks)
+    xticklabels = [round(float(k), 2) for k in tmp]
+
+    tmp = np.linspace(min_org_y, max_org_y, nticks)
+    yticklabels = [round(float(k), 2) for k in tmp]
 
 
-    fig, main_ax = plt.subplots(figsize=(10, 9), linewidth=1.0) # 
-    # grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+    scaler = MinMaxScaler().fit(np.array(org_x).reshape(-1, 1))
+    xvlines = scaler.transform(np.array(xvlines).reshape(-1, 1)) * 200 
+    xvlines = xvlines.T[0]
 
-    if False:
+    print (min_org_x, max_org_x)
+    print (min_org_y, max_org_y)
+    print (xticklabels)
+    print (yticklabels)
+
+    # fig, main_ax = plt.subplots(figsize=(9, 9), linewidth=1.0) # 
+    fig = plt.figure(figsize=(7, 7), linewidth=1.0)
+    grid = plt.GridSpec(5, 5, hspace=0.2, wspace=0.2)
+    main_ax = fig.add_subplot(grid[1:, :-1])
+    y_hist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
+    x_hist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
+  
+
+
+    if True:
         main_ax = sns.kdeplot(x, y,
              # joint_kws={"colors": "black", "cmap": None, "linewidths": 3.0},
-             cmap='Oranges', # Greys
+             cmap='Greys', # Greys
              shade=True, shade_lowest=False,
              fontsize=10, ax=main_ax, linewidths=1,
-             alpha=0.5
+             alpha=0.7
              # vertical=True
              )
 
@@ -763,7 +800,7 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
         else: 
             if len(_cdict.keys()) == 1:
                 main_ax.scatter(_x, _y, s=s, 
-                    marker=_m, c=list(_cdict.keys())[0], 
+                    marker=_m, c=list(_cdict.keys())[0], linewidth=0.2,
                     alpha=_a, edgecolor="black")
             else:
                 plt_half_filled(ax=main_ax, x=_x, y=_y, 
@@ -786,7 +823,7 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 
 
     # # z_value layer
-    if True:
+    if False:
         if z_values is not None:
             grid_interpolate = griddata(np.array([x, y]).T, z_values, (xx, yy), 
                 method='nearest')
@@ -802,36 +839,80 @@ def scatter_plot_6(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
                 vmin = np.nanmin(grid_interpolate.T)
             if vmax  is None:
                 vmax = np.nanmax(grid_interpolate.T)
+            if vcenter  is None:
+                vcenter = 0.0
 
-            # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-            norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+            norm = colors.DivergingNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
             z_plot = main_ax.imshow(grid_interpolate.T, 
                 extent=(min(x),max(x),min(y),max(y)), origin='lower',
                 cmap=cmap, norm=norm, 
                 # vmin=-max_ipl, vmax=max_ipl, 
                 interpolation="hamming",
                 alpha=0.9)
-            colorbar(z_plot)
-            # if ".png" not in save_file:
-            #   fig.colorbar(z_plot, shrink=0.6)
+            # colorbar(z_plot)
+            if ".png" not in save_file:
+              fig.colorbar(z_plot, shrink=0.6)
 
-
-    # for xvline in xvlines:
-    #   main_ax.axvline(x=xvline, linestyle='-.', color='black')
     # for yhline in yhlines:
     #   main_ax.axhline(y=yhline, linestyle='-.', color='black')
     # main_ax.set_title(title, **title_font)
-    # main_ax.set_xlabel(x_label, **axis_font)
-    # main_ax.set_ylabel(y_label, **axis_font)
+    main_ax.set_xlabel(x_label, **axis_font)
+    main_ax.set_ylabel(y_label, **axis_font)
 
     
     if name is not None:
         for i in range(len(x)):
             main_ax.annotate(name[i], xy=(x[i], y[i]), size=size_text)
-    plt.xticks(tick_pos, []) # xticklabels, size=14
-    plt.yticks(tick_pos, []) # yticklabels, size=14
 
+    print (xticklabels)
+    print (yticklabels)
+    plt.xticks(tick_pos, xticklabels, size=14) # xticklabels, size=14
+    plt.yticks(tick_pos, yticklabels, size=14) # yticklabels, size=14
     main_ax.set_aspect('auto')
+
+    for xvline in xvlines:
+        main_ax.axvline(x=xvline, linestyle='-.', color='grey', alpha=0.7)
+    for yhline in yhlines:
+        main_ax.axhline(y=yhline, linestyle='-.', color='grey', alpha=0.7)
+
+
+     # # # x-axis histogram
+    sns.distplot(x, bins=100, ax=x_hist, hist=False,
+        kde_kws={"color": "grey", "lw": 1},
+        # shade=True,
+        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+        vertical=False, norm_hist=True)
+    l1 = x_hist.lines[0]
+    x1 = l1.get_xydata()[:,0]
+    y1 = l1.get_xydata()[:,1]
+    x_hist.fill_between(x1, y1, color="orange", alpha=0.2)
+
+
+    # # y-axis histogram
+    sns.distplot(y, bins=100, ax=y_hist, hist=False,
+        kde_kws={"color": "grey", "lw": 1},
+        # shade=True,
+        # hist_kws={"linewidth": 3, "alpha": 0.3, "color": "orange"},
+        vertical=True, norm_hist=True)
+    l1 = y_hist.lines[0]
+    x2 = l1.get_xydata()[:,0]
+    y2 = l1.get_xydata()[:,1]
+    y_hist.fill_between(x2, y2, color="orange", alpha=0.2)
+
+    plt.setp(x_hist.get_xticklabels(), visible=False)
+    plt.setp(main_ax.get_yticklabels(), visible=False)
+
+    plt.setp(y_hist.get_yticklabels(), visible=False)
+    
+    for xvline in xvlines:
+        x_hist.axvline(x=xvline, ymin=0.0, ymax=max(x1), linestyle='-.', color='grey', alpha=0.7)
+    for yhline in yhlines:
+        y_hist.axhline(y=yhline, xmin=0.0, xmax=max(y2), linestyle='-.', color='grey', alpha=0.7)
+        # y_hist.axvline(x=yhline, ymin=0.0, ymax=max(x1), linestyle='-.', color='red')
+    # plt.sca(main_ax)
+
+    # main_ax.set_xlim([0.0,norm_length])
+    main_ax.set_ylim([-5,norm_length+5])
     
     plt.tight_layout(pad=1.1)
     makedirs(save_file)
@@ -966,10 +1047,10 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
                 marker=_m, c="white", 
                 alpha=1.0, edgecolor="red")
         elif _m == ".":
+            main_ax.scatter(_x, _y, s=s, 
+                marker=_m, c="white", 
+                alpha=0.5, edgecolor=None)
             # # for unlbl cases
-            main_ax.scatter(_x, _y, s=5, 
-                marker=_m, c="black", 
-                alpha=_a, edgecolor=None)
         else: 
             if len(_cdict.keys()) == 1:
                 main_ax.scatter(_x, _y, s=s, 
@@ -1056,7 +1137,8 @@ def comp_kde2d(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None,
 def fts_on_embedding(term, pv, estimator, X_train, y_train,
                 ref_ids,
                 X_all, xy, savedir, background, 
-                vmin=None, vmax=None, cmap="jet"):
+                vmin=None, vmax=None, cmap="jet", y_pred=None,
+                list_cdict=None, marker=None, alphas=None):
     # fig = plt.subplots(nrows=1,  sharey=True)
     fig = plt.figure(figsize=(9, 9))    
     # norm = mpl.colors.Normalize(vmin=0, vmax=20) # 
@@ -1127,11 +1209,25 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
     # # # end show y_obs
     save_file = savedir + "{0}.pdf".format(term)
     idp_test = dict()
+
+    is_scatter = True
     for i, v in enumerate(pv):
         z_values = X_all[:, i]
 
         if len(set(z_values)) >1 and term in v:
             ft_ids = np.where(z_values!=0)[0]
+
+            this_corr = None
+            if y_pred is not None:
+                this_z = z_values[ft_ids]
+                this_y_pred = y_pred[ft_ids]
+
+                this_z = MinMaxScaler().fit_transform(this_z.reshape(-1, 1))
+                this_y_pred = MinMaxScaler().fit_transform(this_y_pred.reshape(-1, 1))
+
+                this_corr = stats.spearmanr(this_z, this_y_pred)[0]
+
+
             print (len(ft_ids))
             xf = x[ft_ids]
             yf = y[ft_ids]
@@ -1157,9 +1253,42 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
                     ) 
             for l in cs.levels:
                 fmt[l] = v
-            main_ax.clabel(cs, inline=1, fontsize=10, fmt=fmt)
+                if this_corr is not None and abs(this_corr) > 0.7:
+                    fmt[l] += str(round(this_corr,2))
 
+
+            main_ax.clabel(cs, inline=1, fontsize=10, fmt=fmt)
             cs.cmap.set_under('white')
+
+            # # to plot map of interested feature
+
+            if is_scatter:
+                print ("Plot", v)
+                for ith, (_m, _cdict, _x, _y, _a) in enumerate(zip(marker, list_cdict, x, y, alphas)):
+                    if ith in ft_ids:
+                        if _m in ["o", "D", "*"]:
+                            main_ax.scatter(_x, _y, s=80, 
+                                marker=_m, c="white", 
+                                alpha=1.0, edgecolor="red")
+                        elif _m == ".":
+                            # # for unlbl cases
+                            main_ax.scatter(_x, _y, s=5, 
+                                marker=_m, c="black", 
+                                alpha=_a, edgecolor=None)
+                        else: 
+                            if len(_cdict.keys()) == 1:
+                                main_ax.scatter(_x, _y, s=80, 
+                                    marker=_m, c=list(_cdict.keys())[0], 
+                                    alpha=_a, edgecolor="black")
+                            else:
+                                plt_half_filled(ax=main_ax, x=_x, y=_y, 
+                                    cdict=_cdict, alpha=_a
+                                    )
+                    else:
+                        main_ax.scatter(_x, _y, s=5, 
+                                marker=".", c="black", 
+                                alpha=_a, edgecolor=None)
+                    is_scatter = False
 
             # for j, a in enumerate(main_ax.flatten()):
             #   # if j == 0:
@@ -1455,7 +1584,6 @@ def plt_half_filled(ax, x, y, cdict, alpha):
 
     # small_ratio, big_ratio = sorted(cdict.values())
     # small_color, big_color = sorted(cdict, key=cdict.get)
-    print (cdict)
     color1, color2 = sorted(cdict.keys())
     ratio1, ratio2 = cdict[color1], cdict[color2]
     
@@ -1468,13 +1596,13 @@ def plt_half_filled(ax, x, y, cdict, alpha):
     else:
         rot = 150
 
-    HalfA = mpl.patches.Wedge((x, y), 0.9, alpha=alpha, 
+    HalfA = mpl.patches.Wedge((x, y), 1.0, alpha=alpha, # 0.9
         theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
-        lw=0.5,
+        lw=0.2,
         edgecolor="black")
-    HalfB = mpl.patches.Wedge((x, y), 1.8, alpha=alpha,
+    HalfB = mpl.patches.Wedge((x, y), 2.0, alpha=alpha, # 1.8
         theta1=angle1-rot,theta2=360-rot, facecolor=color2,
-        lw=0.5,
+        lw=0.2,
         edgecolor="black")
 
     ax.add_artist(HalfA)

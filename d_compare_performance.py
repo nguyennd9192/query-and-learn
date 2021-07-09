@@ -92,33 +92,33 @@ def perform_each_acquisition(ith_trials,
 		# # for all trials
 		n_trials = 0
 		for ith_trial in ith_trials:
-			try:
-				mean_qr, mean_non_qr, data = get_error(
-					job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
-				if is_relative:
-					mean_qr_ref, mean_non_qr_ref, data_ref = get_error(
-						job_savedir=org_savedir, ith_trial=ith_trial, qid=qid)
-					mean_qr /= mean_qr_ref
-					mean_non_qr /= mean_non_qr_ref
+			# try:
+			mean_qr, mean_non_qr, data = get_error(
+				job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
+			if is_relative:
+				mean_qr_ref, mean_non_qr_ref, data_ref = get_error(
+					job_savedir=org_savedir, ith_trial=ith_trial, qid=qid)
+				mean_qr /= mean_qr_ref
+				mean_non_qr /= mean_non_qr_ref
 
-				if dt == "OS":
-					for tmp in ["DQ", "OS", "RND"]:
-						tmp_dict_values = data[tmp]
-						idx_expl, y_expl, y_expl_pred = tmp_dict_values["idx_qr"], tmp_dict_values["y_qr"], tmp_dict_values["y_qr_pred"]
-						this_recall = len(list(set(idx_expl).intersection(full_os_ids))) / float(n_full)
-						recall_os += this_recall
-					values.append(recall_os)
-				elif dt == "DU":
-					values.append(mean_non_qr)
-					# values = np.concatenate([values, mean_non_qr])
-				else:
-					values.append(mean_qr)
-					# values = np.concatenate([values, mean_qr])
+			if dt == "OS":
+				for tmp in ["DQ", "OS", "RND"]:
+					tmp_dict_values = data[tmp]
+					idx_expl, y_expl, y_expl_pred = tmp_dict_values["idx_qr"], tmp_dict_values["y_qr"], tmp_dict_values["y_qr_pred"]
+					this_recall = len(list(set(idx_expl).intersection(full_os_ids))) / float(n_full)
+					recall_os += this_recall
+				values.append(recall_os)
+			elif dt == "DU":
+				values.append(mean_non_qr)
+				# values = np.concatenate([values, mean_non_qr])
+			else:
+				values.append(mean_qr)
+				# values = np.concatenate([values, mean_qr])
 
-				n_trials += 1
-			except Exception as e:
-				print ("Error in ", embedding_method, sampling_method, qid, ith_trial)
-				pass
+			n_trials += 1
+			# except Exception as e:
+			# 	print ("Error in ", embedding_method, sampling_method, qid, ith_trial)
+			# 	pass
 		values = np.array(values)
 		if dt == "OS":
 			# # normalize in scale of outstanding 
@@ -201,7 +201,7 @@ def show_performance(ith_trials, dt, is_relative):
 			# ax.set_ylim(-1.6, -0.4)
 		else:
 			ax.set_ylabel(r"Error (eV/atom)", **axis_font)
-			ax.set_ylim(0.0, 0.075)
+			# ax.set_ylim(0.0, 0.04)
 			# ax.set_yscale('log')
 			# ax.set_ylim(0.001, 1.3)
 	# ax.legend(patches, legends)
@@ -231,7 +231,6 @@ def show_performance(ith_trials, dt, is_relative):
 	# for method in ["uniform", "exploitation", "margin"]: # expected_improvement
 	# 	x = mean_perform[method]["x"]
 	# 	y = mean_perform[method]["y"]
-
 	# 	ax2.plot(x, np.divide(y, y_uniform), color=performance_codes[method], 
 	# 		alpha=0.8, linestyle="-.", marker="o",
 	# 		label=method)
@@ -276,18 +275,10 @@ def get_full_os():
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
-	# pr_file = sys.argv[-1]
-	# kwargs = load_pickle(filename=pr_file)
-	# FLAGS.score_method = kwargs["score_method"]
-	# FLAGS.sampling_method =	kwargs["sampling_method"]
-	# FLAGS.embedding_method = kwargs["embedding_method"]
-	# FLAGS.active_p = kwargs["active_p"]
-	# FLAGS.ith_trial = kwargs["ith_trial"]
-
 	# get_full_os()
 
-	for dt in ["DQ", "OS", "RND", "DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
-		show_performance(ith_trials=range(10,30), # 2,3,4,5,
+	for dt in ["OS"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
+		show_performance(ith_trials=range(1,31), # 2,3,4,5,
 			# 2
 			dt=dt, is_relative=False)
 

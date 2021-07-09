@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from utils.utils import load_pickle
 import numpy as np
 import pandas as pd
+from sklearn.decomposition import PCA
+
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
 title_font = {'fontname': 'serif', 'size': 14}
@@ -119,6 +121,157 @@ def get_embedding_map(qid, all_data):
 	# 		)
 
 
+def ofm_diff_map(qid, all_data):
+
+	ofm_diff_file = "{}/data/SmFe12/ofm_diff/summary.csv".format(ALdir)
+	ofm_df = pd.read_csv(ofm_diff_file, index_col=0)
+
+	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
+	savedir += "/query_{0}".format(qid)
+	plot_file = savedir + "/query_{0}ipl_plot.csv".format(qid)
+	plot_df = pd.read_csv(plot_file, index_col=0)
+
+	# # missing index
+	missing_index = ["mix-_-Sm-Fe9-Al2-Zn1-_-Zn_10___Al_0-6"]
+	plot_df.set_index('index', inplace=True)
+	plot_df.drop(missing_index, inplace=True)
+
+	x = plot_df["x_embedd"]
+	y = plot_df["y_embedd"]
+	index = list(plot_df.index)
+
+	marker_array = plot_df["marker"]
+	list_cdict = np.array([get_color_112(k) for k in index])
+	alphas = np.array([0.3] * len(index))
+
+	# # find missing index	
+	# missing_index = []
+	# for idx in index:
+	# 	try:
+	# 		print (idx, ofm_df.loc[idx, "p1-p1"])
+	# 	except Exception as e:
+	# 		missing_index.append(idx)
+	pca = PCA(n_components=2)
+	xy = np.array([x, y]).T
+	xy = pca.fit_transform(xy)
+	terms = [ 
+		"of", "s1-", "s2-",
+		"p1-", "d2-", "d5-", "d6-", "d7-", "d10-", "f6-",
+		"d10-"
+		]
+	for i, v in enumerate(pv):
+		for term in terms:
+			if term in v:
+				save_file = savedir+"/ofm_diff/{0}/{1}.pdf".format(term, v)
+				z_values = ofm_df.loc[list(index), v]
+				# print (z_values)
+				if len(set(z_values)) >1:
+					# dump_interpolate(x=xy[:, 0], y=xy[:, 1], 
+					# 	z_values=z_values,	save_file=save_file,
+							# )
+					print (len(index))
+					print (z_values.shape)
+					print (x.shape, y.shape)
+
+					assert x.shape == y.shape
+					assert x.shape == z_values.shape
+
+					scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+							z_values=z_values,
+							list_cdict=list_cdict, 
+							xvlines=[0.0], yhlines=[0.0], 
+							sigma=None, mode='scatter', lbl=None, name=None, 
+							s=60, alphas=alphas, 
+							title=save_file.replace(ALdir, ""),
+							x_label=FLAGS.embedding_method + "_dim_1",
+							y_label=FLAGS.embedding_method + "_dim_2", 
+							save_file=save_file,
+							interpolate=False, cmap="PiYG",
+							preset_ax=None, linestyle='-.', marker=marker_array,
+							vmin=np.nanmin(z_values), vmax=np.nanmax(z_values), vcenter=0
+							)
+
+
+def ofm_diff_correlation():
+	ofm_diff_file = "{}/data/SmFe12/ofm_diff/summary.csv".format(ALdir)
+	ofm_df = pd.read_csv(ofm_diff_file, index_col=0)
+	pv = ofm_df.columns 
+
+	main_savedir = get_savedir(ith_trial=FLAGS.ith_trial)
+	savedir = main_savedir + "/query_30"
+	plot_file = savedir + "/query_30ipl_plot.csv"
+	plot_df = pd.read_csv(plot_file, index_col=0)
+	# # missing index
+	missing_index = ["mix-_-Sm-Fe9-Al2-Zn1-_-Zn_10___Al_0-6"]
+	plot_df.set_index('index', inplace=True)
+	plot_df.drop(missing_index, inplace=True)
+
+	index = list(plot_df.index)
+
+	print (len(ofm_df), len(index))
+	terms = [ 
+		"of", "s1-", "s2-",
+		"p1-", "d2-", "d5-", 
+		"d6-", "d7-", "d10-", "f6-",
+		"d10-"
+		]
+
+	# marker_array = ["+" for k in index] # plot_df["marker"]
+	family = [get_family(k) for k in index]
+	marker_array = np.array([get_marker_112(k) for k in family])
+	list_cdict = np.array([get_color_112(k) for k in index]) # 
+	alphas = np.array([0.8] * len(index))
+
+
+	for i, v in enumerate(pv):
+		for term in terms:
+			if term in v:
+				save_file = main_savedir+"/ofm_diff_ene/{0}/{1}.pdf".format(term, v)
+				y = plot_df.loc[index, "y_obs"].values
+				x = ofm_df.loc[index, v].values
+
+				flt = np.where(x==0)[0]
+				x_flt = np.delete(x, flt)
+				y_flt = np.delete(y, flt)
+				cdict_flt = np.delete(list_cdict, flt)
+				mk_flt = np.delete(marker_array, flt)
+
+				# scatter_plot_6(x, y, z_values=None, 
+				# 	list_cdict=list_cdict, xvlines=None, yhlines=None, 
+				#     sigma=None, mode='scatter', lbl=None, name=None, 
+				#     s=1, alphas=alphas, title=None,
+				#     x_label='x', y_label='y', 
+				#     save_file=save_file, interpolate=False, color='blue', 
+				#     preset_ax=None, linestyle='-.', marker=marker_array)
+				scaler_y = MinMaxScaler().fit(y.reshape(-1,1))
+
+				if len(x_flt) != 0:
+					scatter_plot_6(x=x_flt, y=y_flt, 
+							z_values=None,
+							list_cdict=cdict_flt, 
+							xvlines=[0.0], yhlines=[0.0], 
+							sigma=None, mode='scatter', lbl=None, name=None, 
+							s=60, alphas=alphas, 
+							title=save_file.replace(ALdir, ""),
+							x_label=v,
+							y_label="y_obs", 
+							save_file=save_file, scaler_y=scaler_y,
+							interpolate=False, cmap="PiYG",
+							preset_ax=None, linestyle='-.', marker=mk_flt,
+							# vmin=np.nanmin(z_values), vmax=np.nanmax(z_values), vcenter=0
+							)
+				# except Exception as e:
+				# 	pass
+
+				# scatter_plot(x=x, y=y, xvline=None, yhline=None, 
+				# 	sigma=None, mode='scatter', lbl=None, name=None, 
+				# 	x_label='x', y_label='y', 
+				# 	save_file=save_file, interpolate=False, color='blue', 
+				# 	linestyle='.', 
+				# 	marker=['o']*len(y), title=None)
+		# 	break
+		# break
+
 def simple_pearson():
 	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = load_data()
 	lim_os = -0.05
@@ -223,10 +376,11 @@ if __name__ == "__main__":
 	save_score = savedir+"/x_on_embedd_score_qid.csv"
 	ref = "y_all_obs"
 
-	for qid in qids:
-		get_embedding_map(qid=qid, all_data=all_data)
-		qid_dir = savedir + "/query_{}/x_on_embedd_".format(qid)
+	# for qid in qids:
+	# 	# get_embedding_map(qid=qid, all_data=all_data)
+	# 	ofm_diff_map(qid=qid, all_data=all_data)
 
+		# qid_dir = savedir + "/query_{}/x_on_embedd_".format(qid)
 		# ref_file = qid_dir + "/{}.txt".format(ref)
 		# ref_map = np.loadtxt(ref_file)
 		# for v in pv:
@@ -235,7 +389,8 @@ if __name__ == "__main__":
 		# 		ref_map=ref_map)
 		# 	df.loc[v, qid] = sim_score
 		# 	df.to_csv(save_score)
-	print ("save at:", save_score)
+
+	ofm_diff_correlation()
 
 
 	# qid = 1

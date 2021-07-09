@@ -114,7 +114,6 @@ def query_and_learn(FLAGS, qid,
 	n_unlbl_org = len(unlbl_index)
 	n_train_org = X_train.shape[0]
 	
-
 	query_data = dict()
 	if is_save_query:
 		last_query = np.array([None] * len(unlbl_index))
@@ -236,12 +235,12 @@ def query_and_learn(FLAGS, qid,
 		acq_val[np.isinf(acq_val)] = np.max(acq_val)
 
 	# # name, color, marker for plot
-	plot_index = np.concatenate((unlbl_index, index_train), axis=0)
-	family = [get_family(k) for k in plot_index]
+	index_all = np.concatenate((unlbl_index, index_train), axis=0)
+	family = [get_family(k) for k in index_all]
 
-	list_cdict = np.array([get_color_112(k) for k in plot_index])
+	list_cdict = np.array([get_color_112(k) for k in index_all])
 	marker_array = np.array([get_marker_112(k) for k in family])
-	alphas = np.array([0.3] * len(plot_index))
+	alphas = np.array([0.3] * len(index_all))
 	alphas[selected_inds_copy] = 1.0 
 	alphas[len(unlbl_index):] = 1.0
 
@@ -276,7 +275,7 @@ def query_and_learn(FLAGS, qid,
 	data["y_embedd"] = xy[:, 1]
 	data["error"] = error_all
 
-	data["index"] = plot_index
+	data["index"] = index_all
 	data["y_obs"] = y_all_obs
 	data["y_pred"] = y_all_pred
 	data["var"] = var_all
@@ -361,12 +360,10 @@ def query_and_learn(FLAGS, qid,
 	#
 	# # # # # # # # # # # # 
 	# if FLAGS.do_plot: # # FLAGS.do_plot
-	if True: # FLAGS.do_plot:
+	pca = PCA(n_components=2)
+	xy = pca.fit_transform(xy)
+	if True: # FLAGS.do_plot: # FLAGS.do_plot:
 
-		pca = PCA(n_components=2)
-		xy = pca.fit_transform(xy)
-
-		# print ("HERE", xy.shape)
 		# save_file=this_fig_dir.replace(".pdf", "_yobs.pdf")
 		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
 		# 		z_values=y_all_obs,
@@ -399,21 +396,21 @@ def query_and_learn(FLAGS, qid,
 		# 	vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
 		# 	)
 
-		# save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
-		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
-		# 	z_values=y_all_pred,
-		# 	list_cdict=list_cdict, 
-		# 	xvlines=[0.0], yhlines=[0.0], 
-		# 	sigma=None, mode='scatter', lbl=None, name=None, 
-		# 	s=60, alphas=alphas, 
-		# 	title=save_file.replace(ALdir, ""),
-		# 	x_label=FLAGS.embedding_method + "_dim_1",
-		# 	y_label=FLAGS.embedding_method + "_dim_2", 
-		# 	save_file=save_file,
-		# 	interpolate=False,  cmap="PuOr",
-		# 	preset_ax=None, linestyle='-.', marker=marker_array,
-		# 	vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
-		# 	)
+		save_file=this_fig_dir.replace(".pdf", "_ypred.pdf")
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=y_all_pred,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False,  cmap="PuOr",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin_plt["fe"], vmax=vmax_plt["fe"]
+			)
 
 		# save_file=this_fig_dir.replace(".pdf", "_yvar.pdf")
 		# scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
@@ -432,28 +429,28 @@ def query_and_learn(FLAGS, qid,
 		# 	)
 
 
-		save_file=this_fig_dir.replace(".pdf", "_dens.pdf")
-		tmp_list_cdict = np.array([dict({"white": "full"}) for k in plot_index])
-		tmp_marker = np.array(["o" for k in family])
-		tmp_marker[non_qr_ids] = "." 
-		# marker_array[selected_inds] = "o"
-		# tmp_marker[new_batch] = "D"
-		# tmp_marker[outstand_list] = "*"
+		# save_file=this_fig_dir.replace(".pdf", "_dens.pdf")
+		# tmp_list_cdict = np.array([dict({"white": "full"}) for k in index_all])
+		# tmp_marker = np.array(["o" for k in family])
+		# tmp_marker[non_qr_ids] = "." 
+		# # marker_array[selected_inds] = "o"
+		# # tmp_marker[new_batch] = "D"
+		# # tmp_marker[outstand_list] = "*"
 
-		scatter_plot_8(x=xy[:, 0], y=xy[:, 1], 
-			z_values=None,
-			list_cdict=tmp_list_cdict, 
-			xvlines=[0.0], yhlines=[0.0], 
-			sigma=None, mode='scatter', lbl=None, name=None, 
-			s=60, alphas=alphas, 
-			title=save_file.replace(ALdir, ""),
-			x_label=FLAGS.embedding_method + "_dim_1",
-			y_label=FLAGS.embedding_method + "_dim_2", 
-			save_file=save_file,
-			interpolate=False, cmap="PRGn",
-			preset_ax=None, linestyle='-.', marker=tmp_marker,
-			vmin=-0.01, vmax=1.0
-			)
+		# scatter_plot_8(x=xy[:, 0], y=xy[:, 1], 
+		# 	z_values=None,
+		# 	list_cdict=tmp_list_cdict, 
+		# 	xvlines=[0.0], yhlines=[0.0], 
+		# 	sigma=None, mode='scatter', lbl=None, name=None, 
+		# 	s=60, alphas=alphas, 
+		# 	title=save_file.replace(ALdir, ""),
+		# 	x_label=FLAGS.embedding_method + "_dim_1",
+		# 	y_label=FLAGS.embedding_method + "_dim_2", 
+		# 	save_file=save_file,
+		# 	interpolate=False, cmap="PRGn",
+		# 	preset_ax=None, linestyle='-.', marker=tmp_marker,
+		# 	vmin=-0.01, vmax=1.0
+		# 	)
 
 	# # # # # # # # # # # # 
 	#
@@ -516,7 +513,6 @@ def query_and_learn(FLAGS, qid,
 			func = partial(get_cell_distance, 
 				pv=var_compare, X_all=X_all_compare, xy=xy)
 			all_dist = pool.map(func, pv_combs)
-		print (len(all_dist))
 		ft_dist = np.sum(np.array(all_dist), axis=0)
 
 		# # to plot distance between features		
@@ -566,7 +562,7 @@ def query_and_learn(FLAGS, qid,
 	# # # to plot independence of yobs vs feature on embedding space
 	#
 	# # # # # # # # # # # # 
-	if FLAGS.do_plot: # FLAGS.do_plot
+	if FLAGS.do_plot: #
 		idp_yobs_file = savedir + "/autism/idp_pred_neg.csv"
 		if qid == 1:
 			idp_df = pd.DataFrame(index=pv)
@@ -578,20 +574,21 @@ def query_and_learn(FLAGS, qid,
 		# ref_ids = np.where(np.abs(y_all_pred)<0.02)[0]
 
 		for term in terms:
-			this_sdir = savedir + "/query_{0}/ft_yobs/".format(qid)
+			this_sdir = savedir + "/query_{0}/idp_pred_neg/".format(qid)
 			idp_test = fts_on_embedding(pv=pv, estimator=copy.copy(fit_estimator), 
 				X_train=_x_train, y_train=_y_train,
 				X_all=X_all, xy=xy, savedir=this_sdir, term=term,
 				background=y_all_pred, ref_ids=ref_ids,
 				cmap="PuOr",
 				vmin=vmin_plt["fe"], vmax=vmax_plt["fe"],
+				y_pred=y_all_pred,
+                list_cdict=list_cdict, marker=marker_array, alphas=alphas
 				)
 			for k, v in idp_test.items():
 				idp_df.loc[k, "q{0}".format(qid)] = v
 
 
 			idp_df.to_csv(idp_yobs_file)
-		print (idp_df)
 		try:
 			plot_heatmap(idp_df, vmin=None, vmax=None, 
 				save_file=idp_yobs_file.replace(".csv", ".pdf"), 
@@ -631,6 +628,97 @@ def query_and_learn(FLAGS, qid,
 				cmap="PRGn", lines=None, title=None)
 		except Exception as e:
 			pass
+
+	if FLAGS.do_plot: 
+		# # showing relative regions of substituted atoms
+		atoms = [ 
+				"s1-ofcenter", "s2-ofcenter",
+				"p1-ofcenter", "d2-ofcenter", "d5-ofcenter", 
+				"d6-ofcenter", "d7-ofcenter",
+				"d10-ofcenter"
+				]
+
+		for atom in atoms:
+			atoms_idx = pv.index(atom)
+			atom_x = X_all[:, atoms_idx]
+			ref_ids = np.where(atom_x!=0)[0]
+
+			atom_id = "center_by/{}".format(atom)
+
+			idp_atom_file = savedir + "/autism/{}.csv".format(atom_id)
+			makedirs(idp_atom_file)
+			if qid == 1:
+				idp_df = pd.DataFrame(index=pv)
+			else:
+				idp_df = pd.read_csv(idp_atom_file, index_col=0)
+			idp_df["q{0}".format(qid)] = np.nan
+
+			# ref_ids = np.where(np.abs(y_all_pred)<0.02)[0]
+
+			for term in terms:
+				this_sdir = savedir + "/query_{0}/{1}/".format(qid, atom_id)
+				idp_test = fts_on_embedding(pv=pv, estimator=copy.copy(fit_estimator), 
+					X_train=_x_train, y_train=_y_train,
+					X_all=X_all, xy=xy, savedir=this_sdir, term=term,
+					background=y_all_pred, ref_ids=ref_ids,
+					cmap="PuOr",
+					vmin=vmin_plt["fe"], vmax=vmax_plt["fe"],
+					y_pred=None
+					)
+				for k, v in idp_test.items():
+					idp_df.loc[k, "q{0}".format(qid)] = v
+
+
+				idp_df.to_csv(idp_atom_file)
+
+	if True:
+		# index_all = np.concatenate((unlbl_index, index_train), axis=0)
+		v_SmFe12 = 165
+		side_file = "{}/data/SmFe12/summary/coarse_relax.csv".format(ALdir)
+		side_data = pd.read_csv(side_file, index_col=0)
+		side_info = side_data.loc[index_all, "volume"]
+		side_info = side_info - v_SmFe12
+		# side_info[non_qr_ids] = None
+		save_file= savedir+"/query_{0}/side_info/volume.pdf".format(qid)
+
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=side_info,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False, cmap="RdYlBu",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=-5, vmax=15, vcenter=0.0
+			)
+
+
+		magmom_info = side_data.loc[index_all, "magmom_4f_corr_pa"]
+		vmin = np.nanmin(magmom_info)
+		vmax = np.nanmax(magmom_info)
+		vcenter = (vmax + vmin) / 2
+
+		# side_info[non_qr_ids] = None
+		save_file= savedir+"/query_{0}/side_info/magmom_pa.pdf".format(qid)
+
+		scatter_plot_6(x=xy[:, 0], y=xy[:, 1], 
+			z_values=magmom_info,
+			list_cdict=list_cdict, 
+			xvlines=[0.0], yhlines=[0.0], 
+			sigma=None, mode='scatter', lbl=None, name=None, 
+			s=60, alphas=alphas, 
+			title=save_file.replace(ALdir, ""),
+			x_label=FLAGS.embedding_method + "_dim_1",
+			y_label=FLAGS.embedding_method + "_dim_2", 
+			save_file=save_file,
+			interpolate=False, cmap="jet",
+			preset_ax=None, linestyle='-.', marker=marker_array,
+			vmin=vmin, vmax=vmax, vcenter=vcenter
+			)
 
 	return _x_train, _y_train, _unlbl_X, estimator, embedding_model
 
@@ -766,7 +854,7 @@ def map_unlbl_data(FLAGS):
 
 	perform_fig = plt.figure(figsize=(10, 8))
 	perform_ax = perform_fig.add_subplot(1, 1, 1)
-	for qid in range(1, FLAGS.n_run): #
+	for qid in range(29, FLAGS.n_run): #
 		queried_idxes = list(range(1, qid))
 		# # read load queried data
 		# # queried_idxes is None mean all we investigate at initial step

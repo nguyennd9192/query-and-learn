@@ -3,8 +3,8 @@ from absl import flags
 import pandas as pd
 import ntpath, os, sys
 
-# ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
-ALdir = "/home/nguyen/work/active-learning"
+ALdir = "/Users/nguyennguyenduong/Dropbox/My_code/active-learning-master"
+# ALdir = "/home/nguyen/work/active-learning"
 for ld, subdirs, files in os.walk(ALdir):
   if os.path.isdir(ld) and ld not in sys.path:
     sys.path.append(ld)
@@ -14,9 +14,9 @@ def get_basename(filename):
     basename = os.path.splitext(tail)[0]
     return tail
 
-batch_size = 40 # 40 # 20 
-batch_outstand = 40 # 40 # 20  
-batch_rand = 20 # 10 
+batch_size = 40 # 40 
+batch_outstand = 40 # 40 
+batch_rand = 20 #20
 n_run = int(3024 / (batch_size + batch_outstand + batch_rand) + 1)
 
 result_dropbox_dir = ALdir + "/results"
@@ -61,7 +61,7 @@ flags.DEFINE_string("mae_update_threshold", "update_all", # # 0.0, 0.3, 1.0, upd
     ("mean absolute error to update dq to estimator"))
 
 flags.DEFINE_string(
-    "estimator_update_by", "DQ_RND_OS", # # DQ, DQ_RND_OS, _RND_OS
+    "estimator_update_by", "DQ", # # DQ, DQ_RND_OS, _RND_OS
     ("mean absolute error to update dq to estimator")
 ) 
 flags.DEFINE_boolean("is_search_params", True, 

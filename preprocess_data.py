@@ -131,8 +131,8 @@ def read_deformation(qr_indexes):
         # break
 
 
-def query_db():
-    data_SmFe12_dir = ALdir + "/data/SmFe12"
+def query_db(db_flfd):
+    data_SmFe12_dir = ALdir + "/data/".format(db_flfd)
 
     std_file = data_SmFe12_dir+"/summary/standard.csv"
     fine_file = data_SmFe12_dir+"/summary/fine_relax.csv"

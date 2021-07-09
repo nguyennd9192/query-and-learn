@@ -156,7 +156,7 @@ def get_separate_test_set(filename, pv, tv, rmvs, test_cond):
 
   X_test = df.loc[test_idx, pv].values
   y_test = df.loc[test_idx, tv].values
-  # # revise here
+  # # revise here 
   print ("N stable train", len(np.where(y_train =="stable")[0]))
   print ("N unstable train", len(np.where(y_train =="unstable")[0]))
   print ("N stable test", len(np.where(y_test =="stable")[0]))
@@ -196,7 +196,7 @@ def get_SmFe12_data(tv, rmvs, unlbl_data_dir,
   feature_names = np.array(data[0].__getattribute__('feature_name'))
 
   # # get vasp calc data
-  std_results, coarse_results, fine_results = query_db()
+  std_results, coarse_results, fine_results = query_db(db_flfd="SmFe12")
   print (std_results.shape)
   print (coarse_results.shape)
   print (coarse_results.shape)
@@ -481,11 +481,6 @@ def main():
               # ('wikipedia_attack', 'wikipedia_attack'),
               # ('rcv1', 'rcv1'),
 
-              # (input_dir + 'all_Ga*ofm1_no_d*energy_substance_pa.csv', 
-              #   'ofm_subs_Ga123', 'energy_substance_pa'),
-              # (input_dir + 'latbx_ofm1.csv', 
-              #   'latbx_ofm1', 'formation_energy', []) 
-
               # # # for SmFe12
               # # for energy
               ('energy_substance_pa', ["atoms", "magmom_pa"]),
@@ -551,7 +546,8 @@ def main():
       dump_data(test_, test_revise_dir+'.pkl')
 
 if __name__ == '__main__':
-  main()
+  # main()
 
+  std_results, coarse_results, fine_results = query_db(db_flfd="SmFe12_side")
 
 
