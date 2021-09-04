@@ -196,10 +196,12 @@ def get_SmFe12_data(tv, rmvs, unlbl_data_dir,
   feature_names = np.array(data[0].__getattribute__('feature_name'))
 
   # # get vasp calc data
-  std_results, coarse_results, fine_results = query_db(db_flfd="SmFe12")
+  std_results, coarse_results, fine_results = query_db(db_flfd="SmFe12/210829")
   print (std_results.shape)
   print (coarse_results.shape)
   print (coarse_results.shape)
+  
+  print (test_data)
 
   # # map index to database
   data_map = map(functools.partial(id_qr_to_database, std_results=std_results,
@@ -488,12 +490,9 @@ def main():
               ('magmom_pa', ["atoms", "energy_substance_pa"]),
               ]
 
-  is_skl_data = False
   is_Sm12_test = True
 
   for d in datasets:
-    if is_skl_data:
-      get_mldata(d, is_test_separate=False, prefix="Fe10-Fe22") # # Mo_2-22-2, Ga, M3/Mo, M2_wyckoff
     if is_Sm12_test:
       tv = d[0]
       rmvs = d[-1]
@@ -546,8 +545,8 @@ def main():
       dump_data(test_, test_revise_dir+'.pkl')
 
 if __name__ == '__main__':
-  # main()
+  main()
 
-  std_results, coarse_results, fine_results = query_db(db_flfd="SmFe12_side")
+  # std_results, coarse_results, fine_results = query_db(db_flfd="SmFe12_side")
 
 

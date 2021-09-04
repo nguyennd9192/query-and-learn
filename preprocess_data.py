@@ -132,7 +132,7 @@ def read_deformation(qr_indexes):
 
 
 def query_db(db_flfd):
-    data_SmFe12_dir = ALdir + "/data/".format(db_flfd)
+    data_SmFe12_dir = ALdir + "/data/{}".format(db_flfd)
 
     std_file = data_SmFe12_dir+"/summary/standard.csv"
     fine_file = data_SmFe12_dir+"/summary/fine_relax.csv"
@@ -154,7 +154,7 @@ def query_db(db_flfd):
     fine_db_rst = [ "{0}/{1}/fine_relax.csv".format(data_SmFe12_dir, k) for k in database_jobs]
     coarse_db_rst = [ "{0}/{1}/fine_relax.csv".format(data_SmFe12_dir, k) for k in database_jobs]
     
-
+    print (std_db_rst)
     if os.path.isfile(std_file) and os.path.isfile(coarse_file) and os.path.isfile(fine_file):
       std_results = pd.read_csv(std_file, index_col="index_reduce")
       coarse_results = pd.read_csv(coarse_file, index_col="index_reduce")

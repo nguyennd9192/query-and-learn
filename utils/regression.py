@@ -203,9 +203,9 @@ class RegressionFactory(object):
   @staticmethod
   @ignore_warnings(category=ConvergenceWarning)
   def gaussian_process_cv_with_noise(X, y_obs, cv=10, mt_kernel=None):
-    n_steps = 5
+    n_steps = 6
     rbf_length_lb = -2
-    rbf_length_ub = 2
+    rbf_length_ub = 1
     rbf_lengths = np.logspace(rbf_length_lb, rbf_length_ub, n_steps)
 
     const_lb = -1
@@ -218,7 +218,7 @@ class RegressionFactory(object):
     # noises = np.logspace(noise_lb, noise_ub, n_steps)
 
     alpha_lb = -2
-    alpha_ub = 2
+    alpha_ub = 1
     alphas = np.logspace(alpha_lb, alpha_ub, n_steps)
 
     if mt_kernel is None:

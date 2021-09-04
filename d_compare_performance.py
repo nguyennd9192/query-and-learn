@@ -15,8 +15,9 @@ title_font = {'fontname': 'serif', 'size': 14}
 
 # performance_codes = dict({"org_space":"blue", "MLKR":"red"}) 
 performance_codes = dict({
-	"org_space|uniform":"blue", "org_space|margin":"purple", "org_space|exploitation":"navy", 
-	"MLKR|uniform":"red", "MLKR|margin":"orange", "MLKR|exploitation":"tomato", 
+	"org_space|uniform":"cornflowerblue", "org_space|margin":"cornflowerblue", "org_space|exploitation":"cornflowerblue", 
+
+	"MLKR|uniform":"darkred", "MLKR|margin":"darkred", "MLKR|exploitation":"darkred", 
 	}) 
 
 hatch_codes = dict({"uniform":"/", "exploitation":"*", 
@@ -130,28 +131,41 @@ def perform_each_acquisition(ith_trials,
 		mean_trial = np.mean(values)
 		var_trial = np.var(values)
 
-		if dt == "OS":
+		if dt == "DU": # OS
 			lab = "{0}|{1}".format(embedding_method, sampling_method)
 
-			bplot = ax.boxplot(x=values, vert=True, #notch=True, 
-					# sym='rs', # whiskerprops={'linewidth':2},
-					# alpha=0.4,
-					# notch=True,
-					positions=[qid], patch_artist=True,
-					widths=0.8, meanline=True, #flierprops=flierprops,
-					showfliers=False, showbox=True, showmeans=True,
-					)
-				# ax.text(pos_x, mean, round(mean, 2),
-				# 	horizontalalignment='center', size=14, 
-				# 	color=color, weight='semibold')
-			patch = bplot['boxes'][0]
+			# bplot = ax.boxplot(x=np.ravel(values), vert=True, #notch=True, 
+			# 		# sym='rs', # whiskerprops={'linewidth':2},
+			# 		# alpha=0.4,
+			# 		# notch=True,
+			# 		positions=[qid], patch_artist=False,
+			# 		widths=0.8, meanline=False, #flierprops=flierprops,
+			# 		showfliers=False, #showbox=True, 
+			# 		showmeans=True,
+			# 		)
+			# 	# ax.text(pos_x, mean, round(mean, 2),
+			# 	# 	horizontalalignment='center', size=14, 
+			# 	# 	color=color, weight='semibold')
+			# patch = bplot['boxes'][0]
+			# patch.set_facecolor(performance_codes[lab])
+			# # patch.set_hatch(hatch_codes[sampling_method])
+			# patch.set_alpha(0.8)
+			# ax.legend([bplot["boxes"][0]], 
+			# 	["{0}_{1}".format(embedding_method, sampling_method)], 
+			# 	loc='upper right')
 
-			patch.set_facecolor(performance_codes[lab])
-			# patch.set_hatch(hatch_codes[sampling_method])
-			patch.set_alpha(0.8)
-			ax.legend([bplot["boxes"][0]], 
-				["{0}_{1}".format(embedding_method, sampling_method)], 
-				loc='upper right')
+			# # to plot violin
+			data = np.ravel(values)
+			violin_parts = ax.violinplot(dataset=data, positions=[qid], # 
+						showmeans=True, vert=True, #showmedians=True
+						showextrema=False,  # False
+						points=len(data)
+						)
+			set_color_violin(x_flt=data, violin_parts=violin_parts, 
+				pc=performance_codes[lab], nc="darkblue")
+
+
+		
 
 		mean_trials.append(mean_trial)
 		var_trials.append(var_trial)
@@ -164,8 +178,8 @@ def show_performance(ith_trials, dt, is_relative):
 				"margin":2, "expected_improvement":3})
 	fig = plt.figure(figsize=(11, 8))
 	ax = fig.add_subplot(1, 1, 1)
-	ax.grid(which='both', linestyle='-.')
-	ax.grid(which='minor', alpha=0.2)
+	# ax.grid(which='both', linestyle='-.')
+	# ax.grid(which='minor', alpha=0.2)
 
 
 	qids = range(1, n_run)
@@ -173,6 +187,8 @@ def show_performance(ith_trials, dt, is_relative):
 
 	legends = []
 	patches = []
+
+	linestyle_dict = dict({"margin":":", "exploitation":"-.", "uniform":"-"})
 	for embedding_method in ["MLKR", "org_space"]: # "org_space"
 		for sampling_method in ["margin", "exploitation", "uniform"]: # ,  
 		# expected_improvement,  MaxEmbeddDir
@@ -187,11 +203,13 @@ def show_performance(ith_trials, dt, is_relative):
 			lab = "{0}|{1}".format(embedding_method, sampling_method)
 			legends.append(lab)
 			# patches.append(patch)
-			if dt != "OS":
-				ax.plot(qids, mean_trials, '-', c=performance_codes[lab], label=lab)
-				ax.fill_between(qids, mean_trials - var_trials, mean_trials + var_trials, 
-					color=performance_codes[lab],
-					alpha=0.8)
+			# if dt != "OS":
+			# ax.plot(qids, mean_trials, '-', c=performance_codes[lab], 
+			# 	label=lab, linestyle=linestyle_dict[sampling_method], linewidth=2)
+			# ax.fill_between(qids, mean_trials - var_trials, mean_trials + var_trials, 
+			# 	color=performance_codes[lab],
+			# 	alpha=0.8)
+			# print (var_trials)
 
 			# except:
 			# 	pass
@@ -199,18 +217,22 @@ def show_performance(ith_trials, dt, is_relative):
 		if dt == "OS":
 			ax.set_ylabel(r"Recall rate", **axis_font)
 			# ax.set_ylim(-1.6, -0.4)
+			# ax.set_yscale('log')
+
 		else:
 			ax.set_ylabel(r"Error (eV/atom)", **axis_font)
 			# ax.set_ylim(0.0, 0.04)
 			# ax.set_yscale('log')
-			# ax.set_ylim(0.001, 1.3)
+			# ax.set_ylim(0.006, 0.04)
+			print ("Here!!!")
 	# ax.legend(patches, legends)
 	ax.legend()
 	
 	plt.xticks(qids, qids) 
 	ax.tick_params(axis='y', labelsize=12)
 	ax.set_title(dt)
-	ax.set_xlim(1.0, n_run)
+	# ax.set_xlim(1.0, n_run)
+
 
 	plt.tight_layout(pad=1.1)
 	save_at = result_dropbox_dir+"/merge_performance/box/"+dt+".pdf"
@@ -277,8 +299,8 @@ if __name__ == "__main__":
 	FLAGS(sys.argv)
 	# get_full_os()
 
-	for dt in ["OS"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
-		show_performance(ith_trials=range(1,31), # 2,3,4,5,
+	for dt in ["DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
+		show_performance(ith_trials=range(11,31), # 2,3,4,5,
 			# 2
 			dt=dt, is_relative=False)
 

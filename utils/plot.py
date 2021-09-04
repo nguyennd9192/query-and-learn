@@ -240,13 +240,14 @@ def scatter_plot(x, y, xvline=None, yhline=None,
             # if tmp_check_name(name=name[i]):
                # reduce_name = str(name[i]).split('_')[1]
                # plt.annotate(reduce_name, xy=(x[i], y[i]), size=5)
-            plt.annotate(name[i], xy=(x[i], y[i]), size=size_text, c="yellow")
+            plt.annotate(name[i], xy=(x[i], y[i]), size=size_text, c="black")
         
     plt.title(title, **title_font)
     plt.ylabel(y_label, **axis_font)
     plt.xlabel(x_label, **axis_font)
     ax_setting()
 
+    # plt.xlim([3.0, 4.5])
 
     plt.legend(prop={'size': 16})
     makedirs(save_file)
@@ -1004,16 +1005,34 @@ def scatter_plot_7(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
     release_mem(fig=fig)
 
 
+def set_color_violin(x_flt, violin_parts, pc, nc):
+    if np.mean(x_flt) > 0:
+        c = pc
+    elif np.mean(x_flt) < 0:
+        c = nc
+    else:
+        c = "white"
+
+    for vp in violin_parts['bodies']:
+        vp.set_facecolor(c)
+        vp.set_edgecolor("black")
+        vp.set_linewidth(1.0)
+        vp.set_alpha(0.6)
+    for partname in ('cmins','cmaxes','cmeans','cmedians'): # cbars
+        if partname in violin_parts:
+            vp = violin_parts[partname]
+            vp.set_edgecolor(c)
+            vp.set_linewidth(1.0)
 
 def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
-    sigma=None, mode='scatter', lbl=None, name=None, 
-    s=100, alphas=0.8, title=None,
-    x_label='x', y_label='y', 
-    save_file=None, interpolate=False, color='blue', 
-    preset_ax=None, linestyle='-.', marker='o',
-    cmap='seismic',
-    vmin=None, vmax=None
-    ):
+        sigma=None, mode='scatter', lbl=None, name=None, 
+        s=100, alphas=0.8, title=None,
+        x_label='x', y_label='y', 
+        save_file=None, interpolate=False, color='blue', 
+        preset_ax=None, linestyle='-.', marker='o',
+        cmap='seismic',  vcenter=None,
+        vmin=None, vmax=None
+        ):
 
     org_x = copy.copy(x)
     org_y = copy.copy(y)
@@ -1034,8 +1053,66 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
     yticklabels = [myround(k,5) for k in tmp]
 
 
-    fig, main_ax = plt.subplots(figsize=(8, 8), linewidth=1.0) # 
+    fig, main_ax = plt.subplots(figsize=(9, 9), linewidth=1.0) # 
     # grid = plt.GridSpec(4, 4, hspace=0.3, wspace=0.3)
+    xx, yy = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+    positions = np.vstack([xx.ravel(), yy.ravel()])
+    values = np.vstack([x, y])
+    kernel = stats.gaussian_kde(values)
+    f = np.reshape(kernel(positions).T, xx.shape)
+
+    if z_values is not None:
+        grid_interpolate = griddata(np.array([x, y]).T, z_values, (xx, yy), 
+            method='nearest')
+
+        # max_ipl = 0.8*max([abs(np.nanmax(grid_interpolate.T)), abs(np.nanmin(grid_interpolate.T))])
+        # max_ipl = 2.2
+
+        # orig_cmap = mpl.cm.coolwarm
+        # shrunk_cmap = shiftedColorMap(orig_cmap, 
+        #   start=np.nanmin(grid_interpolate.T), 
+        #   midpoint=0.5, stop=np.nanmax(grid_interpolate.T), name='shrunk')
+        if vmin is None:
+            vmin = np.nanmin(grid_interpolate.T)
+        if vmax  is None:
+            vmax = np.nanmax(grid_interpolate.T)
+        if vcenter  is None:
+            vcenter = 0.0
+        if vmin == 0 and vcenter == 0:
+            vcenter = 0.5*(vmax + vmin)
+
+
+        norm = colors.DivergingNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+        z_plot = main_ax.imshow(grid_interpolate.T, 
+            extent=(min(x),max(x),min(y),max(y)), origin='lower',
+            cmap=cmap, norm=norm, 
+            # vmin=-max_ipl, vmax=max_ipl, 
+            interpolation="gaussian",
+            # # 'none', 'antialiased', 'nearest', 'bilinear', 'bicubic', 'spline16', 
+            # # 'spline36', 'hanning', 'hamming', 'hermite', 'kaiser', 'quadric', 
+            # # 'catrom', 'gaussian', 'bessel', 'mitchell', 'sinc', 'lanczos', 'blackman'.
+            alpha=0.8)
+        # colorbar(z_plot)
+        # if ".png" not in save_file:
+        #   fig.colorbar(z_plot, shrink=0.6)
+    # if z_values is not None:
+    #     ft_ids = np.where(z_values!=0)[0]
+    #     xf = x[ft_ids]
+    #     yf = y[ft_ids]
+    #     xmin, xmax = min(x), max(x)
+    #     ymin, ymax = min(y), max(y)
+
+    #     # # estimate only xf, yf
+    #     xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    #     positions = np.vstack([xx.ravel(), yy.ravel()])
+    #     values = np.vstack([xf, yf])
+    #     kernel = stats.gaussian_kde(values)
+    #     f = np.reshape(kernel(positions).T, xx.shape)
+
+    #     main_ax.set_xlim(xmin, xmax)
+    #     main_ax.set_ylim(ymin, ymax)
+    #     # Contourf plot
+    #     cfset = main_ax.contourf(xx, yy, f, cmap=cmap)
 
     sns.set_style(style='white') 
 
@@ -1047,9 +1124,9 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
                 marker=_m, c="white", 
                 alpha=1.0, edgecolor="red")
         elif _m == ".":
-            main_ax.scatter(_x, _y, s=s, 
-                marker=_m, c="white", 
-                alpha=0.5, edgecolor=None)
+            main_ax.scatter(_x, _y, s=5, 
+                marker=_m, c="black", 
+                alpha=0.3, edgecolor=None)
             # # for unlbl cases
         else: 
             if len(_cdict.keys()) == 1:
@@ -1060,41 +1137,19 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
                 plt_half_filled(ax=main_ax, x=_x, y=_y, 
                     cdict=_cdict, alpha=_a
                     )
-    xx, yy = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
-    positions = np.vstack([xx.ravel(), yy.ravel()])
-    values = np.vstack([x, y])
-    kernel = stats.gaussian_kde(values)
-    f = np.reshape(kernel(positions).T, xx.shape)
 
     # Contourf plot
-    cs = main_ax.contour(xx, yy, f, 
-            levels=3, corner_mask=False,
-            extent=None, colors="gray",
-            ) 
+    # cs = main_ax.contour(xx, yy, f, 
+    #         levels=3, corner_mask=False,
+    #         extent=None, colors="gray",
+    #         ) 
 
-    # if z_values is not None:
-    #   ft_ids = np.where(z_values!=0)[0]
-    #   xf = x[ft_ids]
-    #   yf = y[ft_ids]
-    #   xmin, xmax = min(x), max(x)
-    #   ymin, ymax = min(y), max(y)
 
-    #   # # estimate only xf, yf
-    #   xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-    #   positions = np.vstack([xx.ravel(), yy.ravel()])
-    #   values = np.vstack([xf, yf])
-    #   kernel = stats.gaussian_kde(values)
-    #   f = np.reshape(kernel(positions).T, xx.shape)
 
-    #   main_ax.set_xlim(xmin, xmax)
-    #   main_ax.set_ylim(ymin, ymax)
-    #   # Contourf plot
-    #   cfset = main_ax.contourf(xx, yy, f, cmap='Blues')
-
-    # for xvline in xvlines:
-    #   main_ax.axvline(x=xvline, linestyle='-.', color='black')
-    # for yhline in yhlines:
-    #   main_ax.axhline(y=yhline, linestyle='-.', color='black')
+    for xvline in xvlines:
+      main_ax.axvline(x=xvline, linestyle='-.', color='black')
+    for yhline in yhlines:
+      main_ax.axhline(y=yhline, linestyle='-.', color='black')
     # main_ax.set_title(title, **title_font)
     # main_ax.set_xlabel(x_label, **axis_font)
     # main_ax.set_ylabel(y_label, **axis_font)
@@ -1114,6 +1169,36 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
     print ("Save at: ", save_file)
     release_mem(fig=fig)
 
+
+def set_axis_style(ax, labels):
+    ax.xaxis.set_tick_params(direction='out')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.set_xticks(np.arange(1, len(labels) +1))
+    ax.set_xticklabels(labels)
+    ax.set_xlim(0.25, len(labels) + 0.75)
+    ax.set_xlabel('Sample name')
+
+def customize(data, ax, positions):
+
+    parts = ax.violinplot(
+            data, positions=positions,  showmeans=False, showmedians=False,
+            showextrema=False)
+
+    for pc in parts['bodies']:
+        pc.set_facecolor('#D43F3A')
+        pc.set_edgecolor('black')
+        pc.set_alpha(1)
+
+    quartile1, medians, quartile3 = np.percentile(data, [25, 50, 75]) # axis=1
+    whiskers = np.array([
+        adjacent_values(sorted_array, q1, q3)
+        for sorted_array, q1, q3 in zip(data, quartile1, quartile3)])
+    whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
+
+    inds = np.arange(1, len(medians) + 1)
+    ax.scatter(inds, medians, marker='o', color='white', s=30, zorder=3)
+    ax.vlines(inds, quartile1, quartile3, color='k', linestyle='-', lw=5)
+    ax.vlines(inds, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
 def comp_kde2d(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
     sigma=None, mode='scatter', lbl=None, name=None, 
@@ -1144,10 +1229,12 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
     # norm = mpl.colors.Normalize(vmin=0, vmax=20) # 
     # cmap = cm.jet # gist_earth
     # m = cm.ScalarMappable(norm=norm, cmap=cmap)
+    # # Nguyen
     c_dict = dict({
-            "s1":"darkblue", "s2":"green",
-            "p1":"purple", "d2":"cyan", "d5":"red", 
-            "d10":"darkgreen", "d6":"gray", "d7":"brown", "f6":"orange",
+            "s1":"darkblue", "s2":"royalblue",
+            "p1":"moccasin", "f6":"orange",
+            "d2":"azure", "d5":"turquoise", "d6":"powderblue", "d7":"teal", "d10":"darkslategray",
+              
             })
     # # # cyan, blue, 
 
@@ -1176,30 +1263,33 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
 
 
     # # show y_obs
-    grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
-    grid_interpolate = griddata(np.array([x, y]).T, background, (grid_x, grid_y), 
-        method='nearest')
-    if vmin is None:
-            vmin = np.nanmin(grid_interpolate.T)
-    if vmax  is None:
-        vmax = np.nanmax(grid_interpolate.T)
-    # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-    norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
-    z_plot = main_ax.imshow(grid_interpolate.T, 
-        extent=(min(x),max(x),min(y),max(y)), origin='lower',
-        cmap=cmap,
-        norm=norm, 
-        # vmin=-max_ipl, vmax=max_ipl, 
-        interpolation="hamming",
-        alpha=0.9)
+    # grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+    # grid_interpolate = griddata(np.array([x, y]).T, background, (grid_x, grid_y), 
+    #     method='nearest')
+    # if vmin is None:
+    #         vmin = np.nanmin(grid_interpolate.T)
+    # if vmax  is None:
+    #     vmax = np.nanmax(grid_interpolate.T)
+    # # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    # norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+    # z_plot = main_ax.imshow(grid_interpolate.T, 
+    #     extent=(min(x),max(x),min(y),max(y)), origin='lower',
+    #     cmap=cmap,
+    #     norm=norm, 
+    #     # vmin=-max_ipl, vmax=max_ipl, 
+    #     interpolation="hamming",
+    #     alpha=0.9)
 
     # # prepare condition of bkg
     values_ref = np.vstack([x[ref_ids], y[ref_ids]])
     kernel_ref = stats.gaussian_kde(values_ref)
     f_ref = np.reshape(kernel_ref(positions).T, xx.shape)
-    cs = main_ax.contour(xx, yy, f_ref, 
+    cs = main_ax.contour(xx, yy, f_ref, # contourf
             levels=1, corner_mask=False,
-            extent=None, colors="black", linestyle="-."
+            # facecolor="yellow", 
+            # alpha=0.2,
+            extent=(10, 10, 50, 50), colors="red", linestyle="-.", linewidth=5
+
             ) 
     fmt = {}
     for l in cs.levels:
@@ -1228,7 +1318,6 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
                 this_corr = stats.spearmanr(this_z, this_y_pred)[0]
 
 
-            print (len(ft_ids))
             xf = x[ft_ids]
             yf = y[ft_ids]
 
@@ -1241,7 +1330,6 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
             f = np.reshape(kernel(positions).T, xx.shape)
 
             BC_coeff = np.sum(np.sqrt(f * f_ref))
-            print (term, c_term, BC_coeff)
             idp_test[v] = BC_coeff
             # Contourf plot
             levels = 1
@@ -1262,33 +1350,33 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
 
             # # to plot map of interested feature
 
-            if is_scatter:
-                print ("Plot", v)
-                for ith, (_m, _cdict, _x, _y, _a) in enumerate(zip(marker, list_cdict, x, y, alphas)):
-                    if ith in ft_ids:
-                        if _m in ["o", "D", "*"]:
-                            main_ax.scatter(_x, _y, s=80, 
-                                marker=_m, c="white", 
-                                alpha=1.0, edgecolor="red")
-                        elif _m == ".":
-                            # # for unlbl cases
-                            main_ax.scatter(_x, _y, s=5, 
-                                marker=_m, c="black", 
-                                alpha=_a, edgecolor=None)
-                        else: 
-                            if len(_cdict.keys()) == 1:
-                                main_ax.scatter(_x, _y, s=80, 
-                                    marker=_m, c=list(_cdict.keys())[0], 
-                                    alpha=_a, edgecolor="black")
-                            else:
-                                plt_half_filled(ax=main_ax, x=_x, y=_y, 
-                                    cdict=_cdict, alpha=_a
-                                    )
-                    else:
-                        main_ax.scatter(_x, _y, s=5, 
-                                marker=".", c="black", 
-                                alpha=_a, edgecolor=None)
-                    is_scatter = False
+            # if is_scatter:
+            #     # print ("Plot", v)
+            #     for ith, (_m, _cdict, _x, _y, _a) in enumerate(zip(marker, list_cdict, x, y, alphas)):
+            #         if ith in ft_ids:
+            #             if _m in ["o", "D", "*"]:
+            #                 main_ax.scatter(_x, _y, s=80, 
+            #                     marker=_m, c="white", 
+            #                     alpha=1.0, edgecolor="red")
+            #             elif _m == ".":
+            #                 # # for unlbl cases
+            #                 main_ax.scatter(_x, _y, s=5, 
+            #                     marker=_m, c="black", 
+            #                     alpha=_a, edgecolor=None)
+            #             else: 
+            #                 if len(_cdict.keys()) == 1:
+            #                     main_ax.scatter(_x, _y, s=80, 
+            #                         marker=_m, c=list(_cdict.keys())[0], 
+            #                         alpha=_a, edgecolor="black")
+            #                 else:
+            #                     plt_half_filled(ax=main_ax, x=_x, y=_y, 
+            #                         cdict=_cdict, alpha=_a
+            #                         )
+            #         else:
+            #             main_ax.scatter(_x, _y, s=5, 
+            #                     marker=".", c="black", 
+            #                     alpha=_a, edgecolor=None)
+            #         is_scatter = False
 
             # for j, a in enumerate(main_ax.flatten()):
             #   # if j == 0:
@@ -1305,11 +1393,13 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
                 # a.set_yticklabels([])
             # plt.ylabel(str(v))
     
-    main_ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    plt.xticks(tick_pos, []) # xticklabels, size=14
-    plt.yticks(tick_pos, []) # yticklabels, size=14
+    # main_ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    # plt.xticks(tick_pos, []) # xticklabels, size=14
+    # plt.yticks(tick_pos, []) # yticklabels, size=14
+    main_ax.axes.xaxis.set_ticks([])
+    main_ax.axes.yaxis.set_ticks([])
     
-    main_ax.set_aspect('auto')
+    # main_ax.set_aspect('auto')
     plt.tight_layout(pad=1.1)
     makedirs(save_file)
     print ("Save at: ", save_file)
@@ -1584,10 +1674,16 @@ def plt_half_filled(ax, x, y, cdict, alpha):
 
     # small_ratio, big_ratio = sorted(cdict.values())
     # small_color, big_color = sorted(cdict, key=cdict.get)
-    color1, color2 = sorted(cdict.keys())
+
+    color1, color2 = cdict.keys()
     ratio1, ratio2 = cdict[color1], cdict[color2]
+
+    if ratio1 > ratio2:
+        ratio1, ratio2 = ratio2, ratio1
+        color1, color2 = color2, color1
     
     angle1 = 360 * ratio1 / (ratio1 + ratio2)
+    
     if angle1 == 180:
         # # for 1-1 composition, e.g. Al1-Ti1
         rot = 90
@@ -1596,17 +1692,42 @@ def plt_half_filled(ax, x, y, cdict, alpha):
     else:
         rot = 150
 
-    HalfA = mpl.patches.Wedge((x, y), 1.0, alpha=alpha, # 0.9
-        theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
-        lw=0.2,
-        edgecolor="black")
-    HalfB = mpl.patches.Wedge((x, y), 2.0, alpha=alpha, # 1.8
-        theta1=angle1-rot,theta2=360-rot, facecolor=color2,
-        lw=0.2,
-        edgecolor="black")
+    # HalfA = mpl.patches.Wedge((x, y), 0.006, alpha=alpha, 
+    #     theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
+    #     lw=0.1,
+    #     edgecolor=None) # #
+    # HalfB = mpl.patches.Wedge((x, y), 0.006, alpha=alpha,
+    #     theta1=angle1-rot,theta2=360-rot, facecolor=color2,
+    #     lw=0.1,
+    #     edgecolor=None)
+    # else:
+    #   HalfA = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha, 
+    #       theta1=0-rot,theta2=small_angle-rot, color=small_color, 
+    #       edgecolor="black")
+    #   HalfB = mpl.patches.Wedge((x, y, z), 0.01, alpha=alpha,
+    #       theta1=small_angle-rot,theta2=360-rot, color=big_color,
+    #       edgecolor="black")
+    # ax.add_artist(HalfA)
+    # ax.add_artist(HalfB)
 
-    ax.add_artist(HalfA)
-    ax.add_artist(HalfB)
+    # ax.scatter(x, y, s=60, c=color2, alpha=0.6, linewidth=1, edgecolor=color1)
+    if ratio1 != ratio2:
+        ax.scatter(x, y, s=80, c=color2, alpha=1.0, linewidth=1, edgecolor=color1)
+    if ratio1 == ratio2:
+        print (ratio1, ratio2)
+
+        HalfA = mpl.patches.Wedge((x, y), 0.01, alpha=1.0, 
+            theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
+            lw=0.1, 
+            edgecolor="black") # #None
+        HalfB = mpl.patches.Wedge((x, y), 0.01, alpha=1.0, # 0.012
+            theta1=angle1-rot,theta2=360-rot, facecolor=color2,
+            lw=0.1, 
+            edgecolor="black") # #None
+        ax.add_artist(HalfA)
+        ax.add_artist(HalfB)
+
+
 
 def test_half_filled():
     # mport matplotlib.pyplot as plt

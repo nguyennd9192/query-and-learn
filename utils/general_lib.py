@@ -17,7 +17,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 vmin_plt = dict({"fe":-0.15, "magmom_pa":1.2})
-vmax_plt = dict({"fe":0.28, "magmom_pa":2.2})
+vmax_plt = dict({"fe":0.20, "magmom_pa":2.2})
 
 def release_mem(fig):
 	fig.clf()
@@ -123,12 +123,16 @@ def get_qrindex(df, qid):
 	return update_DQ_str, outstand_str, random_str
 
 def get_color_feature(v):
-	feature_dict = dict({"of":"red",
-			"s1":"blue", "s2":"green",
-			"p1":"yellow",
-			"d1":"brown", "d2":"cyan", "d3":"lightsteelblue", "d4":"orange", "d5":"beige", 
-			"d6":"chocolate", "d7":"darkviolet", "d8":"lime", "d9":"khaki", "d10":"midnightblue", 
-			"f6":"indigo"})
+	# # Nguyen
+
+	feature_dict = dict({
+			"of":"black",
+			"s1":"darkblue", "s2":"royalblue",
+			"p1":"moccasin", "f6":"orange",
+			
+			"d2":"azure", "d5":"turquoise", "d6":"powderblue", "d7":"teal", "d10":"darkslategray",
+			  
+			})
 	c = "black"
 	for term in feature_dict.keys():
 		tmp = term+"-"
@@ -143,8 +147,15 @@ def get_color_112(index):
 	ratios = []
 
 	state_subs = 0
-	cdicts = dict({"Ga":"purple", "Mo":"red", "Zn":"orange", 
-		"Co":"brown", "Cu":"blue", "Ti":"cyan", "Al":"green"})
+	# cdicts = dict({"Ga":"purple", "Mo":"red", "Zn":"orange", 
+	# 	"Co":"brown", "Cu":"blue", "Ti":"cyan", "Al":"green"})
+
+	# cdicts = dict({"Ga":"#C9EA3D", "Mo":"#DDD1E6", "Zn":"#642455", 
+	# 	"Co":"#FFCB56", "Cu":"#1389A5", "Ti":"#9CDEEE", "Al":"#83A340"})
+
+	cdicts = dict({"Ga":"antiquewhite", "Mo":"darkorange", "Zn":"yellow", 
+		"Co":"lightskyblue", "Cu":"navy", "Ti":"maroon", "Al":"green"})
+
 	index = index.replace("CuAlZnTi_", "")
 	if "mix" in index:
 		for element, color in cdicts.items():
@@ -288,34 +299,47 @@ def norm_id(id_qr):
 			"/glusterfs/damlabfs/vasp_data/",
 			"/Volumes/Nguyen_6TB/work/SmFe12_screening/input/feature/",
 			"/coarse_relax", "/fine_relax", "/standard",
-			".ofm1_no_d", 
-			"ofm1_no_d/", 
+			".ofm1_no_d", "ofm1_no_d/", 
 			# mix/Sm-Fe9-Ti1-Mo2/Mo_2-9___Ti_7
-		"6103324a5e1c4c889b5b74cbff538098/single_193_162jobs/",
-		"0fb43913fa7540e9aafd8d49465c7123/single_1102_77jobs/",
-		"0cfb92a839764d70a894766286cefcd2/single_1111_21jobs/",
-		"0f0ce41cc6a146a0a3c6595725634176/supp_0/",
-		"ce7eeeea21fb4b8784344b0ed536f8dd/supp_1/",
-		"bc336d85dca14791a99a35e1cac3ae59/supp_2/",
-		"d6719d4ecdb0405b81d7ad7ff554b693/supp_3/",
-		"9c40cfc311e2430e84718bf93f651cd4/supp_4/",
-		"0277b5462e8a4efc984b17562e80b226/supp_5/",
-		"6daead0ebb7044cf9cae51ced4267854/supp_6/",
-		"c11dc70398594be48aa0b71d335e0c1a/supp_7/",
-		"944b6d0b64cb45aeadda4dd71ab0a667/supp_8/",
-		# "437d235204e34f23953f71c12aa6724a/supp_9/",
-		# "53f9ec52625044a28bd51b0e17444cd8/supp_10/",
-		"b2d63e38b5a84a6199fb2ffaa2c63733/supp_11/"
+		# "6103324a5e1c4c889b5b74cbff538098/single_193_162jobs/",
+		# "0fb43913fa7540e9aafd8d49465c7123/single_1102_77jobs/",
+		# "0cfb92a839764d70a894766286cefcd2/single_1111_21jobs/",
+		# "0f0ce41cc6a146a0a3c6595725634176/supp_0/",
+		# "ce7eeeea21fb4b8784344b0ed536f8dd/supp_1/",
+		# "bc336d85dca14791a99a35e1cac3ae59/supp_2/",
+		# "d6719d4ecdb0405b81d7ad7ff554b693/supp_3/",
+		# "9c40cfc311e2430e84718bf93f651cd4/supp_4/",
+		# "0277b5462e8a4efc984b17562e80b226/supp_5/",
+		# "6daead0ebb7044cf9cae51ced4267854/supp_6/",
+		# "c11dc70398594be48aa0b71d335e0c1a/supp_7/",
+		# "944b6d0b64cb45aeadda4dd71ab0a667/supp_8/",
+		# # "437d235204e34f23953f71c12aa6724a/supp_9/",
+		# # "53f9ec52625044a28bd51b0e17444cd8/supp_10/",
+		# "b2d63e38b5a84a6199fb2ffaa2c63733/supp_11/"
+
+		# # /home/nguyen/vasp_data/standard/mix/supp_2/mix-_-Sm-Fe9-Al2-Co1-_-Co_7___Al_9-11
+		# # 
+		"/home/nguyen/vasp_data",
+		"single/single_193_162jobs/",	"single/single_1102_77jobs/",	"single/single_1111_21jobs/",
+		"/mix/supp_0/",	"mix/supp_1/",	"/mix/supp_2/",	"/mix/supp_3/",
+		"/mix/supp_4/",	"mix/supp_5/",	"/mix/supp_6/",	"/mix/supp_7/",
+		"/mix/supp_8/",	"mix/supp_11/"
 			]
 	# # single/Sm-Fe9-Co3/ofm1_no_d/Co_2__j8_4__i8_9__i8.ofm1_no_d
 	# # mix/Sm-Fe10-Al1-Ga1/ofm1_no_d/Ga_1___Al_8.ofm1_no_d
+	is_query_from_feature = False
+	if ".ofm1_no_d" in id_qr:
+		is_query_from_feature = True
+
 	for rm in rmvs:
 		id_qr = id_qr.replace(rm, "")
 
-	if "mix" in id_qr:
+	if "mix" in id_qr and is_query_from_feature:
 		id_qr = id_qr.replace("/", "-_-")
-	else:
-		id_qr = get_basename(id_qr)
+
+	id_qr = get_basename(id_qr)
+
+
 	# dot = "-_-"
 	# if dot in id_qr:
 	# 	last_point = id_qr.rfind(dot) #+ len("mix-_-")

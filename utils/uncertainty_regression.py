@@ -66,7 +66,7 @@ class UncertainEnsembleRegression(object):
     self.y_train = y_train
 
     # # currently, anytime we fit the estimator with X_train, y_train
-    # # we researching for parameter
+    # # searching for parameter
     if self.estimator is None: # # for not always search parameters:
       estimator, GridSearchCV = RegressionFactory.get_regression(
           method=self.name, 

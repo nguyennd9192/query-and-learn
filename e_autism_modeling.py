@@ -67,12 +67,12 @@ def get_embedding_map(qid, all_data):
    #          'twilight', 'twilight_shifted', 'hsv', 'Pastel1', 'Pastel2', 'Paired', 'Accent',
    #          'Dark2', 'Set1', 'Set2', 'Set3',
    #          'tab10', 'tab20', 
-            'tab20b', 
-            # 'tab20c', 'flag', 'prism', 'ocean', 'gist_earth', 'terrain', 'gist_stern',
-            # 'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg',
-            # 'gist_rainbow', 'rainbow', 'jet', 'turbo', 'nipy_spectral',
-            # 'gist_ncar'
-            ]
+			'tab20b', 
+			# 'tab20c', 'flag', 'prism', 'ocean', 'gist_earth', 'terrain', 'gist_stern',
+			# 'gnuplot', 'gnuplot2', 'CMRmap', 'cubehelix', 'brg',
+			# 'gist_rainbow', 'rainbow', 'jet', 'turbo', 'nipy_spectral',
+			# 'gist_ncar'
+			]
 	for cmap in cmaps:
 		for i, v in enumerate(pv):
 			if "p1" in v:
@@ -208,69 +208,265 @@ def ofm_diff_correlation():
 
 	index = list(plot_df.index)
 
-	print (len(ofm_df), len(index))
-	terms = [ 
-		"of", "s1-", "s2-",
-		"p1-", "d2-", "d5-", 
-		"d6-", "d7-", "d10-", "f6-",
-		"d10-"
+	side_file = "{}/data/SmFe12/summary/coarse_relax.csv".format(ALdir)
+	side_data = pd.read_csv(side_file, index_col=0)
+	print (len(side_data))
+	v_SmFe12 = 175
+	# terms = [ 
+	# 	"of", "s1-", "s2-",
+	# 	"p1-", "d2-", "d5-", 
+	# 	"d6-", "d7-", "d10-", "f6-",
+	# 	"d10-"
+	# 	]
+
+	# # marker_array = ["+" for k in index] # plot_df["marker"]
+	# family = [get_family(k) for k in index]
+	# marker_array = np.array([get_marker_112(k) for k in family])
+	# list_cdict = np.array([get_color_112(k) for k in index]) # 
+	# alphas = np.array([0.8] * len(index))
+
+	# # plot all pvs
+	# for i, v in enumerate(pv):
+	# 	for term in terms:
+	# 		if term in v:
+	# 			save_file = main_savedir+"/ofm_diff_ene/{0}/{1}.pdf".format(term, v)
+	# 			y = plot_df.loc[index, "y_obs"].values
+	# 			x = ofm_df.loc[index, v].values
+
+	# 			flt = np.where(x==0)[0]
+	# 			x_flt = np.delete(x, flt)
+	# 			y_flt = np.delete(y, flt)
+	# 			cdict_flt = np.delete(list_cdict, flt)
+	# 			mk_flt = np.delete(marker_array, flt)
+
+	# 			# scatter_plot_6(x, y, z_values=None, 
+	# 			# 	list_cdict=list_cdict, xvlines=None, yhlines=None, 
+	# 			#     sigma=None, mode='scatter', lbl=None, name=None, 
+	# 			#     s=1, alphas=alphas, title=None,
+	# 			#     x_label='x', y_label='y', 
+	# 			#     save_file=save_file, interpolate=False, color='blue', 
+	# 			#     preset_ax=None, linestyle='-.', marker=marker_array)
+	# 			scaler_y = MinMaxScaler().fit(y.reshape(-1,1))
+
+	# 			if len(x_flt) != 0:
+	# 				scatter_plot_6(x=x_flt, y=y_flt, 
+	# 						z_values=None,
+	# 						list_cdict=cdict_flt, 
+	# 						xvlines=[0.0], yhlines=[0.0], 
+	# 						sigma=None, mode='scatter', lbl=None, name=None, 
+	# 						s=60, alphas=alphas, 
+	# 						title=save_file.replace(ALdir, ""),
+	# 						x_label=v,
+	# 						y_label="y_obs", 
+	# 						save_file=save_file, scaler_y=scaler_y,
+	# 						interpolate=False, cmap="PiYG",
+	# 						preset_ax=None, linestyle='-.', marker=mk_flt,
+	# 						# vmin=np.nanmin(z_values), vmax=np.nanmax(z_values), vcenter=0
+	# 						)
+
+	# #  # violin plot 
+	# selected_pv = ["f6-d7", "d10-d10", "p1-d6", "s1-f6"]
+	# save_file = main_savedir+"/violin/{0}.pdf".format("|".join(selected_pv))
+
+	# fig = plt.figure(figsize=(12, 8), linewidth=1.0)
+	# grid = plt.GridSpec(5, 5, hspace=0.2, wspace=0.2)
+	# main_ax = fig.add_subplot(grid[:, :])
+	# for i, v in enumerate(selected_pv):
+	# 	ene = plot_df.loc[index, "y_obs"].values
+	# 	x = ofm_df.loc[index, v].values
+
+	# 	flt = np.where(x==0)[0]
+	# 	x_flt = np.delete(x, flt)
+	# 	ene_flt = np.delete(ene, flt)
+	# 	# # ái for violin always begin with 1
+	# 	main_ax.violinplot(dataset=x_flt, positions=[i+1], showmeans=True)
+	# main_ax.axhline(y=0.0, xmin=0.0, xmax=len(selected_pv), linestyle='-.', color='grey', alpha=0.7)
+
+	# set_axis_style(ax=main_ax, labels=selected_pv)
+	# plt.tight_layout(pad=1.1)
+	# makedirs(save_file)
+	# print ("Save at:", save_file)
+	# plt.savefig(save_file, transparent=False)
+
+	pres = [ 
+	   # "d10-", 
+	   # "d7-", 
+	   # "d5-", 
+	   # "d2-",  
+	   # "s2-", 
+	   # "s1-", 
+	   # "f6-", 
+	   "d6-",
+	   "p1-",
+
+			]
+	posts = [ 
+		"d6", "f6",
+		"s1", "s2", 
+		"p1", "d2", "d5", "d7", "d10"
 		]
+	# save_file = main_savedir+"/violin/all_custom.pdf"
+	save_file = main_savedir+"/violin/new/{0}.pdf".format("|".join(pres))
 
-	# marker_array = ["+" for k in index] # plot_df["marker"]
-	family = [get_family(k) for k in index]
-	marker_array = np.array([get_marker_112(k) for k in family])
-	list_cdict = np.array([get_color_112(k) for k in index]) # 
-	alphas = np.array([0.8] * len(index))
+	# for b in all_pres:
+		# pres = [b]
+		# save_file = main_savedir+"/violin/{0}.pdf".format(b)
 
+	fig = plt.figure(figsize=(8, 6), linewidth=1.0)
+	grid = plt.GridSpec(len(pres), len(posts), hspace=0.0, wspace=0.0)
 
-	for i, v in enumerate(pv):
-		for term in terms:
-			if term in v:
-				save_file = main_savedir+"/ofm_diff_ene/{0}/{1}.pdf".format(term, v)
-				y = plot_df.loc[index, "y_obs"].values
+	for row, pre in enumerate(pres):
+		ax = fig.add_subplot(grid[row, :], xticklabels=[])
+		# ax2 = ax.twinx()
+
+		for col, post in enumerate(posts):
+			v = pre + post
+			if v in ofm_df.columns:
+				ene = plot_df.loc[index, "y_obs"].values
 				x = ofm_df.loc[index, v].values
+				# volume = side_data.loc[index, "volume"].values - v_SmFe12
 
 				flt = np.where(x==0)[0]
 				x_flt = np.delete(x, flt)
-				y_flt = np.delete(y, flt)
-				cdict_flt = np.delete(list_cdict, flt)
-				mk_flt = np.delete(marker_array, flt)
+				ene_flt = np.delete(ene, flt)
+				# volume_flt = np.delete(volume, flt)
 
-				# scatter_plot_6(x, y, z_values=None, 
-				# 	list_cdict=list_cdict, xvlines=None, yhlines=None, 
-				#     sigma=None, mode='scatter', lbl=None, name=None, 
-				#     s=1, alphas=alphas, title=None,
-				#     x_label='x', y_label='y', 
-				#     save_file=save_file, interpolate=False, color='blue', 
-				#     preset_ax=None, linestyle='-.', marker=marker_array)
-				scaler_y = MinMaxScaler().fit(y.reshape(-1,1))
+				if len(x_flt)!=0:
+					violin_parts = ax.violinplot(dataset=x_flt, positions=[col+1.0-0.2], # 
+						showmeans=True, vert=True, #showmedians=True
+						showextrema=False,  # False
+						points=len(x_flt)
+						)
+					set_color_violin(x_flt=x_flt, violin_parts=violin_parts, pc="red", nc="darkblue")
 
-				if len(x_flt) != 0:
-					scatter_plot_6(x=x_flt, y=y_flt, 
-							z_values=None,
-							list_cdict=cdict_flt, 
-							xvlines=[0.0], yhlines=[0.0], 
-							sigma=None, mode='scatter', lbl=None, name=None, 
-							s=60, alphas=alphas, 
-							title=save_file.replace(ALdir, ""),
-							x_label=v,
-							y_label="y_obs", 
-							save_file=save_file, scaler_y=scaler_y,
-							interpolate=False, cmap="PiYG",
-							preset_ax=None, linestyle='-.', marker=mk_flt,
-							# vmin=np.nanmin(z_values), vmax=np.nanmax(z_values), vcenter=0
-							)
-				# except Exception as e:
-				# 	pass
+					violin_parts_2 = ax.violinplot(dataset=ene_flt, positions=[col+1.0+0.2], # 
+						showmeans=True, vert=True, #showmedians=True
+						showextrema=False,  # False
+						points=len(ene_flt)
+						)
+					set_color_violin(x_flt=ene_flt, violin_parts=violin_parts_2, pc="gray", nc="orange")
 
-				# scatter_plot(x=x, y=y, xvline=None, yhline=None, 
-				# 	sigma=None, mode='scatter', lbl=None, name=None, 
-				# 	x_label='x', y_label='y', 
-				# 	save_file=save_file, interpolate=False, color='blue', 
-				# 	linestyle='.', 
-				# 	marker=['o']*len(y), title=None)
-		# 	break
-		# break
+
+					# violin_parts_3 = ax2.violinplot(dataset=volume_flt, positions=[col+1.0+0.2], # 
+					# 	showmeans=True, vert=True, #showmedians=True
+					# 	showextrema=False,  # False
+					# 	points=len(volume_flt)
+					# 	)
+					# set_color_violin(x_flt=volume_flt, violin_parts=violin_parts_3, 
+					# 	pc="red", nc="darkblue")
+
+					# ax.set_ylim(-0.5,0.25)
+					# ax.set_ylim(-0.15,0.28)
+					# ax2.set_ylim(-0.15,0.28)
+
+					# customize(data=x_flt, ax=ax, positions=[col+1])
+
+		set_axis_style(ax=ax, labels=posts)
+		ax.axhline(y=0.0, xmin=0.0, xmax=len(posts), 
+			linestyle='-.', color='black', alpha=0.7,
+			linewidth=1.0)
+		ax.set_ylabel(pre)
+
+		# plt.yscale('symlog')
+
+	ax.set_xlabel("")
+
+	plt.tight_layout(pad=1.1)
+	makedirs(save_file)
+	print ("Save at:", save_file)
+	plt.savefig(save_file, transparent=False)
+	# release_mem(fig=fig)
+
+
+
+def ofm_diff_correlation_byname():
+	ofm_diff_file = "{}/data/SmFe12/ofm_diff/summary.csv".format(ALdir)
+	ofm_df = pd.read_csv(ofm_diff_file, index_col=0)
+	pv = ofm_df.columns 
+
+	main_savedir = get_savedir(ith_trial=FLAGS.ith_trial)
+	savedir = main_savedir + "/query_30"
+	plot_file = savedir + "/query_30ipl_plot.csv"
+	plot_df = pd.read_csv(plot_file, index_col=0)
+	# # missing index
+	missing_index = ["mix-_-Sm-Fe9-Al2-Zn1-_-Zn_10___Al_0-6"]
+	plot_df.set_index('index', inplace=True)
+	plot_df.drop(missing_index, inplace=True)
+
+	index = list(plot_df.index)
+
+	pres = [ 
+	   
+			]
+	posts = [ 
+		
+		]
+	save_file = main_savedir+"/violin/all_custom.pdf"
+	# save_file = main_savedir+"/violin/{0}.pdf".format("|".join(pres))
+
+	# for b in all_pres:
+		# pres = [b]
+		# save_file = main_savedir+"/violin/{0}.pdf".format(b)
+
+	fig = plt.figure(figsize=(6, 8), linewidth=1.0)
+	grid = plt.GridSpec(len(pres), len(posts), hspace=0.0, wspace=0.0)
+
+	for row, pre in enumerate(pres):
+		ax = fig.add_subplot(grid[row, :], xticklabels=[])
+		# ax2 = ax.twinx()
+
+		for col, post in enumerate(posts):
+			v = pre + post
+			if v in ofm_df.columns:
+				ene = plot_df.loc[index, "y_obs"].values
+				x = ofm_df.loc[index, v].values
+				
+				flt = np.where(x==0)[0]
+				x_flt = np.delete(x, flt)
+				ene_flt = np.delete(ene, flt)
+
+				if len(x_flt)!=0:
+					violin_parts = ax.violinplot(dataset=x_flt, positions=[col+1.0-0.2], # 
+						showmeans=True, vert=True, #showmedians=True
+						showextrema=False,  # False
+						points=len(x_flt)
+						)
+
+					# norm = colors.DivergingNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+					set_color_violin(x_flt=x_flt, violin_parts=violin_parts, pc="red", nc="darkblue")
+
+					violin_parts_2 = ax.violinplot(dataset=ene_flt, positions=[col+1.0+0.2], # 
+						showmeans=True, vert=True, #showmedians=True
+						showextrema=False,  # False
+						points=len(ene_flt)
+						)
+					set_color_violin(x_flt=ene_flt, violin_parts=violin_parts_2, pc="gray", nc="orange")
+
+					# ax.set_ylim(-0.5,0.25)
+					# ax.set_ylim(-0.15,0.28)
+					# ax2.set_ylim(-0.15,0.28)
+
+					# customize(data=x_flt, ax=ax, positions=[col+1])
+
+		set_axis_style(ax=ax, labels=posts)
+		ax.axhline(y=0.0, xmin=0.0, xmax=len(posts), 
+			linestyle='-.', color='black', alpha=0.7,
+			linewidth=1.0)
+		ax.set_ylabel(pre)
+
+		# plt.yscale('symlog')
+
+	ax.set_ylabel("")
+
+	plt.tight_layout(pad=1.1)
+	makedirs(save_file)
+	print ("Save at:", save_file)
+	plt.savefig(save_file, transparent=False)
+	# release_mem(fig=fig)
+
+
+
+
 
 def simple_pearson():
 	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = load_data()

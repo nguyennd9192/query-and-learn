@@ -22,7 +22,7 @@ def create_params_grid():
 	embedding_methods = ["MLKR", "org_space"]  # LMNN, LFDA, org_space, MLKR
 
 	active_ps = [1.0] # , 0.9, 0.7, 0.5
-	ith_trials = range(10, 31) # (1, 10)
+	ith_trials = range(1, 5) # (1, 10)
 	 #
 	# # 0.9: test with batch_size 10 10 10, eval by ignore selected_inds
 	# # 0.7: test with batch_size 30 30 30, eval by ignore selected_inds_to_estimator
