@@ -198,8 +198,8 @@ def ofm_diff_correlation():
 	pv = ofm_df.columns 
 
 	main_savedir = get_savedir(ith_trial=FLAGS.ith_trial)
-	savedir = main_savedir + "/query_30"
-	plot_file = savedir + "/query_30ipl_plot.csv"
+	savedir = main_savedir + "/query_60"
+	plot_file = savedir + "/query_60ipl_plot.csv"
 	plot_df = pd.read_csv(plot_file, index_col=0)
 	# # missing index
 	missing_index = ["mix-_-Sm-Fe9-Al2-Zn1-_-Zn_10___Al_0-6"]
@@ -208,22 +208,22 @@ def ofm_diff_correlation():
 
 	index = list(plot_df.index)
 
-	side_file = "{}/data/SmFe12/summary/coarse_relax.csv".format(ALdir)
+	side_file = "{}/data/SmFe12/210829/summary/coarse_relax.csv".format(ALdir)
 	side_data = pd.read_csv(side_file, index_col=0)
 	print (len(side_data))
 	v_SmFe12 = 175
-	# terms = [ 
-	# 	"of", "s1-", "s2-",
-	# 	"p1-", "d2-", "d5-", 
-	# 	"d6-", "d7-", "d10-", "f6-",
-	# 	"d10-"
-	# 	]
+	terms = [ 
+		"of", "s1-", "s2-",
+		"p1-", "d2-", "d5-", 
+		"d6-", "d7-", "d10-", "f6-",
+		"d10-"
+		]
 
-	# # marker_array = ["+" for k in index] # plot_df["marker"]
-	# family = [get_family(k) for k in index]
-	# marker_array = np.array([get_marker_112(k) for k in family])
-	# list_cdict = np.array([get_color_112(k) for k in index]) # 
-	# alphas = np.array([0.8] * len(index))
+	# marker_array = ["+" for k in index] # plot_df["marker"]
+	family = [get_family(k) for k in index]
+	marker_array = np.array([get_marker_112(k) for k in family])
+	list_cdict = np.array([get_color_112(k) for k in index]) # 
+	alphas = np.array([0.8] * len(index))
 
 	# # plot all pvs
 	# for i, v in enumerate(pv):
@@ -289,16 +289,15 @@ def ofm_diff_correlation():
 	# plt.savefig(save_file, transparent=False)
 
 	pres = [ 
-	   # "d10-", 
-	   # "d7-", 
-	   # "d5-", 
-	   # "d2-",  
-	   # "s2-", 
-	   # "s1-", 
-	   # "f6-", 
-	   "d6-",
-	   "p1-",
-
+	   "d10-", 
+	   "d7-", 
+	   "d5-", 
+	   "d2-", 
+	   "p1-", 
+	   "s2-", 
+	   "s1-", 
+	   "f6-", 
+	   "d6-"
 			]
 	posts = [ 
 		"d6", "f6",
@@ -312,7 +311,7 @@ def ofm_diff_correlation():
 		# pres = [b]
 		# save_file = main_savedir+"/violin/{0}.pdf".format(b)
 
-	fig = plt.figure(figsize=(8, 6), linewidth=1.0)
+	fig = plt.figure(figsize=(8, 10), linewidth=1.0)
 	grid = plt.GridSpec(len(pres), len(posts), hspace=0.0, wspace=0.0)
 
 	for row, pre in enumerate(pres):
@@ -566,25 +565,25 @@ if __name__ == "__main__":
 	all_data = load_data()
 	pv = all_data[-1]
 
-	# df = pd.DataFrame(index=pv, columns=qids)
+	df = pd.DataFrame(index=pv, columns=qids)
 
 	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
 	save_score = savedir+"/x_on_embedd_score_qid.csv"
 	ref = "y_all_obs"
 
 	# for qid in qids:
-	# 	# get_embedding_map(qid=qid, all_data=all_data)
-	# 	ofm_diff_map(qid=qid, all_data=all_data)
+	# 	get_embedding_map(qid=qid, all_data=all_data)
+	# 	# ofm_diff_map(qid=qid, all_data=all_data)
 
-		# qid_dir = savedir + "/query_{}/x_on_embedd_".format(qid)
-		# ref_file = qid_dir + "/{}.txt".format(ref)
-		# ref_map = np.loadtxt(ref_file)
-		# for v in pv:
-		# 	sim_score = two_map_sim(
-		# 		savedir=qid_dir, ref=ref, ft=v,
-		# 		ref_map=ref_map)
-		# 	df.loc[v, qid] = sim_score
-		# 	df.to_csv(save_score)
+	# 	qid_dir = savedir + "/query_{}/x_on_embedd_".format(qid)
+	# 	ref_file = qid_dir + "/{}.txt".format(ref)
+	# 	ref_map = np.loadtxt(ref_file)
+	# 	for v in pv:
+	# 		sim_score = two_map_sim(
+	# 			savedir=qid_dir, ref=ref, ft=v,
+	# 			ref_map=ref_map)
+	# 		df.loc[v, qid] = sim_score
+	# 		df.to_csv(save_score)
 
 	ofm_diff_correlation()
 

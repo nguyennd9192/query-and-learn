@@ -93,33 +93,33 @@ def perform_each_acquisition(ith_trials,
 		# # for all trials
 		n_trials = 0
 		for ith_trial in ith_trials:
-			# try:
-			mean_qr, mean_non_qr, data = get_error(
-				job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
-			if is_relative:
-				mean_qr_ref, mean_non_qr_ref, data_ref = get_error(
-					job_savedir=org_savedir, ith_trial=ith_trial, qid=qid)
-				mean_qr /= mean_qr_ref
-				mean_non_qr /= mean_non_qr_ref
+			try:
+				mean_qr, mean_non_qr, data = get_error(
+					job_savedir=job_savedir, ith_trial=ith_trial, qid=qid)
+				if is_relative:
+					mean_qr_ref, mean_non_qr_ref, data_ref = get_error(
+						job_savedir=org_savedir, ith_trial=ith_trial, qid=qid)
+					mean_qr /= mean_qr_ref
+					mean_non_qr /= mean_non_qr_ref
 
-			if dt == "OS":
-				for tmp in ["DQ", "OS", "RND"]:
-					tmp_dict_values = data[tmp]
-					idx_expl, y_expl, y_expl_pred = tmp_dict_values["idx_qr"], tmp_dict_values["y_qr"], tmp_dict_values["y_qr_pred"]
-					this_recall = len(list(set(idx_expl).intersection(full_os_ids))) / float(n_full)
-					recall_os += this_recall
-				values.append(recall_os)
-			elif dt == "DU":
-				values.append(mean_non_qr)
-				# values = np.concatenate([values, mean_non_qr])
-			else:
-				values.append(mean_qr)
-				# values = np.concatenate([values, mean_qr])
+				if dt == "OS":
+					for tmp in ["DQ", "OS", "RND"]:
+						tmp_dict_values = data[tmp]
+						idx_expl, y_expl, y_expl_pred = tmp_dict_values["idx_qr"], tmp_dict_values["y_qr"], tmp_dict_values["y_qr_pred"]
+						this_recall = len(list(set(idx_expl).intersection(full_os_ids))) / float(n_full)
+						recall_os += this_recall
+					values.append(recall_os)
+				elif dt == "DU":
+					values.append(mean_non_qr)
+					# values = np.concatenate([values, mean_non_qr])
+				else:
+					values.append(mean_qr)
+					# values = np.concatenate([values, mean_qr])
+				n_trials += 1
 
-			n_trials += 1
-			# except Exception as e:
-			# 	print ("Error in ", embedding_method, sampling_method, qid, ith_trial)
-			# 	pass
+			except Exception as e:
+				print ("Error in ", embedding_method, sampling_method, ith_trial, qid)
+				pass
 		values = np.array(values)
 		if dt == "OS":
 			# # normalize in scale of outstanding 
@@ -131,40 +131,38 @@ def perform_each_acquisition(ith_trials,
 		mean_trial = np.mean(values)
 		var_trial = np.var(values)
 
-		if dt == "DU": # OS
-			lab = "{0}|{1}".format(embedding_method, sampling_method)
+		# if dt == "DU": # OS
+		lab = "{0}|{1}".format(embedding_method, sampling_method)
+		print ("values.shape: ", values.shape)
+		bplot = ax.boxplot(x=np.ravel(values), vert=True, #notch=True, 
+				# sym='rs', # whiskerprops={'linewidth':2},
+				# alpha=0.4,
+				# notch=True,
+				positions=[qid], patch_artist=False,
+				widths=0.8, meanline=False, #flierprops=flierprops,
+				showfliers=False, showbox=True, 
+				showmeans=True,
+				)
+			# ax.text(pos_x, mean, round(mean, 2),
+			# 	horizontalalignment='center', size=14, 
+			# 	color=color, weight='semibold')
+		# patch = bplot['boxes'][0]
+		# patch.set_facecolor(performance_codes[lab])
+		# # patch.set_hatch(hatch_codes[sampling_method])
+		# patch.set_alpha(0.8)
+		# ax.legend([bplot["boxes"][0]], 
+		# 	["{0}_{1}".format(embedding_method, sampling_method)], 
+		# 	loc='upper right')
 
-			# bplot = ax.boxplot(x=np.ravel(values), vert=True, #notch=True, 
-			# 		# sym='rs', # whiskerprops={'linewidth':2},
-			# 		# alpha=0.4,
-			# 		# notch=True,
-			# 		positions=[qid], patch_artist=False,
-			# 		widths=0.8, meanline=False, #flierprops=flierprops,
-			# 		showfliers=False, #showbox=True, 
-			# 		showmeans=True,
-			# 		)
-			# 	# ax.text(pos_x, mean, round(mean, 2),
-			# 	# 	horizontalalignment='center', size=14, 
-			# 	# 	color=color, weight='semibold')
-			# patch = bplot['boxes'][0]
-			# patch.set_facecolor(performance_codes[lab])
-			# # patch.set_hatch(hatch_codes[sampling_method])
-			# patch.set_alpha(0.8)
-			# ax.legend([bplot["boxes"][0]], 
-			# 	["{0}_{1}".format(embedding_method, sampling_method)], 
-			# 	loc='upper right')
-
-			# # to plot violin
-			data = np.ravel(values)
-			violin_parts = ax.violinplot(dataset=data, positions=[qid], # 
-						showmeans=True, vert=True, #showmedians=True
-						showextrema=False,  # False
-						points=len(data)
-						)
-			set_color_violin(x_flt=data, violin_parts=violin_parts, 
-				pc=performance_codes[lab], nc="darkblue")
-
-
+		# # to plot violin
+		# data = np.ravel(values)
+		# violin_parts = ax.violinplot(dataset=data, positions=[qid], # 
+		# 			showmeans=True, vert=True, #showmedians=True
+		# 			showextrema=False,  # False
+		# 			points=len(data)
+		# 			)
+		# set_color_violin(x_flt=data, violin_parts=violin_parts, 
+		# 	pc=performance_codes[lab], nc="darkblue"
 		
 
 		mean_trials.append(mean_trial)
@@ -210,9 +208,10 @@ def show_performance(ith_trials, dt, is_relative):
 			# 	color=performance_codes[lab],
 			# 	alpha=0.8)
 			# print (var_trials)
-
 			# except:
+			# 	print ("Error in:", embedding_method, sampling_method)
 			# 	pass
+
 		# ax.set_xlabel(r"Query index", **axis_font) 
 		if dt == "OS":
 			ax.set_ylabel(r"Recall rate", **axis_font)
@@ -299,8 +298,8 @@ if __name__ == "__main__":
 	FLAGS(sys.argv)
 	# get_full_os()
 
-	for dt in ["DU"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
-		show_performance(ith_trials=range(11,31), # 2,3,4,5,
+	for dt in ["DU", "OS"]: # "DQ", "OS", "RND", "DQ_to_RND", "DU"
+		show_performance(ith_trials=range(1,5), # 2,3,4,5,
 			# 2
 			dt=dt, is_relative=False)
 
