@@ -2,7 +2,7 @@ import sys, os
 from params import *
 
 from utils.general_lib import *
-from a_rank_unlbl import map_unlbl_data
+from main import map_unlbl_data
 import copy
 from itertools import product
 
@@ -22,11 +22,7 @@ def create_params_grid():
 	embedding_methods = ["MLKR", "org_space"]  # LMNN, LFDA, org_space, MLKR
 
 	active_ps = [1.0] # , 0.9, 0.7, 0.5
-	ith_trials = range(1, 5) # (1, 10)
-	 #
-	# # 0.9: test with batch_size 10 10 10, eval by ignore selected_inds
-	# # 0.7: test with batch_size 30 30 30, eval by ignore selected_inds_to_estimator
-
+	ith_trials = range(1, 20) # (1, 10)
 
 	all_kwargs = list(product(sampling_methods, score_methods, embedding_methods, active_ps, ith_trials))
 	n_tasks = len(all_kwargs)
@@ -92,9 +88,7 @@ def create_params_grid():
 
 
 if __name__ == "__main__":
-	# FLAGS(sys.)
 	FLAGS(sys.argv)
-
 	create_params_grid()
 
 

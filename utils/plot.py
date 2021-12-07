@@ -16,7 +16,7 @@ from utils.general_lib import get_basename
 from matplotlib.colors import Normalize
 from scipy.interpolate import griddata
 from sklearn.preprocessing import MinMaxScaler
-import matplotlib.colors as colors
+import matplotlib.colors as m_colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sklearn.inspection import partial_dependence, plot_partial_dependence
 import matplotlib.cm as cm
@@ -24,6 +24,8 @@ import matplotlib.cm as cm
 from scipy import stats
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel, WhiteKernel, ExpSineSquared
+from sklearn.neighbors import KernelDensity
+import scipy.ndimage as ndimage
 
 
 axis_font = {'fontname': 'serif', 'size': 14, 'labelpad': 10}
@@ -967,7 +969,7 @@ def scatter_plot_7(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
             vmax = np.nanmax(grid_interpolate.T)
 
         # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-        norm = colors.DivergingNorm(vmin=0.0, vcenter=vmax/4, vmax=vmax)
+        norm = m_colors.DivergingNorm(vmin=0.0, vcenter=vmax/4, vmax=vmax)
         # norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
 
         z_plot = main_ax.imshow(grid_interpolate.T, 
@@ -1017,12 +1019,12 @@ def set_color_violin(x_flt, violin_parts, pc, nc):
         vp.set_facecolor(c)
         vp.set_edgecolor("black")
         vp.set_linewidth(1.0)
-        vp.set_alpha(0.6)
+        vp.set_alpha(0.8)
     for partname in ('cmins','cmaxes','cmeans','cmedians'): # cbars
         if partname in violin_parts:
             vp = violin_parts[partname]
-            vp.set_edgecolor(c)
-            vp.set_linewidth(1.0)
+            vp.set_edgecolor("black")
+            vp.set_linewidth(2.0)
 
 def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None, 
         sigma=None, mode='scatter', lbl=None, name=None, 
@@ -1082,8 +1084,10 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
             vcenter = 0.5*(vmax + vmin)
 
 
-        norm = colors.DivergingNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
-        z_plot = main_ax.imshow(grid_interpolate.T, 
+        norm = m_colors.DivergingNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
+        # bkg = smoothness_2d(matrix=grid_interpolate.T, X_plot=x.reshape(1, -1))
+        bkg = ndimage.gaussian_filter(grid_interpolate.T, sigma=2, order=0)
+        z_plot = main_ax.imshow(bkg, 
             extent=(min(x),max(x),min(y),max(y)), origin='lower',
             cmap=cmap, norm=norm, 
             # vmin=-max_ipl, vmax=max_ipl, 
@@ -1119,8 +1123,12 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
     for _m, _cdict, _x, _y, _a in zip(marker, list_cdict, x, y, alphas):
         # if _z == 0:
         #   continue
-        if _m in ["o", "D", "*"]:
-            main_ax.scatter(_x, _y, s=s, 
+        if _m in ["*"]:
+            main_ax.scatter(_x, _y, s=1.3*s, 
+                marker="^", c="white", 
+                alpha=1.0, edgecolor="red")
+        elif _m in ["o", "D"]:
+            main_ax.scatter(_x, _y, s=1.3*s, 
                 marker=_m, c="white", 
                 alpha=1.0, edgecolor="red")
         elif _m == ".":
@@ -1146,10 +1154,10 @@ def scatter_plot_8(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=N
 
 
 
-    for xvline in xvlines:
-      main_ax.axvline(x=xvline, linestyle='-.', color='black')
-    for yhline in yhlines:
-      main_ax.axhline(y=yhline, linestyle='-.', color='black')
+    # for xvline in xvlines:
+    #   main_ax.axvline(x=xvline, linestyle='-.', color='black')
+    # for yhline in yhlines:
+    #   main_ax.axhline(y=yhline, linestyle='-.', color='black')
     # main_ax.set_title(title, **title_font)
     # main_ax.set_xlabel(x_label, **axis_font)
     # main_ax.set_ylabel(y_label, **axis_font)
@@ -1217,29 +1225,56 @@ def comp_kde2d(x, y, z_values=None, list_cdict=None, xvlines=None, yhlines=None,
     plt.xticks(tick_pos, []) # xticklabels, size=14
     plt.yticks(tick_pos, []) # yticklabels, size=14
 
-
+def upper_rugplot(data, height=.05, ax=None, **kwargs):
+    from matplotlib.collections import LineCollection
+    # ax = ax or plt.gca()
+    kwargs.setdefault("linewidth", 1)
+    segs = np.stack((np.c_[data, data],
+                     np.c_[np.ones_like(data), np.ones_like(data)-height]),
+                    axis=-1)
+    lc = LineCollection(segs, transform=ax.get_xaxis_transform(), **kwargs)
+    ax.add_collection(lc)
+    return ax
 
 def fts_on_embedding(term, pv, estimator, X_train, y_train,
                 ref_ids,
                 X_all, xy, savedir, background, 
                 vmin=None, vmax=None, cmap="jet", y_pred=None,
                 list_cdict=None, marker=None, alphas=None):
-    # fig = plt.subplots(nrows=1,  sharey=True)
-    fig = plt.figure(figsize=(9, 9))    
+    # fig, main_ax = plt.subplots(figsize=(8, 8), linewidth=1.0) # 
+
+    fig = plt.figure(figsize=(9, 9), linewidth=1.0)
+    grid = plt.GridSpec(4, 4, hspace=0.05, wspace=0.05)
+    main_ax = fig.add_subplot(grid[1:, :-1])
+
+    ref_yhist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
+    # ref_yhist = fig.add_subplot(grid[4:, -1], xticklabels=[], sharey=main_ax)
+    # d5_yhist = fig.add_subplot(grid[4:, -2], xticklabels=[], sharey=main_ax)
+    # p1_yhist = fig.add_subplot(grid[4:, -3], xticklabels=[], sharey=main_ax)
+    # d2_yhist = fig.add_subplot(grid[4:, -4], xticklabels=[], sharey=main_ax)
+
+    ref_xhist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
+    # ref_xhist = fig.add_subplot(grid[0, :-4], yticklabels=[], sharex=main_ax)
+    # d5_xhist = fig.add_subplot(grid[1, :-4], yticklabels=[], sharex=main_ax)
+    # p1_xhist = fig.add_subplot(grid[2, :-4], yticklabels=[], sharex=main_ax)
+    # d2_xhist = fig.add_subplot(grid[3, :-4], yticklabels=[], sharex=main_ax)
+
     # norm = mpl.colors.Normalize(vmin=0, vmax=20) # 
     # cmap = cm.jet # gist_earth
     # m = cm.ScalarMappable(norm=norm, cmap=cmap)
     # # Nguyen
     c_dict = dict({
-            "s1":"darkblue", "s2":"royalblue",
-            "p1":"moccasin", "f6":"orange",
-            "d2":"azure", "d5":"turquoise", "d6":"powderblue", "d7":"teal", "d10":"darkslategray",
-              
+            # "ofcenter":"black",
+            # "s1":"darkblue", "s2":"royalblue",
+            #  "f6":"magenta", "d6":"mediumpurple", 
+            # "d7":"teal", "d10":"steelblue",
+
+            # "d2":"maroon", 
+            "d5":"darkorange", "p1":"green",
             })
     # # # cyan, blue, 
 
     # # # setting fig only
-    fig, main_ax = plt.subplots(figsize=(8, 8), linewidth=1.0) # 
     org_x = copy.copy(xy[:, 0])
     org_y = copy.copy(xy[:, 1])
     min_org_x, max_org_x = min(org_x), max(org_x)
@@ -1257,28 +1292,59 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
     ymin, ymax = min(y), max(y)
     main_ax.set_xlim(xmin, xmax)
     main_ax.set_ylim(ymin, ymax)
+    
+    # for x_hist in (d2_xhist, p1_xhist, d5_xhist, ref_xhist):
+    #     x_hist.set_xlim(xmin, xmax)
+    #     # x_hist.set_ylim(0, 1.3)
+    #     x_hist.spines['top'].set_visible(False)
+    #     x_hist.spines['right'].set_visible(False)
+    #     x_hist.spines['bottom'].set_visible(False)
+    #     x_hist.spines['left'].set_visible(False)
+
+    # for y_hist in (d2_yhist, p1_yhist, d5_yhist, ref_yhist):
+    #     # y_hist.set_xlim(0, 1.3)
+    #     y_hist.set_ylim(ymin, ymax)
+    #     y_hist.spines['top'].set_visible(False)
+    #     y_hist.spines['right'].set_visible(False)
+    #     y_hist.spines['bottom'].set_visible(False)
+    #     y_hist.spines['left'].set_visible(False)
+
+    ref_xhist.set_xlim(xmin, xmax)
+    # x_hist.set_ylim(0, 1.3)
+    ref_xhist.spines['top'].set_visible(False)
+    ref_xhist.spines['right'].set_visible(False)
+    ref_xhist.spines['bottom'].set_visible(False)
+    ref_xhist.spines['left'].set_visible(False)
+
+    ref_yhist.set_ylim(ymin, ymax)
+    ref_yhist.spines['top'].set_visible(False)
+    ref_yhist.spines['right'].set_visible(False)
+    ref_yhist.spines['bottom'].set_visible(False)
+    ref_yhist.spines['left'].set_visible(False)
+
     xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
     positions = np.vstack([xx.ravel(), yy.ravel()])
     # # # end setting fig only
 
-
     # # show y_obs
-    # grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
-    # grid_interpolate = griddata(np.array([x, y]).T, background, (grid_x, grid_y), 
-    #     method='nearest')
-    # if vmin is None:
-    #         vmin = np.nanmin(grid_interpolate.T)
-    # if vmax  is None:
-    #     vmax = np.nanmax(grid_interpolate.T)
-    # # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-    # norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
-    # z_plot = main_ax.imshow(grid_interpolate.T, 
-    #     extent=(min(x),max(x),min(y),max(y)), origin='lower',
-    #     cmap=cmap,
-    #     norm=norm, 
-    #     # vmin=-max_ipl, vmax=max_ipl, 
-    #     interpolation="hamming",
-    #     alpha=0.9)
+    grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+    grid_interpolate = griddata(np.array([x, y]).T, background, (grid_x, grid_y), 
+        method='nearest')
+    if vmin is None:
+            vmin = np.nanmin(grid_interpolate.T)
+    if vmax  is None:
+        vmax = np.nanmax(grid_interpolate.T)
+    # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+
+    norm = m_colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+    bkg = ndimage.gaussian_filter(grid_interpolate.T, sigma=2, order=0)
+
+    z_plot = main_ax.imshow(bkg, 
+        extent=(min(x),max(x),min(y),max(y)), origin='lower',
+        cmap=cmap, norm=norm, 
+        # vmin=-max_ipl, vmax=max_ipl, 
+        interpolation="hamming",
+        alpha=0.9)
 
     # # prepare condition of bkg
     values_ref = np.vstack([x[ref_ids], y[ref_ids]])
@@ -1289,8 +1355,23 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
             # facecolor="yellow", 
             # alpha=0.2,
             extent=(10, 10, 50, 50), colors="red", linestyle="-.", linewidth=5
+            )
+    sns.distplot(y[ref_ids], bins=100, ax=ref_yhist, hist=False,
+                    kde_kws={"color": "red", "lw": 2},
+                    vertical=True, norm_hist=True)
+    sns.distplot(x[ref_ids], bins=100, ax=ref_xhist, hist=False,
+                    kde_kws={"color": "red", "lw": 2},
+                    vertical=False, norm_hist=True)
 
-            ) 
+    for hist in (ref_xhist, ref_yhist):
+        l1 = hist.lines[0]
+        x1 = l1.get_xydata()[:,0]
+        y1 = l1.get_xydata()[:,1]
+        hist.fill_between(x1, y1, color="red", alpha=0.3)
+        hist.fill_between(x1, y1, color="red", alpha=0.3)
+    # ref_xhist.bar(x[ref_ids], height=1, width=5, color="red")
+    # ref_yhist.barh(y[ref_ids], height=5, width=1, color="red")
+
     fmt = {}
     for l in cs.levels:
         fmt[l] = "target"
@@ -1300,11 +1381,13 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
     save_file = savedir + "{0}.pdf".format(term)
     idp_test = dict()
 
-    is_scatter = True
+    x_eval = np.linspace(xmin, xmax, 100)
+
     for i, v in enumerate(pv):
         z_values = X_all[:, i]
+        is_scatter = True
 
-        if len(set(z_values)) >1 and term in v:
+        if len(set(z_values)) >1 and term in v and "-f6" not in v:
             ft_ids = np.where(z_values!=0)[0]
 
             this_corr = None
@@ -1324,7 +1407,9 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
             if "of" in v:
                 c_term = v[:v.find("-")]
             else:
+                # c_term = v[v.find("-")+1:]
                 c_term = v[v.find("-")+1:]
+
             values = np.vstack([xf, yf])
             kernel = stats.gaussian_kde(values)
             f = np.reshape(kernel(positions).T, xx.shape)
@@ -1334,18 +1419,89 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
             # Contourf plot
             levels = 1
             fmt = {}
+            if "-d5" in v or "-p1" in v:
+                colors = c_dict[c_term]
+                alpha = 1.0
+                linestyle = "-"
+
+            else:
+                colors = "black"
+                alpha = 0.3
+                linestyle = "."
+
             cs = main_ax.contour(xx, yy, f, 
                     levels=levels, corner_mask=False,
-                    extent=None, colors=c_dict[c_term],
-                    label=v
+                    extent=None, colors=colors, alpha=alpha,
+                    linestyle=linestyle
+                    # label=v
                     ) 
-            for l in cs.levels:
-                fmt[l] = v
-                if this_corr is not None and abs(this_corr) > 0.7:
-                    fmt[l] += str(round(this_corr,2))
+            # cset = main_ax.contour(xx, yy, f, zdir='x', evels=levels, corner_mask=False,
+            #         extent=None, colors=c_dict[c_term])
+            # cset = main_ax.contour(xx, yy, f, zdir='y', evels=levels, corner_mask=False,
+            #         extent=None, colors=c_dict[c_term])
+
+            # sns.rugplot(x=f, height=-.02, clip_on=False)
+            # main_ax = upper_rugplot(f, ax=main_ax)
+            # n_p = int(len(ft_ids) / 5)
+            # xf_sorted = sorted(xf)[n_p:4*n_p]
+            # yf_sorted = sorted(yf)[n_p:4*n_p]
+
+            xf_sorted = copy.copy(xf)
+            yf_sorted = copy.copy(yf)
+
+            if "-d5" in v:
+                # d5_xhist.bar(xf_sorted, height=1, width=5, color=c_dict[c_term], alpha=0.8)
+                # d5_yhist.barh(yf_sorted, height=5, width=1, color=c_dict[c_term], alpha=0.8)
+                
+                sns.distplot(yf_sorted, bins=100, ax=ref_yhist, hist=False,
+                    kde_kws={"color": c_dict[c_term], "lw": 2},
+                    vertical=True, norm_hist=True)
+                sns.distplot(xf_sorted, bins=100, ax=ref_xhist, hist=False,
+                    kde_kws={"color": c_dict[c_term], "lw": 2},
+                    vertical=False, norm_hist=True)
+                # d5_xhist.set_ylabel(v)
+                # d5_yhist.set_xlabel(v)
+
+            # if "-d2" in v:
+            #     sns.distplot(yf_sorted, bins=100, ax=ref_yhist, hist=False,
+            #         kde_kws={"color": c_dict[c_term], "lw": 2},
+            #         vertical=True, norm_hist=True)
+            #     sns.distplot(xf_sorted, bins=100, ax=ref_xhist, hist=False,
+            #         kde_kws={"color": c_dict[c_term], "lw": 2},
+            #         vertical=False, norm_hist=True)
+            #     d2_xhist.bar(xf_sorted, height=1, width=5, color=c_dict[c_term], alpha=0.8)
+            #     d2_yhist.barh(yf_sorted, height=5, width=1, color=c_dict[c_term], alpha=0.8)
+
+                # d2_xhist.set_ylabel(v)
+                # d2_yhist.set_xlabel(v)
+
+            if "-p1" in v:
+                sns.distplot(yf_sorted, bins=100, ax=ref_yhist, hist=False,
+                    kde_kws={"color": c_dict[c_term], "lw": 2},
+                    vertical=True, norm_hist=True)
+                sns.distplot(xf_sorted, bins=100, ax=ref_xhist, hist=False,
+                    kde_kws={"color": c_dict[c_term], "lw": 2},
+                    vertical=False, norm_hist=True)
+            #     p1_xhist.bar(xf_sorted, height=1, width=5, color=c_dict[c_term], alpha=0.8)
+            #     p1_yhist.barh(yf_sorted, height=5, width=1, color=c_dict[c_term], alpha=0.8)
+                
+                # p1_xhist.set_ylabel(v)
+                # p1_yhist.set_xlabel(v)
+            # main_ax.plot(positions, [0.01]*len(positions), '|', color='k')
+            # main_ax.plot(x_eval, kernel(x_eval), linestyle="-",
+            #      color=c_dict[c_term] ) # # label="Scott's Rule"
+
+            # main_ax.hbar(yf, height=main_ax.get_xlim()[1]/10, width=0.001)
+            # ax.plot(x_eval, kde1(x_eval), 'k-', label="Scott's Rule")
 
 
-            main_ax.clabel(cs, inline=1, fontsize=10, fmt=fmt)
+            # for l in cs.levels:
+            #     fmt[l] = v
+            #     if this_corr is not None and abs(this_corr) > 0.7:
+            #         fmt[l] += str(round(this_corr,2))
+
+
+            # main_ax.clabel(cs, inline=1, fontsize=10, fmt=fmt)
             cs.cmap.set_under('white')
 
             # # to plot map of interested feature
@@ -1408,7 +1564,216 @@ def fts_on_embedding(term, pv, estimator, X_train, y_train,
     release_mem(fig=fig)
     return idp_test
 
+def smoothness_2d(matrix, X_plot):
+    X_data = []
 
+    for ith, row in enumerate(matrix):
+        kde = KernelDensity(kernel="gaussian", bandwidth=0.35).fit(np.array(row).reshape(-1,1))
+        log_dens = kde.score_samples(X_plot)
+        X_data.append(np.exp(log_dens))
+    
+    # X_data = np.array(X_data)
+    # gps = []
+    # for i in range(100):
+    #     kernel = C(0.5, (1e-3, 1e3)) * RBF(10, (1e-2, 1e2))
+    #     gp = GaussianProcessRegressor(kernel=kernel, n_restarts_optimizer=10, random_state=0)
+    #     gp.fit(np.array(range(y_range[1]+1)).reshape(-1,1),X_data[:,i])
+    #     gps.append(gp)
+
+    # X, Y = np.meshgrid(X_plot, Y_plot)
+    # Z = None
+    # for ith, gp in enumerate(gps):  
+    #     dens_pred = gp.predict(Y[:,ith].reshape(-1,1))
+    #     if ith == 0:
+    #         Z = np.array(dens_pred).reshape(-1,1)
+    #     else:
+    #         Z = np.concatenate((Z, np.array(dens_pred).reshape(-1,1)), axis=1)
+    return X_data
+
+
+def fts_on_embedding_2(list_term, pv, estimator, X_train, y_train,
+                ref_ids,
+                X_all, xy, savedir, background, 
+                vmin=None, vmax=None, cmap="jet", y_pred=None,
+                list_cdict=None, marker=None, alphas=None):
+    # fig, main_ax = plt.subplots(figsize=(8, 8), linewidth=1.0) # 
+
+    fig = plt.figure(figsize=(9, 9), linewidth=1.0)
+    grid = plt.GridSpec(4, 4, hspace=0.05, wspace=0.05)
+    main_ax = fig.add_subplot(grid[1:, :-1])
+
+    ref_yhist = fig.add_subplot(grid[1:, -1], xticklabels=[], sharey=main_ax)
+    ref_xhist = fig.add_subplot(grid[0, :-1], yticklabels=[], sharex=main_ax)
+
+    c_dict = dict({
+            # "ofcenter":"black",
+            # "s1":"darkblue", "s2":"royalblue",
+            #  "f6":"magenta", "d6":"mediumpurple", 
+            # "d7":"teal", "d10":"steelblue",
+
+            # "d2":"maroon", 
+            "d5":"darkorange", "p1":"green",
+            })
+    # # # cyan, blue, 
+
+    # # # setting fig only
+    org_x = copy.copy(xy[:, 0])
+    org_y = copy.copy(xy[:, 1])
+    min_org_x, max_org_x = min(org_x), max(org_x)
+    min_org_y, max_org_y = min(org_y), max(org_y)
+    x = MinMaxScaler().fit_transform(np.array(org_x).reshape(-1, 1)) * 200
+    y = MinMaxScaler().fit_transform(np.array(org_y).reshape(-1, 1)) * 200
+    x = x.T[0]
+    y = y.T[0]
+    tick_pos = [0.0, 50.0, 100.0, 150.0, 200.0]
+    tmp = np.arange(min_org_x, max_org_x, (max_org_x - min_org_x)/len(tick_pos))
+    xticklabels = [myround(k,5) for k in tmp]
+    tmp = np.arange(min_org_y, max_org_y, (max_org_y - min_org_y)/len(tick_pos))
+    yticklabels = [myround(k,5) for k in tmp]
+    xmin, xmax = min(x), max(x)
+    ymin, ymax = min(y), max(y)
+    main_ax.set_xlim(xmin, xmax)
+    main_ax.set_ylim(ymin, ymax)
+    
+
+    ref_xhist.set_xlim(xmin, xmax)
+    ref_xhist.spines['top'].set_visible(False)
+    ref_xhist.spines['right'].set_visible(False)
+    ref_xhist.spines['bottom'].set_visible(False)
+    ref_xhist.spines['left'].set_visible(False)
+
+    ref_yhist.set_ylim(ymin, ymax)
+    ref_yhist.spines['top'].set_visible(False)
+    ref_yhist.spines['right'].set_visible(False)
+    ref_yhist.spines['bottom'].set_visible(False)
+    ref_yhist.spines['left'].set_visible(False)
+
+    xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
+    positions = np.vstack([xx.ravel(), yy.ravel()])
+    # # # end setting fig only
+
+    # # show y_obs
+    grid_x, grid_y = np.mgrid[min(x):max(x):100j, min(y):max(y):100j]
+    grid_interpolate = griddata(np.array([x, y]).T, background, (grid_x, grid_y), 
+        method='nearest')
+    if vmin is None:
+            vmin = np.nanmin(grid_interpolate.T)
+    if vmax  is None:
+        vmax = np.nanmax(grid_interpolate.T)
+    # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+    norm = m_colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+
+    bkg = ndimage.gaussian_filter(grid_interpolate.T, sigma=2, order=0)
+
+    z_plot = main_ax.imshow(bkg, 
+        extent=(min(x),max(x),min(y),max(y)), origin='lower',
+        cmap=cmap, norm=norm, 
+        # vmin=-max_ipl, vmax=max_ipl, 
+        interpolation="hamming",
+        alpha=0.9)
+
+    # # prepare condition of bkg
+    values_ref = np.vstack([x[ref_ids], y[ref_ids]])
+    kernel_ref = stats.gaussian_kde(values_ref)
+    f_ref = np.reshape(kernel_ref(positions).T, xx.shape)
+    cs = main_ax.contour(xx, yy, f_ref, # contourf
+            levels=1, corner_mask=False,
+            # facecolor="red", 
+            # alpha=0.3,
+            extent=(10, 10, 50, 50), colors="red", linestyle="-.", linewidth=5
+            )
+    sns.distplot(y[ref_ids], bins=100, ax=ref_yhist, hist=False,
+                    kde_kws={"color": "red", "lw": 2},
+                    vertical=True, norm_hist=True)
+    sns.distplot(x[ref_ids], bins=100, ax=ref_xhist, hist=False,
+                    kde_kws={"color": "red", "lw": 2},
+                    vertical=False, norm_hist=True)
+    for hist in (ref_xhist, ref_yhist):
+        l1 = hist.lines[0]
+        x1 = l1.get_xydata()[:,0]
+        y1 = l1.get_xydata()[:,1]
+        hist.fill_between(x1, y1, color="red", alpha=0.3)
+        hist.fill_between(x1, y1, color="red", alpha=0.3)
+
+    # ref_xhist.bar(x[ref_ids], height=1, width=5, color="orangered")
+    # ref_yhist.barh(y[ref_ids], height=5, width=1, color="orangered")
+
+    fmt = {}
+    for l in cs.levels:
+        fmt[l] = "target"
+    main_ax.clabel(cs, inline=1, fontsize=10, fmt=fmt)
+
+    # # # end show y_obs
+    save_file = savedir + "{0}.pdf".format("|".join(list_term.keys()))
+    idp_test = dict()
+
+    x_eval = np.linspace(xmin, xmax, 100)
+
+    for i, v in enumerate(pv):
+        z_values = X_all[:, i]
+        is_scatter = True
+
+        if len(set(z_values)) >1 and v in list_term.keys():
+            ft_ids = np.where(z_values!=0)[0]
+
+            this_corr = None
+            if y_pred is not None:
+                this_z = z_values[ft_ids]
+                this_y_pred = y_pred[ft_ids]
+
+                this_z = MinMaxScaler().fit_transform(this_z.reshape(-1, 1))
+                this_y_pred = MinMaxScaler().fit_transform(this_y_pred.reshape(-1, 1))
+
+                this_corr = stats.spearmanr(this_z, this_y_pred)[0]
+
+
+            xf = x[ft_ids]
+            yf = y[ft_ids]
+            # # colored by center
+            c_term = v[:v.find("-")]
+            colors = list_term[v]
+            alpha = 1.0
+            linestyle = "-"
+
+
+            values = np.vstack([xf, yf])
+            kernel = stats.gaussian_kde(values)
+            f = np.reshape(kernel(positions).T, xx.shape)
+
+            BC_coeff = np.sum(np.sqrt(f * f_ref))
+            idp_test[v] = BC_coeff
+            # Contourf plot
+            levels = 1
+            fmt = {}
+
+
+            cs = main_ax.contour(xx, yy, f, 
+                    levels=levels, corner_mask=False,
+                    extent=None, colors=colors, alpha=alpha,
+                    linestyle=linestyle
+                    # label=v
+                    )
+
+            sns.distplot(yf, bins=100, ax=ref_yhist, hist=False,
+                kde_kws={"color": colors, "lw": 2},
+                vertical=True, norm_hist=True)
+            sns.distplot(xf, bins=100, ax=ref_xhist, hist=False,
+                kde_kws={"color": colors, "lw": 2},
+                vertical=False, norm_hist=True)
+
+            cs.cmap.set_under('white')
+
+    main_ax.axes.xaxis.set_ticks([])
+    main_ax.axes.yaxis.set_ticks([])
+    
+    # main_ax.set_aspect('auto')
+    plt.tight_layout(pad=1.1)
+    makedirs(save_file)
+    print ("Save at: ", save_file)
+    plt.savefig(save_file, transparent=False, bbox_inches="tight")
+
+    release_mem(fig=fig)
+    return idp_test
 
 
 def dump_interpolate(x, y, z_values=None, 
@@ -1439,7 +1804,7 @@ def imshow(grid, cmap, save_file, vmin=None, vmax=None):
         vmax = np.nanmax(grid.T)
 
     # norm = colors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
-    norm = colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
+    norm = m_colors.DivergingNorm(vmin=vmin, vcenter=0.0, vmax=vmax)
     z_plot = main_ax.imshow(grid.T, 
         cmap=cmap,
         norm=norm, 
@@ -1716,11 +2081,11 @@ def plt_half_filled(ax, x, y, cdict, alpha):
     if ratio1 == ratio2:
         print (ratio1, ratio2)
 
-        HalfA = mpl.patches.Wedge((x, y), 0.01, alpha=1.0, 
+        HalfA = mpl.patches.Wedge((x, y), 1.2, alpha=1.0, 
             theta1=0-rot,theta2=angle1-rot, facecolor=color1, 
             lw=0.1, 
             edgecolor="black") # #None
-        HalfB = mpl.patches.Wedge((x, y), 0.01, alpha=1.0, # 0.012
+        HalfB = mpl.patches.Wedge((x, y), 1.2, alpha=1.0, # 0.012
             theta1=angle1-rot,theta2=360-rot, facecolor=color2,
             lw=0.1, 
             edgecolor="black") # #None
@@ -1762,27 +2127,25 @@ def plot_heatmap(matrix, vmin, vmax, save_file, cmap, lines=None, title=None):
         vmax = np.max(np.array(matrix))
     if vmin is None:
         vmin = np.min(np.array(matrix))
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(8, 10))
 
     ax = fig.add_subplot(1, 1, 1)
-    print (matrix)
-    print (vmin, vmax)
 
     ax = sns.heatmap(matrix, cmap=cmap, 
             xticklabels=True,
             yticklabels=True,
-            annot_kws={"size":1},
-            vmax=vmax, vmin=vmin)
+            annot_kws={"size":0.5},
+            vmax=vmax, vmin=vmin, cbar=False)
 
     makedirs(save_file)
-    if title is None:
-        plt.title(get_basename(save_file))
-    else:
-        plt.title(title)
+    # if title is None:
+    #     plt.title(get_basename(save_file))
+    # else:
+    #     plt.title(title)
 
     if lines is not None:
-        ax.hlines(lines, *ax.get_xlim(), colors="white")
-        ax.vlines(lines, *ax.get_ylim(), colors="white")
+        ax.hlines(lines, *ax.get_xlim(), colors="white", linewidth=2)
+        # ax.vlines(lines, *ax.get_ylim(), colors="white")
 
 
     plt.savefig(save_file, transparent=False)
@@ -1953,7 +2316,7 @@ def get_2d_interpolate(x, y, z_values):
 
 
 def curve_fit(x, y, ax, label, marker, c, is_fit=False):
-    gp_kernel = ConstantKernel(constant_value=1)*RBF(length_scale=0.3) + WhiteKernel(noise_level=0.01)
+    gp_kernel = ConstantKernel(constant_value=1)*RBF(length_scale=0.5) + WhiteKernel(noise_level=0.01)
     reg = GaussianProcessRegressor(kernel=gp_kernel)
 
     # reg = utils.get_model("u_gp", 1, True, n_shuffle=10000,
@@ -1966,14 +2329,14 @@ def curve_fit(x, y, ax, label, marker, c, is_fit=False):
     ymean, ystd = reg.predict(X_train, return_std=True)
 
     ax.scatter(x, y, color=c, marker=marker, label=label)
-    # ax.plot(x, ymean, color=c)
+    ax.plot(x, ymean, color=c)
 
-    # # try:
-    # ax.fill_between(x.ravel(), ymean-ystd/2, ymean+ystd/2,
-    #     color=c, alpha=0.2,
-    #     )
-    # except Exception as e:
-    #     pass
+    try:
+        ax.fill_between(x.ravel(), ymean-ystd/2, ymean+ystd/2,
+            color=c, alpha=0.2,
+            )
+    except Exception as e:
+        pass
     return ax
 
 

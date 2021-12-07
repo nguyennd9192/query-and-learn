@@ -198,8 +198,8 @@ def ofm_diff_correlation():
 	pv = ofm_df.columns 
 
 	main_savedir = get_savedir(ith_trial=FLAGS.ith_trial)
-	savedir = main_savedir + "/query_60"
-	plot_file = savedir + "/query_60ipl_plot.csv"
+	savedir = main_savedir + "/query_30"
+	plot_file = savedir + "/query_30ipl_plot.csv"
 	plot_df = pd.read_csv(plot_file, index_col=0)
 	# # missing index
 	missing_index = ["mix-_-Sm-Fe9-Al2-Zn1-_-Zn_10___Al_0-6"]
@@ -225,98 +225,28 @@ def ofm_diff_correlation():
 	list_cdict = np.array([get_color_112(k) for k in index]) # 
 	alphas = np.array([0.8] * len(index))
 
-	# # plot all pvs
-	# for i, v in enumerate(pv):
-	# 	for term in terms:
-	# 		if term in v:
-	# 			save_file = main_savedir+"/ofm_diff_ene/{0}/{1}.pdf".format(term, v)
-	# 			y = plot_df.loc[index, "y_obs"].values
-	# 			x = ofm_df.loc[index, v].values
-
-	# 			flt = np.where(x==0)[0]
-	# 			x_flt = np.delete(x, flt)
-	# 			y_flt = np.delete(y, flt)
-	# 			cdict_flt = np.delete(list_cdict, flt)
-	# 			mk_flt = np.delete(marker_array, flt)
-
-	# 			# scatter_plot_6(x, y, z_values=None, 
-	# 			# 	list_cdict=list_cdict, xvlines=None, yhlines=None, 
-	# 			#     sigma=None, mode='scatter', lbl=None, name=None, 
-	# 			#     s=1, alphas=alphas, title=None,
-	# 			#     x_label='x', y_label='y', 
-	# 			#     save_file=save_file, interpolate=False, color='blue', 
-	# 			#     preset_ax=None, linestyle='-.', marker=marker_array)
-	# 			scaler_y = MinMaxScaler().fit(y.reshape(-1,1))
-
-	# 			if len(x_flt) != 0:
-	# 				scatter_plot_6(x=x_flt, y=y_flt, 
-	# 						z_values=None,
-	# 						list_cdict=cdict_flt, 
-	# 						xvlines=[0.0], yhlines=[0.0], 
-	# 						sigma=None, mode='scatter', lbl=None, name=None, 
-	# 						s=60, alphas=alphas, 
-	# 						title=save_file.replace(ALdir, ""),
-	# 						x_label=v,
-	# 						y_label="y_obs", 
-	# 						save_file=save_file, scaler_y=scaler_y,
-	# 						interpolate=False, cmap="PiYG",
-	# 						preset_ax=None, linestyle='-.', marker=mk_flt,
-	# 						# vmin=np.nanmin(z_values), vmax=np.nanmax(z_values), vcenter=0
-	# 						)
-
-	# #  # violin plot 
-	# selected_pv = ["f6-d7", "d10-d10", "p1-d6", "s1-f6"]
-	# save_file = main_savedir+"/violin/{0}.pdf".format("|".join(selected_pv))
-
-	# fig = plt.figure(figsize=(12, 8), linewidth=1.0)
-	# grid = plt.GridSpec(5, 5, hspace=0.2, wspace=0.2)
-	# main_ax = fig.add_subplot(grid[:, :])
-	# for i, v in enumerate(selected_pv):
-	# 	ene = plot_df.loc[index, "y_obs"].values
-	# 	x = ofm_df.loc[index, v].values
-
-	# 	flt = np.where(x==0)[0]
-	# 	x_flt = np.delete(x, flt)
-	# 	ene_flt = np.delete(ene, flt)
-	# 	# # ái for violin always begin with 1
-	# 	main_ax.violinplot(dataset=x_flt, positions=[i+1], showmeans=True)
-	# main_ax.axhline(y=0.0, xmin=0.0, xmax=len(selected_pv), linestyle='-.', color='grey', alpha=0.7)
-
-	# set_axis_style(ax=main_ax, labels=selected_pv)
-	# plt.tight_layout(pad=1.1)
-	# makedirs(save_file)
-	# print ("Save at:", save_file)
-	# plt.savefig(save_file, transparent=False)
-
 	pres = [ 
-	   "d10-", 
-	   "d7-", 
-	   "d5-", 
-	   "d2-", 
-	   "p1-", 
-	   "s2-", 
-	   "s1-", 
-	   "f6-", 
-	   "d6-"
+	   "d10-", "d7-",  "d5-",  "d2-", 
+	   "p1-",  "s2-",  "s1-",  "f6-", "d6-"
+
+	   # "d6-", "p1-",
 			]
 	posts = [ 
-		"d6", "f6",
 		"s1", "s2", 
-		"p1", "d2", "d5", "d7", "d10"
+		"p1", "d2", "d5", "d6", "d7", "d10", "f6"
 		]
 	# save_file = main_savedir+"/violin/all_custom.pdf"
-	save_file = main_savedir+"/violin/new/{0}.pdf".format("|".join(pres))
-
-	# for b in all_pres:
-		# pres = [b]
-		# save_file = main_savedir+"/violin/{0}.pdf".format(b)
+	save_file = main_savedir+"/violin/211020/{0}.pdf".format("|".join(pres))
 
 	fig = plt.figure(figsize=(8, 10), linewidth=1.0)
 	grid = plt.GridSpec(len(pres), len(posts), hspace=0.0, wspace=0.0)
+	
+	l = range(2*len(posts))
+	x_pos = l[1::2]
 
 	for row, pre in enumerate(pres):
 		ax = fig.add_subplot(grid[row, :], xticklabels=[])
-		# ax2 = ax.twinx()
+		ax2 = ax.twinx()
 
 		for col, post in enumerate(posts):
 			v = pre + post
@@ -331,42 +261,39 @@ def ofm_diff_correlation():
 				# volume_flt = np.delete(volume, flt)
 
 				if len(x_flt)!=0:
-					violin_parts = ax.violinplot(dataset=x_flt, positions=[col+1.0-0.2], # 
+					violin_parts = ax.violinplot(dataset=x_flt, positions=[x_pos[col]-0.35], # 
 						showmeans=True, vert=True, #showmedians=True
 						showextrema=False,  # False
 						points=len(x_flt)
 						)
-					set_color_violin(x_flt=x_flt, violin_parts=violin_parts, pc="red", nc="darkblue")
+					set_color_violin(x_flt=x_flt, violin_parts=violin_parts, pc="orange", nc="darkblue")
 
-					violin_parts_2 = ax.violinplot(dataset=ene_flt, positions=[col+1.0+0.2], # 
+					violin_parts_2 = ax2.violinplot(dataset=ene_flt, positions=[x_pos[col]+0.35], # 
 						showmeans=True, vert=True, #showmedians=True
 						showextrema=False,  # False
 						points=len(ene_flt)
 						)
-					set_color_violin(x_flt=ene_flt, violin_parts=violin_parts_2, pc="gray", nc="orange")
+					set_color_violin(x_flt=ene_flt, violin_parts=violin_parts_2, pc="green", nc="red")
 
+					ax.axvline(x=x_pos[col]+1.0, ymin=-1, ymax=1, 
+						linestyle=':', color='black', alpha=0.3,
+						linewidth=1.0)
 
-					# violin_parts_3 = ax2.violinplot(dataset=volume_flt, positions=[col+1.0+0.2], # 
-					# 	showmeans=True, vert=True, #showmedians=True
-					# 	showextrema=False,  # False
-					# 	points=len(volume_flt)
-					# 	)
-					# set_color_violin(x_flt=volume_flt, violin_parts=violin_parts_3, 
-					# 	pc="red", nc="darkblue")
-
-					# ax.set_ylim(-0.5,0.25)
-					# ax.set_ylim(-0.15,0.28)
-					# ax2.set_ylim(-0.15,0.28)
+					ax.set_ylim(-0.18,0.18)
+					ax2.set_ylim(-0.19,0.19)
 
 					# customize(data=x_flt, ax=ax, positions=[col+1])
 
-		set_axis_style(ax=ax, labels=posts)
+		# set_axis_style(ax=ax, labels=posts)
+		ax.xaxis.set_tick_params(direction='out')
+		ax.xaxis.set_ticks_position('bottom')
+		ax.set_xticks(x_pos)
+		ax.set_xticklabels(posts)
+		ax.set_xlim(0.0, 2*len(posts))
 		ax.axhline(y=0.0, xmin=0.0, xmax=len(posts), 
 			linestyle='-.', color='black', alpha=0.7,
 			linewidth=1.0)
 		ax.set_ylabel(pre)
-
-		# plt.yscale('symlog')
 
 	ax.set_xlabel("")
 
@@ -374,180 +301,7 @@ def ofm_diff_correlation():
 	makedirs(save_file)
 	print ("Save at:", save_file)
 	plt.savefig(save_file, transparent=False)
-	# release_mem(fig=fig)
 
-
-
-def ofm_diff_correlation_byname():
-	ofm_diff_file = "{}/data/SmFe12/ofm_diff/summary.csv".format(ALdir)
-	ofm_df = pd.read_csv(ofm_diff_file, index_col=0)
-	pv = ofm_df.columns 
-
-	main_savedir = get_savedir(ith_trial=FLAGS.ith_trial)
-	savedir = main_savedir + "/query_30"
-	plot_file = savedir + "/query_30ipl_plot.csv"
-	plot_df = pd.read_csv(plot_file, index_col=0)
-	# # missing index
-	missing_index = ["mix-_-Sm-Fe9-Al2-Zn1-_-Zn_10___Al_0-6"]
-	plot_df.set_index('index', inplace=True)
-	plot_df.drop(missing_index, inplace=True)
-
-	index = list(plot_df.index)
-
-	pres = [ 
-	   
-			]
-	posts = [ 
-		
-		]
-	save_file = main_savedir+"/violin/all_custom.pdf"
-	# save_file = main_savedir+"/violin/{0}.pdf".format("|".join(pres))
-
-	# for b in all_pres:
-		# pres = [b]
-		# save_file = main_savedir+"/violin/{0}.pdf".format(b)
-
-	fig = plt.figure(figsize=(6, 8), linewidth=1.0)
-	grid = plt.GridSpec(len(pres), len(posts), hspace=0.0, wspace=0.0)
-
-	for row, pre in enumerate(pres):
-		ax = fig.add_subplot(grid[row, :], xticklabels=[])
-		# ax2 = ax.twinx()
-
-		for col, post in enumerate(posts):
-			v = pre + post
-			if v in ofm_df.columns:
-				ene = plot_df.loc[index, "y_obs"].values
-				x = ofm_df.loc[index, v].values
-				
-				flt = np.where(x==0)[0]
-				x_flt = np.delete(x, flt)
-				ene_flt = np.delete(ene, flt)
-
-				if len(x_flt)!=0:
-					violin_parts = ax.violinplot(dataset=x_flt, positions=[col+1.0-0.2], # 
-						showmeans=True, vert=True, #showmedians=True
-						showextrema=False,  # False
-						points=len(x_flt)
-						)
-
-					# norm = colors.DivergingNorm(vmin=vmin, vcenter=vcenter, vmax=vmax)
-					set_color_violin(x_flt=x_flt, violin_parts=violin_parts, pc="red", nc="darkblue")
-
-					violin_parts_2 = ax.violinplot(dataset=ene_flt, positions=[col+1.0+0.2], # 
-						showmeans=True, vert=True, #showmedians=True
-						showextrema=False,  # False
-						points=len(ene_flt)
-						)
-					set_color_violin(x_flt=ene_flt, violin_parts=violin_parts_2, pc="gray", nc="orange")
-
-					# ax.set_ylim(-0.5,0.25)
-					# ax.set_ylim(-0.15,0.28)
-					# ax2.set_ylim(-0.15,0.28)
-
-					# customize(data=x_flt, ax=ax, positions=[col+1])
-
-		set_axis_style(ax=ax, labels=posts)
-		ax.axhline(y=0.0, xmin=0.0, xmax=len(posts), 
-			linestyle='-.', color='black', alpha=0.7,
-			linewidth=1.0)
-		ax.set_ylabel(pre)
-
-		# plt.yscale('symlog')
-
-	ax.set_ylabel("")
-
-	plt.tight_layout(pad=1.1)
-	makedirs(save_file)
-	print ("Save at:", save_file)
-	plt.savefig(save_file, transparent=False)
-	# release_mem(fig=fig)
-
-
-
-
-
-def simple_pearson():
-	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = load_data()
-	lim_os = -0.05
-	ids = np.where(unlbl_y < lim_os)[0]
-
-	# print (unlbl_y[ids])
-	# print (unlbl_index[ids])
-	x = np.concatenate((X_train[:, 28], unlbl_X[:, 28]), axis=0)
-	y = np.concatenate((y_train, unlbl_y), axis=0)
-
-	scatter_plot(x=x, y=y, xvline=None, yhline=None, 
-		sigma=None, mode='scatter', lbl=None, name=None, 
-		x_label='x', y_label='y', 
-		save_file=result_dropbox_dir+"/test.pdf", interpolate=False, color='blue', 
-		linestyle='-.', 
-		marker=['o']*len(y), title=None)
-	return unlbl_index[ids]
-
-
-def get_normal(surf):
-	grad = np.gradient(surf, edge_order=1)  
-	zy, zx = grad[0], grad[1]
-	# You may also consider using Sobel to get a joint Gaussian smoothing and differentation
-	# to reduce noise
-	#zx = cv2.Sobel(d_im, cv2.CV_64F, 1, 0, ksize=5)     
-	#zy = cv2.Sobel(d_im, cv2.CV_64F, 0, 1, ksize=5)
-
-	normal = np.dstack(grad)
-	n = np.linalg.norm(normal, axis=2)
-	normal[:, :, 0] /= n
-	normal[:, :, 1] /= n
-	return normal
-
-
-	
-def two_map_sim(savedir, ref, ft, ref_map):
-
-	savefig = savedir + "/fig"
-	ft_file = savedir + "/ft/{}.txt".format(ft)
-	ft_map = np.loadtxt(ft_file)
-
-	ref_grad = get_normal(surf=ref_map)
-	ft_grad = get_normal(surf=ft_map)
-	
-	sim_map = np.multiply(ref_grad, ft_grad).sum(2)
-	sim_score = np.nanmean(np.abs(sim_map))
-
-	save_at = savedir+"/{0}/{1}.pdf".format(ref, ft)
-	two_surf(surf1=ref_map, surf2=ft_map, 
-		lbl1=ref, lbl2=ft, title=save_at.replace(ALdir, "") +'\n'+ str(round(sim_score, 3)),
-		save_at=save_at)
-
-	# save_file = savedir + "/sim_map.pdf"
-	# imshow(grid=sim_map, cmap="tab20c", 
-	# 	save_file=save_file, vmin=-0.01, vmax=1)
-
-	# gradient_map(list_vectors=ref_grad, 
-	# 	save_file=savefig+"/{}.pdf".format(ref))
-	# gradient_map(list_vectors=ft_grad, 
-	# 	save_file=savefig +"/{}.pdf".format(ft))
-	return sim_score
-
-
-def map_features(qid):
-	X_train, y_train, index_train, unlbl_X, unlbl_y, unlbl_index, pv = all_data
-	savedir = get_savedir(ith_trial=FLAGS.ith_trial)
-	
-	query_file = savedir + "/query_{0}/query_{0}.csv".format(qid)
-	save_file= savedir+"/query_{0}/ft/{1}.txt".format(qid, v)
-
-def A_matrix(A_file, saveat):
-	df = pd.read_csv(A_file, index_col=0)
-	df = df.sort_values(by=['0'])
-	array = df['0'].values
-	index = df.index
-
-	scatter_plot(index, array, xvline=None, yhline=None, 
-		sigma=None, mode='line', lbl=None, name=None, 
-		x_label='x', y_label='y', 
-		save_file=saveat, interpolate=False, color='blue', 
-		linestyle='-.', marker='o', title=None)
 
 if __name__ == "__main__":
 	FLAGS(sys.argv)
@@ -571,28 +325,9 @@ if __name__ == "__main__":
 	save_score = savedir+"/x_on_embedd_score_qid.csv"
 	ref = "y_all_obs"
 
-	# for qid in qids:
-	# 	get_embedding_map(qid=qid, all_data=all_data)
-	# 	# ofm_diff_map(qid=qid, all_data=all_data)
-
-	# 	qid_dir = savedir + "/query_{}/x_on_embedd_".format(qid)
-	# 	ref_file = qid_dir + "/{}.txt".format(ref)
-	# 	ref_map = np.loadtxt(ref_file)
-	# 	for v in pv:
-	# 		sim_score = two_map_sim(
-	# 			savedir=qid_dir, ref=ref, ft=v,
-	# 			ref_map=ref_map)
-	# 		df.loc[v, qid] = sim_score
-	# 		df.to_csv(save_score)
-
 	ofm_diff_correlation()
 
 
-	# qid = 1
-	# A_file =  savedir + "/query_{0}/Amatrix_{0}.csv".format(qid)
-	# saveat =  savedir + "/query_{0}/Amatrix_{0}.pdf".format(qid)
-
-	# A_matrix(A_file=A_file, saveat=saveat)
 
 
 

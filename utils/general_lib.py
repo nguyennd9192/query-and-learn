@@ -130,7 +130,8 @@ def get_color_feature(v):
 			"s1":"darkblue", "s2":"royalblue",
 			"p1":"moccasin", "f6":"orange",
 			
-			"d2":"azure", "d5":"turquoise", "d6":"powderblue", "d7":"teal", "d10":"darkslategray",
+			"d2":"azure", "d5":"turquoise", "d6":"powderblue", 
+			"d7":"teal", "d10":"darkslategray",
 			  
 			})
 	c = "black"
@@ -177,17 +178,11 @@ def get_color_112(index):
 def get_marker_112(index):
 	m = "|"
 	if "1-11-1" in index:
-		m = "s"
+		m = "P"
 	elif "1-10-2" in index:
-		m = "H"
+		m = "+" 
 	elif "1-9-3" in index:
-		m = "v"
-	elif "2-23-1" in index:
-		m = "X"
-	elif "2-22-2" in index:
-		m = "p"
-	elif "2-21-3" in index:
-		m = "^"
+		m = "x" # 
 	return m
 
 def get_family(index):
